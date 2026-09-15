@@ -1,0 +1,33 @@
+<div class="proto" role="group" aria-label="Prototype controls">
+	<button type="button" data-theme-pick="obsidian" data-mode="dark">Obsidian</button>
+	<button type="button" data-theme-pick="night" data-mode="dark">Night</button>
+	<button type="button" data-theme-pick="graphite" data-mode="dark">Graphite</button>
+	<button type="button" data-theme-pick="amethyst" data-mode="dark">Amethyst</button>
+	<button type="button" data-theme-pick="alabaster" data-mode="light">Alabaster</button>
+	<label><input type="checkbox" id="reduce"> Reduced motion</label>
+</div>
+<script>
+(() => {
+	const root = document.documentElement;
+	const params = new URLSearchParams(location.search);
+	const hash = new URLSearchParams(location.hash.slice(1));
+	const pick = (id) => {
+		const b = document.querySelector(`[data-theme-pick="${id}"]`);
+		if (!b) return;
+		root.dataset.theme = id;
+		root.dataset.mode = b.dataset.mode;
+		document.querySelectorAll('[data-theme-pick]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+		document.dispatchEvent(new CustomEvent('themechange', { detail: id }));
+	};
+	document.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.themePick)));
+	pick(params.get('theme') ?? hash.get('theme') ?? 'obsidian');
+	const reduce = document.getElementById('reduce');
+	const mq = matchMedia('(prefers-reduced-motion: reduce)');
+	const apply = () => { root.dataset.motion = reduce.checked || mq.matches ? 'reduce' : 'full'; };
+	reduce.checked = (params.get('motion') ?? hash.get('motion')) === 'reduce';
+	reduce.addEventListener('change', apply);
+	mq.addEventListener('change', apply);
+	apply();
+	window.reducedMotion = () => root.dataset.motion === 'reduce';
+})();
+</script>

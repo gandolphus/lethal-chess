@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en" data-theme="obsidian" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lethal Chess — Round 3 · Line map</title>
+<!--FONTS-->
+<style>
+/*TOKENS*/
+/*SHARED*/
+/*BOARD_CSS*/
+
+main { max-width: 1180px; margin: 0 auto; padding: 1.25rem 1.25rem 5rem; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 2rem; align-items: start; }
+.board-column { position: sticky; top: 1rem; display: grid; gap: 0.9rem; justify-items: center; }
+.board-slot { width: min(70vh, 100%); }
+.panel { display: flex; flex-direction: column; gap: 1.1rem; }
+.side { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; color: var(--text-2); }
+h1 { margin: 0.15rem 0 0; font-family: var(--font-display); font-weight: 400; font-size: 1.9rem; line-height: 1.1; letter-spacing: -0.01em; }
+.opening { margin-top: 0.2rem; font-size: 0.85rem; color: var(--text-3); }
+.modes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.mode-hint { font-size: 0.85rem; color: var(--text-2); }
+
+/* ── The line card (as built), kept so the map is judged in context ── */
+.discovery { position: relative; padding: 0.7rem 1rem 0.75rem 1.1rem; border: 1px solid color-mix(in srgb, var(--ember) 45%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--ember) 9%, var(--surface-1)); }
+.discovery .kicker { font-size: 0.8rem; font-weight: 500; color: var(--ember); }
+.discovery .name { margin-top: 0.15rem; font-family: var(--font-display); font-size: 1.3rem; line-height: 1.15; }
+.pips { display: flex; gap: 3px; margin-top: 0.45rem; }
+.pips i { flex: 1; max-width: 1.6rem; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--ember) 22%, var(--surface-2)); }
+.pips i.on { background: var(--ember); }
+.discovery .sub { margin-top: 0.2rem; font-size: 0.8rem; color: var(--text-2); }
+
+/* ── Found: the number and the door to the map ── */
+.found { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 0.5rem 1rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+.found .label { font-size: 0.8rem; color: var(--text-2); }
+.found .count { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; letter-spacing: -0.01em; }
+.found .count span { font-size: 1.1rem; color: var(--text-2); font-family: var(--font-ui); }
+.found .sub { grid-column: 1 / -1; font-size: 0.8rem; color: var(--text-3); }
+.found .legend { display: flex; gap: 0.9rem; grid-column: 1 / -1; font-size: 0.78rem; color: var(--text-2); }
+.legend i { display: inline-block; width: 0.8rem; height: 3px; margin-right: 0.35rem; vertical-align: middle; border-radius: 2px; }
+.legend .lit { background: var(--lit); }
+.legend .ember { background: var(--ember); }
+.legend .fog { background: repeating-linear-gradient(90deg, var(--fog) 0 2px, transparent 2px 4px); }
+
+/* ── The shelf: one segment per variation, under the board ── */
+.shelf { width: min(70vh, 100%); display: grid; gap: 0.35rem; }
+.shelf-row { display: flex; gap: 2px; height: 12px; }
+.seg { position: relative; flex: var(--n) 1 0; min-width: 5px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--fog-soft) 0 2px, transparent 2px 4px); overflow: hidden; cursor: pointer; transition: transform 160ms var(--ease); }
+.seg::before, .seg::after { content: ''; position: absolute; inset: 0 auto 0 0; }
+.seg::before { width: calc(var(--e) * 100%); background: color-mix(in srgb, var(--ember) 45%, transparent); }
+.seg::after { width: calc(var(--d) * 100%); background: var(--lit); }
+.seg.here { outline: 1.5px solid var(--ember); outline-offset: 2px; }
+.seg:hover, .seg:focus-visible { transform: scaleY(1.35); }
+.shelf-cap { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-3); min-height: 1.2em; }
+.shelf-cap b { color: var(--text-2); font-weight: 500; }
+.shelf-cap .link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+
+/* ── The map view ── */
+.mapview { display: none; width: 100%; max-height: min(88vh, 900px); flex-direction: column; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); overflow: hidden; }
+.board-column.map .mapview { display: flex; }
+.board-column.map .board-slot, .board-column.map .shelf { display: none; }
+.maphead { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); }
+.maphead h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.25rem; }
+.maphead .legend { display: flex; gap: 0.9rem; font-size: 0.78rem; color: var(--text-2); }
+.maphead .spacer { flex: 1; }
+.mapscroll { overflow: auto; overscroll-behavior: contain; }
+svg.map { display: block; font-family: var(--font-ui); }
+.map .band-line { stroke: var(--border); }
+.map .band-name { font-size: 12.5px; fill: var(--text); font-weight: 500; }
+.map .band-count { font-size: 11px; fill: var(--text-3); }
+.map .edge { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.map .edge.fog { stroke: var(--fog); stroke-width: 1; stroke-dasharray: 1.5 3.5; }
+.map .edge.known { stroke: color-mix(in srgb, var(--text-3) 70%, transparent); stroke-width: 1.4; }
+.map .edge.ember { stroke: var(--ember); stroke-width: 2; }
+.map .edge.ember-dim { stroke: var(--ember); stroke-width: 1.4; stroke-dasharray: 3 4; opacity: 0.55; }
+.map .edge.lit { stroke: var(--lit); stroke-width: 2; }
+.map .node { fill: var(--surface-1); stroke: var(--fog); stroke-width: 1; }
+.map .node.lit { fill: var(--lit); stroke: var(--lit); }
+.map .node.ember { fill: var(--surface-1); stroke: var(--ember); stroke-width: 1.6; }
+.map .node.here { fill: var(--ember); stroke: var(--ember); }
+.map .move { font-size: 10px; fill: var(--text-2); font-family: var(--font-num); }
+.map .move.lit { fill: var(--text); }
+.map .end-name { font-size: 11.5px; fill: var(--text); }
+.map .end-name.ember { fill: var(--text-2); }
+.map .ply { font-size: 10px; fill: var(--text-3); font-family: var(--font-num); }
+.map .ply-line { stroke: var(--border); stroke-dasharray: 1 3; }
+.map .here-ring { fill: none; stroke: var(--ember); stroke-width: 1; opacity: 0.6; }
+[data-motion='full'] .map .here-ring { animation: ring 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ring { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(2.2); opacity: 0; } }
+
+@media (max-width: 860px) {
+	main { padding: 0.75rem 0.75rem 6rem; }
+	.layout { grid-template-columns: 1fr; gap: 0.9rem; }
+	.board-column { position: static; }
+	.board-slot, .shelf { width: 100%; }
+	.panel { gap: 0.9rem; }
+	.discovery { order: -2; }
+	.notice { order: -1; }
+	h1 { font-size: 1.5rem; }
+	.mapview { position: fixed; inset: 0.5rem; z-index: 40; max-height: none; box-shadow: 0 40px 80px rgba(0,0,0,.5); }
+}
+</style>
+</head>
+<body>
+<!--SPRITE-->
+<header class="topbar">
+	<a class="brand" href="#">Lethal <i>chess</i></a>
+	<nav><a href="#" aria-current="page">Openings</a><a href="#">Play</a><a href="#">Settings</a></nav>
+	<span class="spacer"></span>
+	<a class="btn small" href="#">Sign in</a>
+</header>
+
+<main>
+<div class="layout">
+	<div class="board-column" id="column">
+		<div class="board-slot"><div class="board-wrap"><div id="board"></div></div></div>
+
+		<div class="shelf" aria-label="Lines by variation">
+			<div class="shelf-row" id="shelf"></div>
+			<div class="shelf-cap"><span id="shelf-label"><b>Berlin Defense</b> · 2 of 20 found, 1 in progress</span><button type="button" class="link" id="open-map">Open the map</button></div>
+		</div>
+
+		<section class="mapview" id="mapview" aria-label="Line map">
+			<div class="maphead">
+				<h2>Ruy Lopez · 12 of 146 lines</h2>
+				<span class="legend"><span><i class="lit"></i>found</span><span><i class="ember"></i>in progress</span><span><i class="fog"></i>secret</span></span>
+				<span class="spacer"></span>
+				<div class="segmented" role="group" aria-label="Zoom">
+					<button type="button" id="z-overview" aria-pressed="false">Overview</button>
+					<button type="button" id="z-detail" aria-pressed="true">Detail</button>
+				</div>
+				<button type="button" class="btn small" id="close-map">Board</button>
+			</div>
+			<div class="mapscroll" id="mapscroll"></div>
+		</section>
+	</div>
+
+	<aside class="panel">
+		<header>
+			<p class="side"><i class="stone"></i>You play White</p>
+			<h1>Ruy Lopez</h1>
+			<p class="opening num">1.e4 e5 2.Nf3 Nc6 3.Bb5</p>
+		</header>
+		<div class="modes">
+			<div class="segmented" role="tablist"><button role="tab" aria-selected="true">Explore</button><button role="tab">Practice</button></div>
+			<p class="mode-hint">The lines are secret. Play good moves to discover them.</p>
+		</div>
+
+		<div class="discovery" role="status">
+			<p class="kicker">Line in progress</p>
+			<p class="name">Berlin Defense, Rio de Janeiro Variation</p>
+			<span class="pips" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>
+			<p class="sub">One line left here. See it through to the end.</p>
+		</div>
+
+		<div class="notice" aria-live="polite">
+			<p class="title"><i class="turn"></i>Follow the line</p>
+			<p class="text">You're in the Rio de Janeiro Variation. How does it continue?</p>
+			<div class="actions"><button class="btn">Hint <kbd>H</kbd></button><button class="btn">Take back <kbd>B</kbd></button><button class="btn">New game <kbd>N</kbd></button></div>
+		</div>
+
+		<div class="found">
+			<div>
+				<p class="label">Lines found in the Ruy Lopez</p>
+				<p class="count num">12 <span>of 146</span></p>
+			</div>
+			<button type="button" class="btn small" id="open-map-2">Map</button>
+			<p class="sub">7 more entered, not yet followed to the end. 8 dubious lines are counted apart.</p>
+		</div>
+	</aside>
+</div>
+</main>
+
+<!--SWITCH-->
+
+<script>
+/*BOARD_JS*/
+const LINES = /*LINES_JSON*/;
+const SCENARIO = /*SCENARIO_JSON*/;
+const DEFINING = 5;
+
+// Mock progress: 12 discovered, 7 entered (with how far along), chosen across variations. Keys are line indexes
+// here; in the app they are the line's key (EPD of its end) from ExploreSession's stages map.
+const FOUND = new Map([
+	[0, 'discovered'], [3, 'discovered'], [8, 'discovered'], [12, 'discovered'], [30, 'discovered'], [33, 'discovered'],
+	[41, 'discovered'], [56, 'discovered'], [63, 'discovered'], [70, 'discovered'], [79, 'discovered'], [91, 'discovered'],
+	[45, { played: 3 }], [18, { played: 2 }], [22, { played: 2 }], [100, { played: 1 }], [110, { played: 4 }], [120, { played: 1 }], [140, { played: 2 }]
+]);
+const HERE = 45; // the line being followed right now
+const stageOf = (i) => { const f = FOUND.get(i); return f === 'discovered' ? 'discovered' : f ? 'entered' : null; };
+const playedOf = (i) => { const f = FOUND.get(i); return typeof f === 'object' ? f.played : 0; };
+const shortLine = (l) => l.n === l.v ? 'Main line' : l.n.slice(l.v.length).replace(/^,\s*/, '');
+
+// ── Board (position after the 13th ply of the scenario line) ──
+const boardEl = document.getElementById('board');
+renderBoard(boardEl, SCENARIO.fens[13], 'w');
+boardEl.querySelector(`[data-square="${SCENARIO.from[12]}"]`).classList.add('last-move');
+boardEl.querySelector(`[data-square="${SCENARIO.to[12]}"]`).classList.add('last-move');
+
+// ── Bands: one per variation, biggest first ──
+const bands = [];
+{
+	const byVar = new Map();
+	LINES.forEach((l, i) => { if (l.d) return; (byVar.get(l.v) ?? byVar.set(l.v, []).get(l.v)).push(i); });
+	// Variations with a single line are one band, "Sidelines", so 15 one-row bands don't trail the chart.
+	const sidelines = [];
+	for (const [name, idx] of byVar) {
+		if (idx.length === 1) { sidelines.push(idx[0]); continue; }
+		const discovered = idx.filter((i) => stageOf(i) === 'discovered').length;
+		const entered = idx.filter((i) => stageOf(i) === 'entered').length;
+		bands.push({ name, idx, discovered, entered, here: idx.includes(HERE) });
+	}
+	bands.sort((a, b) => b.idx.length - a.idx.length || a.name.localeCompare(b.name));
+	bands.push({ name: 'Sidelines', idx: sidelines, discovered: sidelines.filter((i) => stageOf(i) === 'discovered').length, entered: sidelines.filter((i) => stageOf(i) === 'entered').length, here: sidelines.includes(HERE), flat: true });
+}
+
+// ── Shelf ──
+const shelf = document.getElementById('shelf');
+const shelfLabel = document.getElementById('shelf-label');
+const describe = (b) => `<b>${b.name}</b> · ${b.discovered} of ${b.idx.length} found${b.entered ? `, ${b.entered} in progress` : ''}`;
+for (const b of bands) {
+	const s = document.createElement('button');
+	s.type = 'button';
+	s.className = 'seg' + (b.here ? ' here' : '');
+	s.style.setProperty('--n', b.idx.length);
+	s.style.setProperty('--d', b.discovered / b.idx.length);
+	s.style.setProperty('--e', (b.discovered + b.entered) / b.idx.length);
+	s.setAttribute('aria-label', `${b.name}: ${b.discovered} of ${b.idx.length} found`);
+	s.addEventListener('mouseenter', () => (shelfLabel.innerHTML = describe(b)));
+	s.addEventListener('focus', () => (shelfLabel.innerHTML = describe(b)));
+	s.addEventListener('click', () => { openMap(); scrollToBand(b.name); });
+	shelf.appendChild(s);
+}
+shelf.addEventListener('mouseleave', () => (shelfLabel.innerHTML = describe(bands.find((b) => b.here))));
+
+// ── Map ──
+const column = document.getElementById('column');
+const mapscroll = document.getElementById('mapscroll');
+let zoom = matchMedia('(max-width: 860px)').matches ? 'overview' : 'detail';
+document.getElementById('z-overview').setAttribute('aria-pressed', String(zoom === 'overview'));
+document.getElementById('z-detail').setAttribute('aria-pressed', String(zoom === 'detail'));
+const openMap = () => { column.classList.add('map'); render(); };
+const closeMap = () => column.classList.remove('map');
+document.getElementById('open-map').addEventListener('click', openMap);
+document.getElementById('open-map-2').addEventListener('click', openMap);
+document.getElementById('close-map').addEventListener('click', closeMap);
+document.getElementById('z-overview').addEventListener('click', () => setZoom('overview'));
+document.getElementById('z-detail').addEventListener('click', () => setZoom('detail'));
+function setZoom(z) { zoom = z; document.getElementById('z-overview').setAttribute('aria-pressed', String(z === 'overview')); document.getElementById('z-detail').setAttribute('aria-pressed', String(z === 'detail')); render(); }
+function scrollToBand(name) { const g = mapscroll.querySelector(`[data-band="${CSS.escape(name)}"]`); if (g) mapscroll.scrollTo({ top: Math.max(0, Number(g.dataset.y) - 12), behavior: reducedMotion() ? 'auto' : 'smooth' }); }
+
+// A trie per band. Edges carry the status of the best line through them.
+function trie(idx) {
+	const root = { ply: DEFINING, children: new Map(), ends: [], lines: idx };
+	for (const i of idx) {
+		const l = LINES[i];
+		let node = root;
+		for (let p = DEFINING; p < l.m.length; p++) {
+			const san = l.m[p];
+			let next = node.children.get(san);
+			if (!next) { next = { ply: p + 1, san, children: new Map(), ends: [], lines: [] }; node.children.set(san, next); }
+			next.lines.push(i);
+			node = next;
+		}
+		node.ends.push(i);
+	}
+	return root;
+}
+// Status of the edge into `node` (the move at ply node.ply): lit > ember > ember-dim > known > fog.
+function edgeStatus(node) {
+	let s = 'fog';
+	for (const i of node.lines) {
+		const l = LINES[i], stage = stageOf(i);
+		if (!stage) continue;
+		if (stage === 'discovered') return node.ply > l.e ? 'lit' : 'known';
+		if (node.ply <= l.e) { if (s === 'fog') s = 'known'; continue; }
+		if (node.ply <= l.e + playedOf(i)) s = 'ember';
+		else if (s !== 'ember') s = 'ember-dim';
+	}
+	return s;
+}
+const ROW = { detail: 16, overview: 7 };
+const PLY = { detail: 46, overview: 0 }; // overview fits the width
+const GUTTER = { detail: 180, overview: 150 };
+
+function render() {
+	const width = Math.max(320, mapscroll.clientWidth);
+	const maxPly = Math.max(...LINES.map((l) => l.m.length));
+	const row = ROW[zoom];
+	const gutter = GUTTER[zoom];
+	const nameSpace = zoom === 'detail' ? 230 : 8;
+	const plyW = zoom === 'detail' ? PLY.detail : Math.max(6, (width - gutter - nameSpace - 16) / (maxPly - DEFINING));
+	const x = (ply) => gutter + (ply - DEFINING) * plyW;
+	const svgW = Math.max(width, x(maxPly) + nameSpace);
+	const parts = [];
+	let y = 28;
+
+	// Ply ruler: the move number of the move that lands on that column (White's on even plies).
+	const step = zoom === 'detail' ? 1 : 2 * Math.max(1, Math.ceil(30 / (2 * plyW)));
+	for (let p = DEFINING; p <= maxPly; p += step) {
+		const label = p % 2 === 1 ? `${(p + 1) / 2}.` : `${p / 2}…`;
+		if (p !== DEFINING && x(p) - x(DEFINING) < 30) continue;
+		parts.push(`<text class="ply" x="${x(p)}" y="16" text-anchor="middle">${p === DEFINING ? '3.Bb5' : label}</text>`);
+	}
+
+	for (const b of bands) {
+		const root = trie(b.idx);
+		const leaves = [];
+		const place = (node) => {
+			if (!node.children.size) { node.y = y + leaves.length * row + row / 2; leaves.push(node); return; }
+			const kids = [...node.children.values()].sort((a, c) => c.lines.length - a.lines.length);
+			kids.forEach(place);
+			node.y = (kids[0].y + kids.at(-1).y) / 2;
+		};
+		place(root);
+		const h = Math.max(leaves.length * row, zoom === 'detail' ? 34 : 14);
+		parts.push(`<g data-band="${b.name.replace(/"/g, '&quot;')}" data-y="${y - 8}">`);
+		parts.push(`<line class="band-line" x1="8" x2="${svgW - 8}" y1="${y - 4}" y2="${y - 4}"/>`);
+		parts.push(zoom === 'detail'
+			? `<text class="band-name" x="12" y="${y + 13}">${b.name}</text><text class="band-count num" x="12" y="${y + 27}">${b.discovered} of ${b.idx.length}</text>`
+			: `<text class="band-name" x="12" y="${y + 13}">${b.name}<tspan class="band-count num" dx="8">${b.discovered} of ${b.idx.length}</tspan></text>`);
+		// Edges and nodes, DFS.
+		const draw = (node, parent) => {
+			if (parent) {
+				const st = edgeStatus(node);
+				const x1 = x(parent.ply), x2 = x(node.ply), y1 = parent.y, y2 = node.y;
+				const d = y1 === y2 ? `M${x1} ${y1} H${x2}` : `M${x1} ${y1} C${x1 + plyW * 0.55} ${y1} ${x2 - plyW * 0.55} ${y2} ${x2} ${y2}`;
+				parts.push(`<path class="edge ${st}" d="${d}"/>`);
+				if (zoom === 'detail' && st !== 'fog' && st !== 'ember-dim') parts.push(`<text class="move ${st}" x="${x2 - plyW / 2}" y="${y2 - 4}" text-anchor="middle">${node.san}</text>`);
+			}
+			for (const k of node.children.values()) draw(k, node);
+			if (node.ends.length) {
+				const i = node.ends[0], stage = stageOf(i), here = node.ends.includes(HERE) && false;
+				const cls = stage === 'discovered' ? 'lit' : stage === 'entered' ? 'ember' : '';
+				const r = stage ? 3.5 : 2.5;
+				parts.push(`<circle class="node ${cls}" cx="${x(node.ply)}" cy="${node.y}" r="${r}"/>`);
+				if (zoom === 'detail' && stage) parts.push(`<text class="end-name ${cls}" x="${x(node.ply) + 8}" y="${node.y + 4}">${stage === 'discovered' ? shortLine(LINES[i]) : (LINES[i].en ?? LINES[i].v).replace(/^.*?,\s*/, '') + ' …'}</text>`);
+			} else if (zoom === 'detail') {
+				// Branch points are the only structure the fog reveals.
+				if (node.children.size > 1) parts.push(`<circle class="node" cx="${x(node.ply)}" cy="${node.y}" r="1.6"/>`);
+			}
+			// Where the learner is now.
+			if (b.here && node.lines.includes(HERE) && node.ply === LINES[HERE].e + playedOf(HERE)) {
+				parts.push(`<circle class="node here" cx="${x(node.ply)}" cy="${node.y}" r="4"/><circle class="here-ring" cx="${x(node.ply)}" cy="${node.y}" r="6"/>`);
+			}
+		};
+		draw(root, null);
+		parts.push('</g>');
+		y += h + (zoom === 'detail' ? 20 : 10);
+	}
+	mapscroll.innerHTML = `<svg class="map" width="${svgW}" height="${y + 8}" viewBox="0 0 ${svgW} ${y + 8}">${parts.join('')}</svg>`;
+}
+addEventListener('resize', () => { if (column.classList.contains('map')) render(); });
+if (new URLSearchParams(location.search).get('view') === 'map') { openMap(); if (new URLSearchParams(location.search).get('zoom') === 'overview') setZoom('overview'); }
+</script>
+</body>
+</html>

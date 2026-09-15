@@ -1,0 +1,143 @@
+/* ── Token contract, copied verbatim from src/app.css for five of the app's fifteen themes ──
+   surfaces --bg --surface-1 --surface-2 --border --text --text-2 --text-3
+   board    --sq-light --sq-dark --coord --radius --area-shadow --board-shadow --sheen --frame-pad
+   pieces   --pw1 --pw2 --pws --pb1 --pb2 --pbs --pbh --piece-shadow
+   feedback --accent --ring --sel --last --hl-blend --dot --hint --check --ok --soft --bad --focus --signal
+   type     --font-ui --font-display --font-num --ease --move-ms
+
+   Exploration adds four derived tokens at the bottom (no theme needs editing):
+   --fog (secret structure) --ember (entered / in progress) --lit (discovered) --trail (marks on the board). */
+:root,
+[data-theme] {
+	--bg: #131316; --surface-1: #1b1b1f; --surface-2: #232328; --border: #2a2a30;
+	--text: #ebe8e2; --text-2: #a09da3; --text-3: #6b696f;
+	--sq-light: #aea9a1; --sq-dark: #4c4c54;
+	--coord: #6b696f; --coord-on-light: #4c4c54; --coord-on-dark: #aea9a1;
+	--frame-pad: 0cqi; --radius: 6px;
+	--board-shadow: 0 40px 80px -30px rgba(0,0,0,.8); --area-shadow: none; --sheen: none;
+	--pw1: #f3f0ea; --pw2: #d6d2ca; --pws: #17171a;
+	--pb1: #1a1a1d; --pb2: #0d0d0e; --pbs: #0c0c0e; --pbh: #8f8f98;
+	--piece-shadow: drop-shadow(0 2px 1.5px rgba(0,0,0,.45));
+	--accent: #8ec5ff; --ring: #8ec5ff;
+	--sel: rgba(142,197,255,.42); --last: rgba(142,197,255,.24); --hl-blend: normal;
+	--dot: rgba(14,14,18,.32); --dot-on-dark: rgba(255,255,255,.22);
+	--hint: #8ec5ff; --check: #ff4d3d;
+	--ok: #5fd5a0; --ok-fill: rgba(95,213,160,.5);
+	--soft: #f2c94c; --soft-fill: rgba(242,201,76,.45);
+	--bad: #ff6b62; --bad-fill: rgba(255,107,98,.5);
+	--focus: #8ec5ff; --signal: #8ec5ff;
+	--font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+	--font-num: var(--font-ui);
+	--ease: cubic-bezier(.2,.7,.2,1); --move-ms: 220ms;
+	color-scheme: dark;
+}
+[data-mode='light'] { --hl-blend: multiply; color-scheme: light; }
+[data-mode='dark'] { --hl-blend: normal; color-scheme: dark; }
+
+[data-theme='alabaster'] {
+	--font-ui: 'Figtree', system-ui, sans-serif;
+	--font-display: 'Fraunces', Georgia, serif;
+	--frame-pad: 3.7cqi; --radius: 8px;
+	--ease: cubic-bezier(.2,.8,.2,1); --move-ms: 260ms;
+	--bg: #e9e4dc; --surface-1: #f4f1eb; --surface-2: #e1dbd1; --border: #d0c8bc;
+	--text: #26221f; --text-2: #6f6862; --text-3: #a59d93;
+	--sq-light: #ebe4d8; --sq-dark: #b6a690;
+	--coord: #7a7166; --coord-on-light: #7a7166; --coord-on-dark: #7a7166;
+	--board-shadow: 0 36px 70px -30px rgba(70,50,30,.55);
+	--area-shadow: inset 0 2px 6px rgba(70,50,30,.3), 0 1px 0 rgba(255,255,255,.7);
+	--sheen: linear-gradient(135deg, rgba(255,255,255,.35) 0%, transparent 38%, transparent 62%, rgba(70,50,30,.08) 100%);
+	--pw1: #fbf8f2; --pw2: #e2dbcf; --pws: #40352e;
+	--pb1: #46414a; --pb2: #221f24; --pbs: #17141a; --pbh: #b9b0a6;
+	--piece-shadow: drop-shadow(0 2px 1.5px rgba(70,50,30,.35));
+	--accent: #b0873f; --ring: #b0873f; --sel: #e6cf7c; --last: #efe2ac;
+	--dot: rgba(60,40,20,.30); --dot-on-dark: rgba(255,255,255,.34);
+	--hint: #1f6e72;
+	--ok: #2c9b62; --ok-fill: rgba(44,155,98,.40);
+	--soft: #d59d16; --soft-fill: rgba(213,157,22,.38);
+	--bad: #d1493a; --bad-fill: rgba(209,73,58,.42);
+	--check: #e33a2c; --focus: #1f6e72; --signal: #1f6e72;
+}
+
+[data-theme='amethyst'] {
+	--font-ui: 'Jost', system-ui, sans-serif;
+	--font-display: 'Fraunces', Georgia, serif;
+	--frame-pad: 4.6cqi; --radius: 3px;
+	--board-shadow: none;
+	--ease: cubic-bezier(.2,.8,.2,1); --move-ms: 240ms;
+	--bg: #110b18; --surface-1: #181020; --surface-2: #21162c; --border: #33253f;
+	--text: #f3edf8; --text-2: #b4a6c5; --text-3: #746786;
+	--sq-light: #e2d4c9; --sq-dark: #4f2e80;
+	--coord: #a8905a; --coord-on-light: #a8905a; --coord-on-dark: #a8905a;
+	--area-shadow: 0 0 0 1px rgba(214,180,100,.6), 0 36px 70px -30px rgba(0,0,0,.9), 0 0 80px -30px rgba(120,70,200,.35);
+	--sheen: linear-gradient(150deg, rgba(255,255,255,.045) 0%, transparent 42%);
+	--pw1: #fcf8ff; --pw2: #dcd2e6; --pws: #2b1a3c;
+	--pb1: #1e1625; --pb2: #0b070f; --pbs: #07040b; --pbh: #d9b86a;
+	--piece-shadow: drop-shadow(0 2.5px 2px rgba(0,0,0,.5));
+	--accent: #e2c46f; --ring: #f2d98c; --sel: rgba(180,120,255,.5); --last: rgba(180,120,255,.38);
+	--dot: rgba(60,30,90,.32); --dot-on-dark: rgba(255,232,190,.32);
+	--hint: #e2c46f;
+	--ok: #7ee0b0; --ok-fill: rgba(126,224,176,.5);
+	--soft: #ffd070; --soft-fill: rgba(255,208,112,.46);
+	--bad: #ff6a58; --bad-fill: rgba(255,106,88,.54);
+	--check: #ff4a3c; --focus: #f2d98c; --signal: #e2c46f;
+}
+
+[data-theme='night'] {
+	--font-ui: 'Jost', system-ui, sans-serif;
+	--font-display: 'Jost', system-ui, sans-serif;
+	--frame-pad: 0cqi; --radius: 4px;
+	--area-shadow: none;
+	--ease: cubic-bezier(.25,.6,.2,1); --move-ms: 300ms;
+	--bg: #090b10; --surface-1: #0e1117; --surface-2: #151923; --border: #1d2330;
+	--text: #e6ebf4; --text-2: #8e98ab; --text-3: #525b6c;
+	--sq-light: #232a38; --sq-dark: #151a25;
+	--coord: #4c566a; --coord-on-light: #4c566a; --coord-on-dark: #4c566a;
+	--board-shadow: 0 0 0 1px rgba(160,190,255,.06), 0 60px 120px -40px rgba(0,0,0,.9);
+	--pw1: #e2e8f1; --pw2: #aeb9ca; --pws: #0a0d13;
+	--pb1: #252c3b; --pb2: #10141c; --pbs: #8595b1; --pbh: #c6d4ea;
+	--piece-shadow: drop-shadow(0 4px 6px rgba(0,0,0,.6));
+	--accent: #8ec6ff; --ring: #bfe0ff; --sel: rgba(142,198,255,.55); --last: rgba(142,198,255,.26);
+	--dot: rgba(180,214,255,.7); --dot-on-dark: rgba(180,214,255,.7);
+	--hint: #cfe6ff;
+	--ok: #7ff0c4; --ok-fill: rgba(127,240,196,.72);
+	--soft: #ffd37a; --soft-fill: rgba(255,211,122,.68);
+	--bad: #ff6b6b; --bad-fill: rgba(255,107,107,.72);
+	--check: #ff5f5f; --focus: #ffffff; --signal: #8ec6ff;
+}
+
+[data-theme='graphite'] {
+	--font-ui: 'Geist', system-ui, sans-serif;
+	--font-display: 'Geist', system-ui, sans-serif;
+	--font-num: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--frame-pad: 7.5cqi; --radius: 0px;
+	--board-shadow: 0 0 0 0 transparent; --area-shadow: 0 0 0 1px var(--grid);
+	--piece-shadow: none; --hl-blend: normal;
+	--ease: cubic-bezier(.3,0,.1,1); --move-ms: 170ms;
+	--bg: #111215; --surface-1: #16171b; --surface-2: #1e1f24; --border: #2a2c32;
+	--text: #ebebed; --text-2: #9b9da5; --text-3: #5f616a;
+	--sq-light: #2f3138; --sq-dark: #1e2025; --grid: #40434b;
+	--coord: #8d9098; --coord-on-light: #8d9098; --coord-on-dark: #8d9098;
+	--pw1: #e9e9eb; --pw2: #e9e9eb; --pws: #101114;
+	--pb1: #0b0c0f; --pb2: #0b0c0f; --pbs: #c9ccd3; --pbh: #c9ccd3;
+	--signal: #ff6a1a;
+	--accent: #ffffff; --ring: #f4f4f6; --sel: rgba(255,255,255,.09); --last: rgba(255,255,255,.05);
+	--dot: rgba(255,255,255,.55); --dot-on-dark: rgba(255,255,255,.55);
+	--hint: var(--signal);
+	--ok: #ffffff; --ok-fill: rgba(255,255,255,.14);
+	--soft: var(--signal); --soft-fill: rgba(255,106,26,.32);
+	--bad: var(--signal); --bad-fill: rgba(255,106,26,.55);
+	--check: var(--signal); --focus: #ffffff;
+}
+
+/* ── Exploration tokens: derived, so every existing theme gets them for free ── */
+:root,
+[data-theme] {
+	--fog: color-mix(in srgb, var(--text-3) 55%, transparent);
+	--fog-soft: color-mix(in srgb, var(--text-3) 28%, transparent);
+	--ember: var(--accent);
+	--lit: var(--ok);
+	--trail: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+/* Graphite's --ok is white and its --accent is white: the map needs the signal colour to tell "found" from "in progress". */
+[data-theme='graphite'] { --lit: #ffffff; --ember: var(--signal); --trail: rgba(255,106,26,.75); }

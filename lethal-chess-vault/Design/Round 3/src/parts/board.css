@@ -1,0 +1,38 @@
+/* Board: flat squares, tokens only. Frame treatments from the app's four board styles are out of scope here. */
+.board-wrap {
+	position: relative;
+	container-type: inline-size;
+	width: 100%;
+	padding: var(--frame-pad);
+	border-radius: calc(var(--radius) + 2px);
+	box-shadow: var(--board-shadow);
+}
+.board {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	aspect-ratio: 1;
+	width: 100%;
+	border-radius: var(--radius);
+	box-shadow: var(--area-shadow);
+	overflow: visible;
+}
+.board::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); background: var(--sheen); pointer-events: none; }
+.square { position: relative; background: var(--sq-dark); }
+.square.light { background: var(--sq-light); }
+.board .square:first-child { border-top-left-radius: var(--radius); }
+.board .square:nth-child(8) { border-top-right-radius: var(--radius); }
+.board .square:nth-child(57) { border-bottom-left-radius: var(--radius); }
+.board .square:nth-child(64) { border-bottom-right-radius: var(--radius); }
+.square::before { content: ''; position: absolute; inset: 0; background: var(--sq-mark, transparent); mix-blend-mode: var(--hl-blend); pointer-events: none; }
+.square.last-move { --sq-mark: var(--last); }
+.square.sel { --sq-mark: var(--sel); }
+.square.correct { --sq-mark: var(--ok-fill); }
+.piece { position: absolute; inset: 4%; width: 92%; height: 92%; filter: var(--piece-shadow); pointer-events: none; }
+.coords { position: absolute; inset: 0; pointer-events: none; font-size: clamp(9px, 1.6cqi, 12px); font-weight: 600; color: var(--coord); }
+.coords i { position: absolute; font-style: normal; font-family: var(--font-num); }
+.coords i.f { bottom: 2px; left: calc(var(--i) * 12.5% + 12.5% - 3px - 0.7em); }
+.coords i.r { top: calc(var(--i) * 12.5% + 2px); left: 3px; }
+[data-theme='amethyst'] .coords i.f { bottom: calc(-1 * var(--frame-pad) * 0.7); }
+[data-theme='amethyst'] .coords i.r { left: calc(-1 * var(--frame-pad) * 0.7); }
+[data-theme='graphite'] .board { gap: 1px; background: var(--grid); }

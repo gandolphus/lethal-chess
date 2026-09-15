@@ -80,6 +80,16 @@ ebony black pieces with gilt lines, ivory white pieces with dark outlines; large
 (`--jewel` token) on king, queen and bishop; Fraunces + Jost. Ids unchanged so saved choices carry over.
 User: "much better".
 
+## Round 3 — Exploration mode (2026-09-16, Fable 5.1)
+
+[[Critique]] of the Explore page and picker (the moment happens off-stage; the counter is last; the
+picker is a catalogue of identical thumbnails) and three prototypes in `Design/Round 3/`, all built from
+the token contract with four derived tokens (`--fog`, `--ember`, `--lit`, `--trail`): **the chart**
+(fog-of-war line map + a shelf under the board), **the trace** (anticipation wedges on the board, a
+one-second celebration: edge sweep, move replay, a mote into the counter) and **the shelf of openings**
+(picker cards with per-variation spines). Recommendation and component mapping in
+[[README|Round 3 README]]: build the trace with the shelf first, then the chart, then the picker.
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

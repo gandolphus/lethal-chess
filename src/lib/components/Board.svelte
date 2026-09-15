@@ -15,6 +15,8 @@
 		needsPromotion = () => false,
 		marks = {},
 		arrows = [],
+		trail = [],
+		celebration = null,
 		onMove
 	}: {
 		fen: string;
@@ -25,6 +27,10 @@
 		/** Square → marks to render; the board decides how each mark looks. */
 		marks?: SquareMarks;
 		arrows?: Arrow[];
+		/** Squares a line in progress has passed through: a small wedge in each corner, nothing covering pieces. */
+		trail?: Square[];
+		/** A discovered line's route, traced once over the board with a light around its edge. New id, new moment. */
+		celebration?: { id: number; path: { from: Square; to: Square }[] } | null;
 		onMove: (from: Square, to: Square, promotion?: string) => void;
 	} = $props();
 
@@ -300,6 +306,10 @@
 							<span class="piece-slot"><Piece type={piece.type} color={piece.color} /></span>
 						{/if}
 
+						{#if trail.includes(square)}
+							<span class="trail" aria-hidden="true"></span>
+						{/if}
+
 						{#if isTarget}
 							<span class="target" class:capture={!!piece}></span>
 						{/if}
@@ -345,8 +355,29 @@
 					{/each}
 				</svg>
 			{/if}
+
+			{#if celebration?.path.length}
+				{#key celebration.id}
+					{@const end = squareCenter(celebration.path.at(-1)!.to)}
+					<svg class="trace" viewBox="0 0 800 800" aria-hidden="true">
+						{#each celebration.path as step, i (i)}
+							{@const a = squareCenter(step.from)}
+							{@const b = squareCenter(step.to)}
+							<path d="M{a.x} {a.y} L{b.x} {b.y}" pathLength="1" style="--i: {i}" />
+							<circle cx={b.x} cy={b.y} r="8" style="--i: {i}" />
+						{/each}
+						<circle class="end" cx={end.x} cy={end.y} r="30" style="--i: {celebration.path.length}" />
+					</svg>
+				{/key}
+			{/if}
 		</div>
 	</div>
+
+	{#if celebration}
+		{#key celebration.id}
+			<span class="sweep" aria-hidden="true"></span>
+		{/key}
+	{/if}
 
 	{#if drag}
 		<span class="ghost" style="left:{drag.x}px; top:{drag.y}px">
@@ -995,10 +1026,140 @@
 		--piece-size: 2.1rem;
 	}
 
+	/* ── exploration: a line's trail, and the moment it is discovered ── */
+	.trail {
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 3;
+		width: 22%;
+		height: 22%;
+		background: color-mix(in srgb, var(--accent) 75%, transparent);
+		clip-path: polygon(100% 0, 100% 100%, 0 0);
+		pointer-events: none;
+	}
+
+	.trace {
+		position: absolute;
+		inset: 0;
+		z-index: 6;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+		animation: trace-out 1.8s ease-in forwards;
+	}
+
+	.trace path {
+		fill: none;
+		stroke: var(--ok);
+		stroke-width: 7;
+		stroke-linecap: round;
+		stroke-dasharray: 1;
+		stroke-dashoffset: 1;
+		filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ok) 70%, transparent));
+		animation: trace-draw 220ms cubic-bezier(0.3, 0.1, 0.2, 1) calc(var(--i) * 90ms) forwards;
+	}
+
+	.trace circle {
+		fill: var(--ok);
+		opacity: 0;
+		animation: trace-dot 140ms ease-out calc(var(--i) * 90ms + 200ms) forwards;
+	}
+
+	.trace circle.end {
+		fill: none;
+		stroke: var(--ok);
+		stroke-width: 5;
+	}
+
+	@keyframes trace-draw {
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	@keyframes trace-dot {
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes trace-out {
+		0%,
+		70% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
+	.sweep {
+		position: absolute;
+		inset: -5px;
+		z-index: 7;
+		padding: 3px;
+		border-radius: calc(var(--radius) + var(--frame-pad) * 0.4 + 5px);
+		background: conic-gradient(
+			from var(--sweep),
+			transparent 0 55%,
+			color-mix(in srgb, var(--ok) 40%, transparent) 75%,
+			var(--ok) 92%,
+			transparent 100%
+		);
+		filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ok) 60%, transparent));
+		-webkit-mask:
+			linear-gradient(#000 0 0) content-box,
+			linear-gradient(#000 0 0);
+		mask:
+			linear-gradient(#000 0 0) content-box,
+			linear-gradient(#000 0 0);
+		-webkit-mask-composite: xor;
+		mask-composite: exclude;
+		opacity: 0;
+		pointer-events: none;
+		animation: sweep 1000ms cubic-bezier(0.3, 0.1, 0.2, 1) both;
+	}
+
+	@keyframes sweep {
+		0% {
+			--sweep: 0.75turn;
+			opacity: 0;
+		}
+		12%,
+		85% {
+			opacity: 1;
+		}
+		100% {
+			--sweep: 1.75turn;
+			opacity: 0;
+		}
+	}
+
+	@keyframes still {
+		0% {
+			opacity: 0.9;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.square::before,
 		.square::after {
 			animation: none !important;
+		}
+
+		/* No strokes; the edge lights once, still, and fades. */
+		.trace {
+			display: none;
+		}
+
+		.sweep {
+			background: var(--ok);
+			animation: still 1000ms ease-out both;
 		}
 	}
 </style>

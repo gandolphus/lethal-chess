@@ -135,3 +135,6 @@ counts as a shown move. Research P2 (errorful learning with the correction gener
   computer's choice. Should the learner also have to answer them well?
 - **Thin openings.** London (2 lines), Danish and Budapest (6 each) have little to explore.
 - **Picker.** The opening picker could show discovered/total per opening.
+- **Design round 3 (2026-09-16).** Prototypes for making discovery *feel* like exploration — a fog-of-war
+  line map with a shelf under the board, a one-second on-board celebration with trail markers for
+  anticipation, and picker cards as a collection: [[README|Round 3 README]], [[Critique]].

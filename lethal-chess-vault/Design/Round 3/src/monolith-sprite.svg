@@ -1,0 +1,65 @@
+<style>
+.lp .o { stroke-linejoin: round; stroke-linecap: round; }
+.lp .d { stroke-linecap: round; stroke-linejoin: round; }
+/* monolith: outline pass under a two-stop fill */
+.lp-monolith .o { stroke-width: 5; }
+.lp-monolith .d { stroke-width: 3; }
+.lp-monolith.w .o, .lp-monolith.w .d { stroke: var(--pws); fill: var(--pws); }
+/* White pieces need a heavier outline than black to hold their silhouette on light squares. */
+/* White pieces get a heavier dark outline in every set, so they keep their silhouette on light squares. */
+.lp-monolith.w .o { stroke-width: 6.5; }
+.lp-monolith.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.lp-monolith.b .d { stroke: var(--pbh); fill: var(--pbh); }
+.lp-monolith.w .f { fill: url(#lp-monolith-grad-w); }
+.lp-monolith.b .f { fill: url(#lp-monolith-grad-b); }
+#lp-monolith-grad-w stop:first-child { stop-color: var(--pw1); } #lp-monolith-grad-w stop:last-child { stop-color: var(--pw2); }
+#lp-monolith-grad-b stop:first-child { stop-color: var(--pb1); } #lp-monolith-grad-b stop:last-child { stop-color: var(--pb2); }
+/* material: outline pass + lit fill pass + ambient-occlusion ellipse */
+.lp-material .o { stroke-width: 2.3; }
+.lp-material.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
+.lp-material.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.lp-material.w .f { fill: url(#lp-material-grad-w); }
+.lp-material.b .f { fill: url(#lp-material-grad-b); }
+#lp-material-grad-w stop:first-child { stop-color: var(--pw1); } #lp-material-grad-w stop:last-child { stop-color: var(--pw2); }
+#lp-material-grad-b stop:first-child { stop-color: var(--pb1); } #lp-material-grad-b stop:last-child { stop-color: var(--pb2); }
+.lp-material.w .lit { filter: url(#lp-material-lit-w); }
+.lp-material.b .lit { filter: url(#lp-material-lit-b); }
+.lp-material .ao { fill: #000; opacity: .38; filter: url(#lp-material-blur); }
+.lp-material.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2.2; }
+.lp-material.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 2.2; }
+/* instrument: flat fill, CAD hairline that keeps its weight at every board size */
+.lp-instrument .o { stroke-width: 2.6px; }
+.lp-instrument.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 3.8px; }
+.lp-instrument.b .o { stroke: var(--pbs); fill: var(--pbs); stroke-width: 3.2px; }
+.lp-instrument.w .f { fill: var(--pw1); }
+.lp-instrument.b .f { fill: var(--pb1); }
+.lp-instrument.w .d { stroke: var(--pws); fill: none; stroke-width: 1.2px; }
+.lp-instrument.b .d { stroke: var(--pbh); fill: none; stroke-width: 1.2px; }
+/* nocturne: dark glass with a top rim of light */
+.lp-nocturne .o { stroke-width: 2.6; }
+.lp-nocturne.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
+.lp-nocturne.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.lp-nocturne.w .f { fill: url(#lp-nocturne-grad-w); }
+.lp-nocturne.b .f { fill: url(#lp-nocturne-grad-b); }
+#lp-nocturne-grad-w stop:first-child { stop-color: var(--pw1); } #lp-nocturne-grad-w stop:last-child { stop-color: var(--pw2); }
+#lp-nocturne-grad-b stop:first-child { stop-color: var(--pb1); } #lp-nocturne-grad-b stop:last-child { stop-color: var(--pb2); }
+.lp-nocturne.w .rim { filter: url(#lp-nocturne-rim-w); }
+.lp-nocturne.b .rim { filter: url(#lp-nocturne-rim-b); }
+.lp-nocturne.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2; }
+.lp-nocturne.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 1.8; }
+/* regalia: crisp outline, one gradient across the whole piece, a masked side-light gloss, accent jewels */
+.lp-regalia .o { stroke-width: 4.2; }
+.lp-regalia.w .o { stroke: color-mix(in srgb, var(--pws) 55%, #000); fill: color-mix(in srgb, var(--pws) 55%, #000); stroke-width: 6.4; }
+.lp-regalia.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.lp-regalia.w .f { fill: url(#lp-regalia-grad-w); }
+.lp-regalia.b .f { fill: url(#lp-regalia-grad-b); }
+#lp-regalia-grad-w stop:first-child { stop-color: var(--pw1); } #lp-regalia-grad-w stop:last-child { stop-color: var(--pw2); }
+#lp-regalia-grad-b stop:first-child { stop-color: var(--pb1); } #lp-regalia-grad-b stop:last-child { stop-color: var(--pb2); }
+.lp-regalia.w .gloss { fill: url(#lp-regalia-gloss-w); }
+.lp-regalia.b .gloss { fill: url(#lp-regalia-gloss-b); }
+.lp-regalia.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2.2; }
+.lp-regalia.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 2; }
+.lp-regalia .j { fill: var(--jewel, var(--accent)); stroke-width: 1.6; stroke-linejoin: round; }
+.lp-regalia.w .j { stroke: var(--pws); }
+.lp-regalia.b .j { stroke: var(--pbs); }
+</style><defs><linearGradient id="lp-monolith-grad-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient><linearGradient id="lp-monolith-grad-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient><g id="lp-monolith-g-K"><rect x="47" y="5" width="6" height="22" rx="1.5"/><rect x="41" y="11" width="18" height="6" rx="1.5"/><path d="M31 48 L31 28 L42 36 L50 25 L58 36 L69 28 L69 48 Z"/><rect x="32" y="46" width="36" height="7" rx="3.5"/><path d="M40 52 H60 L64 76 H36 Z"/><rect x="30" y="74" width="40" height="8" rx="2"/><rect x="22" y="81" width="56" height="10" rx="3"/></g><g id="lp-monolith-gd-K"></g><symbol id="lp-monolith-wK" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-K" class="o"/><use href="#lp-monolith-g-K" class="f"/><use href="#lp-monolith-gd-K" class="d"/></g></symbol><symbol id="lp-monolith-bK" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-K" class="o"/><use href="#lp-monolith-g-K" class="f"/><use href="#lp-monolith-gd-K" class="d"/></g></symbol><g id="lp-monolith-g-Q"><circle cx="24" cy="17" r="3.6"/><circle cx="50" cy="10" r="3.6"/><circle cx="76" cy="17" r="3.6"/><path d="M30 46 L24 19 L37 33 L50 12 L63 33 L76 19 L70 46 Z"/><rect x="32" y="44" width="36" height="7" rx="3.5"/><path d="M40 50 H60 L64 76 H36 Z"/><rect x="30" y="74" width="40" height="8" rx="2"/><rect x="22" y="81" width="56" height="10" rx="3"/></g><g id="lp-monolith-gd-Q"></g><symbol id="lp-monolith-wQ" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-Q" class="o"/><use href="#lp-monolith-g-Q" class="f"/><use href="#lp-monolith-gd-Q" class="d"/></g></symbol><symbol id="lp-monolith-bQ" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-Q" class="o"/><use href="#lp-monolith-g-Q" class="f"/><use href="#lp-monolith-gd-Q" class="d"/></g></symbol><g id="lp-monolith-g-R"><rect x="30" y="16" width="10" height="22" rx="1.5"/><rect x="45" y="16" width="10" height="22" rx="1.5"/><rect x="60" y="16" width="10" height="22" rx="1.5"/><rect x="30" y="30" width="40" height="10" rx="0"/><path d="M37 39 H63 L65 76 H35 Z"/><rect x="31" y="74" width="38" height="8" rx="2"/><rect x="25" y="81" width="50" height="10" rx="3"/></g><g id="lp-monolith-gd-R"></g><symbol id="lp-monolith-wR" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-R" class="o"/><use href="#lp-monolith-g-R" class="f"/><use href="#lp-monolith-gd-R" class="d"/></g></symbol><symbol id="lp-monolith-bR" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-R" class="o"/><use href="#lp-monolith-g-R" class="f"/><use href="#lp-monolith-gd-R" class="d"/></g></symbol><g id="lp-monolith-g-B"><circle cx="50" cy="13" r="4"/><path d="M50 16 C65 29 67 46 50 60 C33 46 35 29 50 16 Z"/><rect x="38" y="57" width="24" height="7" rx="3.5"/><path d="M42 63 H58 L61 76 H39 Z"/><rect x="33" y="74" width="34" height="8" rx="2"/><rect x="26" y="81" width="48" height="10" rx="3"/></g><g id="lp-monolith-gd-B"><path d="M54 27 L63 41" fill="none"/></g><symbol id="lp-monolith-wB" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-B" class="o"/><use href="#lp-monolith-g-B" class="f"/><use href="#lp-monolith-gd-B" class="d"/></g></symbol><symbol id="lp-monolith-bB" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-B" class="o"/><use href="#lp-monolith-g-B" class="f"/><use href="#lp-monolith-gd-B" class="d"/></g></symbol><g id="lp-monolith-g-N"><path d="M33 76 L33 66 C33 59 35 54 38 50 L28 46 C22 45 20 40 22 35 C25 30 31 27 37 27 C40 24 43 18 45 13 L51 15 C55 18 57 22 57 27 C66 34 70 50 70 66 L70 76 Z"/><rect x="31" y="74" width="38" height="8" rx="2"/><rect x="25" y="81" width="50" height="10" rx="3"/></g><g id="lp-monolith-gd-N"><circle cx="44" cy="32" r="2.4" stroke="none"/><path d="M25 39 l3 1" fill="none"/><path d="M58 33 C63 40 65 50 65 62" fill="none" stroke-width="2.2"/></g><symbol id="lp-monolith-wN" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-N" class="o"/><use href="#lp-monolith-g-N" class="f"/><use href="#lp-monolith-gd-N" class="d"/></g></symbol><symbol id="lp-monolith-bN" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-N" class="o"/><use href="#lp-monolith-g-N" class="f"/><use href="#lp-monolith-gd-N" class="d"/></g></symbol><g id="lp-monolith-g-P"><circle cx="50" cy="34" r="12"/><rect x="45" y="43" width="10" height="15" rx="0"/><rect x="35" y="55" width="30" height="7" rx="3.5"/><path d="M40 61 H60 L67 83 H33 Z"/><rect x="28" y="81" width="44" height="10" rx="3"/></g><g id="lp-monolith-gd-P"></g><symbol id="lp-monolith-wP" viewBox="0 0 100 100"><g class="lp lp-monolith w"><use href="#lp-monolith-g-P" class="o"/><use href="#lp-monolith-g-P" class="f"/><use href="#lp-monolith-gd-P" class="d"/></g></symbol><symbol id="lp-monolith-bP" viewBox="0 0 100 100"><g class="lp lp-monolith b"><use href="#lp-monolith-g-P" class="o"/><use href="#lp-monolith-g-P" class="f"/><use href="#lp-monolith-gd-P" class="d"/></g></symbol></defs>

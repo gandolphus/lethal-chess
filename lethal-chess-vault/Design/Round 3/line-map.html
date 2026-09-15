@@ -727,8 +727,10 @@ function render() {
 	let y = 28;
 
 	// Ply ruler: the move number of the move that lands on that column (White's on even plies).
-	for (let p = DEFINING; p <= maxPly; p += zoom === 'detail' ? 1 : 2) {
+	const step = zoom === 'detail' ? 1 : 2 * Math.max(1, Math.ceil(30 / (2 * plyW)));
+	for (let p = DEFINING; p <= maxPly; p += step) {
 		const label = p % 2 === 1 ? `${(p + 1) / 2}.` : `${p / 2}…`;
+		if (p !== DEFINING && x(p) - x(DEFINING) < 30) continue;
 		parts.push(`<text class="ply" x="${x(p)}" y="16" text-anchor="middle">${p === DEFINING ? '3.Bb5' : label}</text>`);
 	}
 

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
 	import { Engine, ignoreDestroyed } from '$lib/chess/engine';
-	import { Game } from '$lib/chess/game.svelte';
+	import { Game, parseUci } from '$lib/chess/game.svelte';
 	import { FreePlay } from '$lib/coach/freeplay.svelte';
 	import { progressStore, sync } from '$lib/drill/account.svelte';
 	import type { ProgressStore } from '$lib/drill/progress';
@@ -11,6 +11,7 @@
 	import { lineCards, mastery, nextLine, reviewable, type Mastery } from '$lib/explore/mastery';
 	import { ReviewSession } from '$lib/explore/review.svelte';
 	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
+	import LineShelf from '$lib/ui/LineShelf.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
 	import type { PageProps } from './$types';
@@ -203,22 +204,13 @@
 					if (explore.inOpening) {
 						return { tone, title: `Play the ${bundle.name}`, text: message?.text ?? `It starts ${openingSan}. The lines after that are yours to discover.` };
 					}
-					const following = explore.following;
-					if (following) {
-						return {
-							tone,
-							title: 'Follow the line',
-							text: message?.text ?? `You're in ${following.entryName ?? following.variation}. How does it continue?`
-						};
-					}
-					if (explore.inBook) {
-						return { tone, title: 'Your move', text: message?.text ?? 'Established lines continue from here. What would you play?' };
-					}
-					return {
-						tone,
-						title: 'Your move — past the known lines',
-						text: message?.text ?? 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.'
-					};
+					// The title is about now, the text about the last move; where the game stands is the line card's job.
+					const prompt = explore.following
+						? 'How does the line continue?'
+						: explore.inBook
+							? 'Established lines continue from here. What would you play?'
+							: 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.';
+					return { tone, title: 'Your move', text: message?.text ?? prompt };
 				}
 				case 'decide':
 					return { tone: 'fail', title: 'Try again?', text: message?.text ?? '' };
@@ -261,6 +253,53 @@
 	});
 	const anticipation = $derived(explore && !explore.inOpening && !celebration ? explore.progress : null);
 
+	/** Destination squares of the moves played since the entrance of the line in progress. */
+	const trail = $derived.by(() => {
+		if (!explore || !anticipation?.played) return [];
+		return explore.game.uciHistory.slice(-anticipation.played).map((uci) => parseUci(uci).to);
+	});
+
+	/** The discovered line's route, entrance to end, for the board's one-second trace. */
+	const boardCelebration = $derived.by(() => {
+		if (!celebration || celebration.assisted || explore?.game.history.length !== celebration.ply) return null;
+		const line = celebration.lines[0];
+		const route = line.moves.slice(Math.min(line.entry, line.moves.length - 1));
+		return { id: celebration.id, path: route.map((uci) => parseUci(uci)) };
+	});
+
+	// A mote flies from the line's last square into the counter under the board.
+	let counter = $state<HTMLElement | null>(null);
+	let boardColumn = $state<HTMLElement | null>(null);
+	let flown = 0;
+	$effect(() => {
+		const moment = boardCelebration;
+		if (!moment || moment.id === flown || celebration?.known || !counter || !boardColumn) return;
+		flown = moment.id;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const square = boardColumn.querySelector(`[data-square="${moment.path.at(-1)!.to}"]`)?.getBoundingClientRect();
+		const target = counter.getBoundingClientRect();
+		if (!square) return;
+		const mote = document.createElement('span');
+		mote.className = 'mote';
+		const x = square.left + square.width / 2;
+		const y = square.top + square.height / 2;
+		Object.assign(mote.style, { left: `${x}px`, top: `${y}px` });
+		document.body.appendChild(mote);
+		const dx = target.left + 12 - x;
+		const dy = target.top + target.height / 2 - y;
+		mote
+			.animate(
+				[
+					{ transform: 'translate(0, 0) scale(1)', opacity: 0, offset: 0 },
+					{ transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0.35 },
+					{ transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 40}px) scale(1.3)`, opacity: 1, offset: 0.75 },
+					{ transform: `translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 1, offset: 1 }
+				],
+				{ duration: 1150, easing: 'cubic-bezier(.4, 0, .6, 1)', fill: 'forwards' }
+			)
+			.finished.finally(() => mote.remove());
+	});
+
 	const pairs = $derived(movePairs(game?.history ?? []));
 
 	const share = (value: number | null | undefined) => `${Math.round((value ?? 0) * 100)}%`;
@@ -288,7 +327,7 @@
 
 <main>
 	<div class="layout">
-		<div class="board-column">
+		<div class="board-column" bind:this={boardColumn}>
 			<div class="board-slot">
 			{#if freeplay}
 				<Board
@@ -310,6 +349,8 @@
 					needsPromotion={explore.game.needsPromotion}
 					marks={explore.marks}
 					arrows={explore.arrows}
+					{trail}
+					celebration={boardCelebration}
 					onMove={(from, to, promotion) =>
 						void (explore?.phase === 'decide' ? explore.answerWhy(from, to, promotion) : explore?.submit(from, to, promotion))?.catch(ignoreDestroyed)}
 				/>
@@ -326,6 +367,9 @@
 				/>
 			{:else}
 				<Board fen={rootFen} orientation={bundle.side} interactive={false} onMove={() => {}} />
+			{/if}
+			{#if mode === 'explore' && summary && !freeplay}
+				<LineShelf variations={summary.variations} here={explore?.following?.variation ?? null} bind:count={counter} />
 			{/if}
 			</div>
 		</div>
@@ -350,6 +394,7 @@
 				</p>
 			</div>
 
+			<div class="line-slot" class:empty={!explore && !review}>
 			{#if celebration}
 				{#key celebration.id}
 					<div class="discovery" data-kind={celebration.assisted ? 'assisted' : celebration.known ? 'known' : 'discovered'} role="status">
@@ -396,7 +441,20 @@
 						{/each}
 					</span>
 				</div>
+			{:else if explore && !explore.inOpening}
+				<div class="discovery" data-kind="idle" role="status">
+					<p class="kicker">{explore.inBook ? 'In the book' : 'Past the known lines'}</p>
+					<p class="name">{explore.inBook ? (explore.name ?? bundle.name) : 'Free play'}</p>
+					<p class="sub">{explore.inBook ? 'Established lines continue from here.' : 'The book ends here. Play on, or start a new game.'}</p>
+				</div>
+			{:else if explore}
+				<div class="discovery" data-kind="idle" role="status">
+					<p class="kicker">The opening</p>
+					<p class="name">{bundle.name}</p>
+					<p class="sub num">{openingSan}</p>
+				</div>
 			{/if}
+			</div>
 
 			<div class="notice" data-tone={notice.tone === 'accent' ? undefined : notice.tone} aria-live="polite">
 				<p class="title">
@@ -489,17 +547,9 @@
 
 			{#if mode === 'explore' && summary}
 				<div class="prof discoveries">
-					<p class="label">{bundle.name} — lines you've discovered</p>
-					<div class="tally">
-						<p class="count num"><strong>{summary.sound.discovered}</strong> <span>/ {summary.sound.total}</span></p>
-						<p class="label small">
-							{#if summary.sound.entered}{summary.sound.entered} more entered, not yet followed to the end.{:else}Reach a line's end to discover it.{/if}
-						</p>
-					</div>
-					<span class="track split" aria-hidden="true">
-						<span class="fill" style="width:{share(summary.sound.total ? summary.sound.discovered / summary.sound.total : 0)}"></span>
-						<span class="fill entered" style="width:{share(summary.sound.total ? summary.sound.entered / summary.sound.total : 0)}"></span>
-					</span>
+					<p class="label">
+						{bundle.name} — {summary.sound.discovered} of {summary.sound.total} lines discovered{#if summary.sound.entered}, {summary.sound.entered} more entered{/if}.
+					</p>
 
 					<details class="variations">
 						<summary>By variation <span class="num">{summary.variations.length}</span></summary>
@@ -513,12 +563,9 @@
 									{#if variation.found.length}
 										<ul class="found">
 											{#each variation.found as { line, stage } (line.key)}
-												<li data-stage={stage}>{stage === 'discovered' ? shortLine(line) : `${line.entryName ?? line.variation} …`}</li>
+												<li data-stage={stage}>{stage === 'discovered' ? shortLine(line) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
 											{/each}
 										</ul>
-									{/if}
-									{#if variation.total - variation.found.length > 0}
-										<p class="secret">{variation.total - variation.found.length} still secret</p>
 									{/if}
 								</li>
 							{/each}
@@ -531,7 +578,7 @@
 							<p class="label small">Established, but they take a move the engine calls a mistake. Worth knowing, not worth playing.</p>
 							<ul class="found">
 								{#each summary.dubious.found as { line, stage } (line.key)}
-									<li data-stage={stage}>{stage === 'discovered' ? line.name : `${line.entryName ?? line.variation} …`}</li>
+									<li data-stage={stage}>{stage === 'discovered' ? shortVariation(line.name) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
 								{/each}
 							</ul>
 							{#if summary.dubious.total - summary.dubious.found.length > 0}
@@ -833,11 +880,27 @@
 		display: flex;
 		align-items: center;
 		gap: 0.45rem;
-		font-size: 0.7rem;
-		font-weight: 600;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
+		font-size: 0.8rem;
+		font-weight: 500;
 		color: var(--disc-tone);
+	}
+
+	/* The card's place is kept whatever it shows, so a discovery never pushes the buttons below it. */
+	.line-slot {
+		display: grid;
+		min-height: 6.4rem;
+	}
+
+	.line-slot.empty {
+		display: none;
+	}
+
+	.discovery[data-kind='idle'] {
+		--disc-tone: var(--text-2);
+		border-color: var(--border);
+		background: var(--surface-1);
+		box-shadow: none;
+		animation: none;
 	}
 
 	.discovery .tag {
@@ -1023,7 +1086,7 @@
 			gap: 0.9rem;
 		}
 
-		.discovery {
+		.line-slot {
 			order: -3;
 		}
 

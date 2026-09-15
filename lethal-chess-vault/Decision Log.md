@@ -9,6 +9,15 @@ Dated, rationale-bearing record of locked decisions. See [[System Map]] for the 
 
 ---
 
+## 2026-09-16 — Today session; Why? becomes a question
+
+- **`/today`.** Due lines across all openings, interleaved, capped at 10, with a "done" state and no
+  streaks. It is the daily surface spaced review needs.
+- **Why?** The learner plays the refutation from the opponent's side, then watches the engine line play
+  out.
+
+Both come from [[Learning science for opening training]] (P2, P3). See [[Exploration Mode]].
+
 ## 2026-09-16 — Practice becomes line review (FSRS over discovered lines)
 
 The overnight research ([[Learning science for opening training]]) ranked line mastery first: a

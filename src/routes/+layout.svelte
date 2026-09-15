@@ -59,6 +59,7 @@
 
 	const links = [
 		{ href: '/', label: 'Openings', current: (path: string) => path === '/' || path.startsWith('/openings') },
+		{ href: '/today', label: 'Today', current: (path: string) => path.startsWith('/today') },
 		{ href: '/play', label: 'Play', current: (path: string) => path.startsWith('/play') },
 		{ href: '/settings', label: 'Settings', current: (path: string) => path.startsWith('/settings') }
 	];

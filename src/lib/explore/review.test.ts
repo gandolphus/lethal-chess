@@ -151,3 +151,28 @@ describe('ReviewSession', () => {
 		expect(s.phase).toBe('reveal');
 	});
 });
+
+describe('planToday', () => {
+	it('interleaves openings, most overdue first within each, and stops at the limit', async () => {
+		const { planToday } = await import('./today');
+		const a = fixture();
+		const b = { ...fixture(), id: 'other' };
+		const cards = lineCards([
+			{ bundleId: 'fixture', line: bishop.key, rating: 'again', at: at(1) },
+			{ bundleId: 'fixture', line: spanish.key, rating: 'again', at: at(2) }
+		]);
+		const plan = planToday(
+			[
+				{ bundle: a, lines: [spanish, bishop, petrov], cards },
+				{ bundle: b, lines: [petrov], cards: new Map() }
+			],
+			new Date(at(20)),
+			3
+		);
+		expect(plan.map((item) => `${item.bundle.id}:${item.line.name}`)).toEqual([
+			'fixture:Test: Bishop',
+			'other:Test: Knight, Petrov',
+			'fixture:Test: Knight, Spanish'
+		]);
+	});
+});

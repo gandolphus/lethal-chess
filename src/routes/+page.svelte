@@ -68,12 +68,13 @@
 			<h1>Know your openings cold.</h1>
 			<p>
 				Pick an opening you want to play. Explore it: the established lines are hidden, and you find them by
-				playing good moves — every move checked against a deep engine evaluation. Then drill it from memory.
+				playing good moves — every move checked against a deep engine evaluation. Then the lines you find come
+				back for review, spaced so they stick.
 			</p>
 			<ol class="steps">
 				<li><b>Pick</b> an opening below</li>
 				<li><b>Explore</b> — discover the established lines</li>
-				<li><b>Practice</b> — from memory, engine-checked</li>
+				<li><b>Today</b> — replay what you found, just before you'd forget it</li>
 			</ol>
 		</div>
 		{#if featured}

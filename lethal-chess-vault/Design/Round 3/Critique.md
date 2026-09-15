@@ -8,7 +8,7 @@ aliases: [Round 3 critique, Explore page critique]
 Fable 5.1, 2026-09-16, for [[Exploration Mode]] and [[Visual Design]]. Screenshots in `shots/` were taken
 from the dev server at 1400×1000 and 390×844 in Obsidian, Alabaster, Amethyst and Graphite; the file names
 say which (`explore-<theme>-<desktop|phone>-<state>.png`, `picker-<theme>-<size>.png`). The prototypes
-that answer this critique are described in [[Round 3/README|README]].
+that answer this critique are described in [[README|the Round 3 README]].
 
 ## The short version
 

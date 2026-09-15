@@ -76,6 +76,9 @@
 		{#each links as link (link.href)}
 			<a href={link.href} aria-current={link.current(page.url.pathname) ? 'page' : undefined}>{link.label}</a>
 		{/each}
+		{#if (data as { isAdmin?: boolean }).isAdmin}
+			<a href="/admin" aria-current={page.url.pathname.startsWith('/admin') ? 'page' : undefined}>Admin</a>
+		{/if}
 	</div>
 	<div class="account">
 		{#if user}

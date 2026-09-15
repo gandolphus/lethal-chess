@@ -18,7 +18,11 @@ export const SECURITY_HEADERS: Record<string, string> = {
 	'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
 };
 
-const isLocal = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
+/** The site token is public by design: it only identifies which site the visit counts toward. */
+export const ANALYTICS_BEACON =
+	`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "a5b618f62bf44df98c7ef4cc4b71ff0c"}'></script>`;
+
+const isLocal =(hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const { url } = event;
@@ -48,7 +52,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const response = await resolve(event);
+	// Cloudflare Web Analytics: cookieless visit counts, production only, so local testing never counts.
+	const response = await resolve(event, {
+		transformPageChunk: ({ html }) => (url.hostname === CANONICAL_HOST ? html.replace('</head>', `${ANALYTICS_BEACON}</head>`) : html)
+	});
 
 	// Every page carries the signed-in user through the root layout, so a response rendered
 	// for a session must never land in a shared cache.

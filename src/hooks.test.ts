@@ -53,3 +53,23 @@ describe('handle', () => {
 		expect(response.headers.get('x-frame-options')).toBe('DENY');
 	});
 });
+
+describe('analytics beacon', () => {
+	const html = '<html><head><title>x</title></head><body></body></html>';
+	const render = async (url: string) => {
+		const response = await handle({
+			event: eventFor(url),
+			resolve: async (_event: unknown, opts?: { transformPageChunk?: (i: { html: string; done: boolean }) => string }) =>
+				new Response(opts?.transformPageChunk?.({ html, done: true }) ?? html, { headers: { 'content-type': 'text/html' } })
+		} as never);
+		return response.text();
+	};
+
+	it('is injected on lethalchess.com', async () => {
+		expect(await render('https://lethalchess.com/')).toContain('static.cloudflareinsights.com/beacon.min.js');
+	});
+
+	it('is never injected locally', async () => {
+		expect(await render('http://localhost:5177/')).not.toContain('cloudflareinsights');
+	});
+});

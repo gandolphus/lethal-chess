@@ -4,13 +4,21 @@
 
 <main>
 	<h1>Privacy</h1>
-	<p class="lede">What Lethal Chess stores, why, where — and how to take it back.</p>
+	<p class="lede">What Lethal Chess stores, why, where — and how to take it back. Last updated 15 September 2026.</p>
+
+	<section>
+		<h2>Who is responsible</h2>
+		<p>
+			Lethal Chess is an independent, open-source project. Questions or requests about your data:
+			<a href="mailto:privacy@lethalchess.com">privacy@lethalchess.com</a>.
+		</p>
+	</section>
 
 	<section>
 		<h2>If you don't sign in</h2>
 		<p>
-			Your progress is saved <strong>only in this browser</strong> (local storage). It is never sent to our server. Clearing your
-			browser data removes it.
+			Your progress and your chosen theme are saved <strong>only in this browser</strong> (local storage). They are never sent
+			to our server, and clearing your browser data removes them.
 		</p>
 	</section>
 
@@ -18,38 +26,68 @@
 		<h2>If you sign in with Google</h2>
 		<p>We store, for your account:</p>
 		<ul>
-			<li>your Google account ID, email address, name and profile picture URL — to recognise you and show who is signed in;</li>
-			<li>your drill history — which positions you practised, the move you played, whether it was right, and how long you took;</li>
-			<li>the review schedule for each position, so positions come back when you are about to forget them;</li>
-			<li>a hashed session identifier, so you stay signed in (the cookie itself holds a random token).</li>
+			<li>your Google account ID, email address, name and profile picture link — to recognise you and show who is signed in;</li>
+			<li>your drill history — the positions you practised, the move you played, whether it was right, and how long you took;</li>
+			<li>the review schedule for each position, so positions return when you're about to forget them;</li>
+			<li>a sign-in session: a cookie holding a random token, of which the server keeps only a one-way hash.</li>
 		</ul>
 		<p>
-			We use this only to provide the service you signed in for. There are no ads, no analytics or tracking scripts, and no
-			cookies other than the ones sign-in needs.
+			When you sign in, progress you made on this browser while signed out is <strong>added to your account</strong>. On a
+			shared computer, that may include someone else's signed-out practice. When you sign out, your account's copy is removed
+			from the browser.
+		</p>
+		<p>
+			Your profile picture is loaded directly from Google's servers when a page shows it. We don't use your data for anything
+			except providing the service, and we don't sell or share it.
 		</p>
 	</section>
 
 	<section>
-		<h2>Where it is stored</h2>
+		<h2>Visit statistics</h2>
 		<p>
-			In a Cloudflare D1 database restricted to the <strong>European Union</strong>: stored and processed only in the EU.
-			Cloudflare hosts the site and database on our behalf. Google handles the sign-in step itself.
+			We count visits with <strong>Cloudflare Web Analytics</strong>: which pages are viewed, the referring website, country
+			and device type. It uses <strong>no cookies</strong>, doesn't track you across sites and doesn't identify you. There are
+			no ads and no other tracking.
 		</p>
+	</section>
+
+	<section>
+		<h2>Who processes data for us</h2>
+		<ul>
+			<li>
+				<strong>Cloudflare</strong> hosts the site, runs it close to you (which may be outside the EU for visitors elsewhere),
+				provides the visit statistics, and stores accounts and progress in a database restricted to the <strong>European
+				Union</strong>. Error logs are kept for a few days for debugging; we switched off per-visit request logs.
+			</li>
+			<li><strong>Google</strong> handles the sign-in step itself, under Google's own privacy policy.</li>
+			<li><strong>Google Fonts</strong> serves the site's typefaces, so your browser contacts Google to fetch them.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>Why we may do this</h2>
 		<p>
-			The site's typefaces are currently loaded from Google Fonts, which means your browser contacts Google to fetch them.
+			Storing your account and progress is needed to provide the service you signed up for (GDPR Art. 6(1)(b)). Cookieless visit
+			statistics and error logs are in our legitimate interest in keeping the site working and understanding its use
+			(Art. 6(1)(f)).
 		</p>
 	</section>
 
 	<section>
 		<h2>How long</h2>
-		<p>Until you delete your account. Sign-in sessions expire after 30 days of inactivity.</p>
+		<p>
+			Until you delete your account. Deleting removes your data immediately; it disappears from the database's automatic
+			backups within 30 days. Sign-in sessions expire after 30 days without use.
+		</p>
 	</section>
 
 	<section>
-		<h2>Your data, your call</h2>
+		<h2>Your rights</h2>
 		<p>
-			In <a href="/settings">Settings</a> you can <strong>download everything</strong> stored about you as a file, and
-			<strong>delete your account</strong> — which permanently removes your account and all your progress at once.
+			You can access, correct, download or delete your data, object to processing, or ask us to restrict it. Two of these are
+			one click in <a href="/settings">Settings</a>: <strong>Download my data</strong> and <strong>Delete my account</strong>. For
+			anything else, email <a href="mailto:privacy@lethalchess.com">privacy@lethalchess.com</a>. You may also complain to your
+			data protection authority — in Sweden, <a href="https://www.imy.se/" rel="noopener">IMY</a>.
 		</p>
 	</section>
 

@@ -27,14 +27,15 @@ export default defineConfig({
 				directives: {
 					'default-src': ['self'],
 					// Stockfish runs as WebAssembly inside a same-origin worker.
-					'script-src': ['self', 'wasm-unsafe-eval'],
+					'script-src': ['self', 'wasm-unsafe-eval', 'https://static.cloudflareinsights.com'],
 					'worker-src': ['self'],
 					// Piece sprites carry <style> rules and style attributes; inline styles cannot run code.
 					'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
 					'font-src': ['self', 'https://fonts.gstatic.com'],
 					// Google profile pictures of signed-in users.
 					'img-src': ['self', 'data:', 'https://*.googleusercontent.com'],
-					'connect-src': ['self'],
+					// Cloudflare Web Analytics reports visits here.
+					'connect-src': ['self', 'https://cloudflareinsights.com'],
 					'form-action': ['self'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],

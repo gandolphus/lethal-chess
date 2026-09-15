@@ -427,7 +427,7 @@ const STYLE = `
 .lp-nocturne.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 1.8; }
 /* regalia: crisp outline, one gradient across the whole piece, a masked side-light gloss, accent jewels */
 .lp-regalia .o { stroke-width: 4.2; }
-.lp-regalia.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
+.lp-regalia.w .o { stroke: color-mix(in srgb, var(--pws) 55%, #000); fill: color-mix(in srgb, var(--pws) 55%, #000); stroke-width: 7; }
 .lp-regalia.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-regalia.w .f { fill: url(#lp-regalia-grad-w); }
 .lp-regalia.b .f { fill: url(#lp-regalia-grad-b); }

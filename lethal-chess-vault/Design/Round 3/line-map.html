@@ -179,6 +179,11 @@ p { margin: 0; }
 .topbar nav a { padding: 0.35rem 0.6rem; border-radius: 7px; color: var(--text-2); text-decoration: none; }
 .topbar nav a[aria-current] { background: var(--surface-2); color: var(--text); }
 .topbar .spacer { flex: 1; }
+.brand { white-space: nowrap; }
+@media (max-width: 700px) {
+	.topbar { flex-wrap: wrap; gap: 0.4rem 1rem; }
+	.topbar nav { order: 3; width: 100%; }
+}
 
 /* Shared chrome copied from app.css */
 .btn {
@@ -628,12 +633,16 @@ const bands = [];
 {
 	const byVar = new Map();
 	LINES.forEach((l, i) => { if (l.d) return; (byVar.get(l.v) ?? byVar.set(l.v, []).get(l.v)).push(i); });
+	// Variations with a single line are one band, "Sidelines", so 15 one-row bands don't trail the chart.
+	const sidelines = [];
 	for (const [name, idx] of byVar) {
+		if (idx.length === 1) { sidelines.push(idx[0]); continue; }
 		const discovered = idx.filter((i) => stageOf(i) === 'discovered').length;
 		const entered = idx.filter((i) => stageOf(i) === 'entered').length;
 		bands.push({ name, idx, discovered, entered, here: idx.includes(HERE) });
 	}
 	bands.sort((a, b) => b.idx.length - a.idx.length || a.name.localeCompare(b.name));
+	bands.push({ name: 'Sidelines', idx: sidelines, discovered: sidelines.filter((i) => stageOf(i) === 'discovered').length, entered: sidelines.filter((i) => stageOf(i) === 'entered').length, here: sidelines.includes(HERE), flat: true });
 }
 
 // ── Shelf ──
@@ -658,7 +667,9 @@ shelf.addEventListener('mouseleave', () => (shelfLabel.innerHTML = describe(band
 // ── Map ──
 const column = document.getElementById('column');
 const mapscroll = document.getElementById('mapscroll');
-let zoom = 'detail';
+let zoom = matchMedia('(max-width: 860px)').matches ? 'overview' : 'detail';
+document.getElementById('z-overview').setAttribute('aria-pressed', String(zoom === 'overview'));
+document.getElementById('z-detail').setAttribute('aria-pressed', String(zoom === 'detail'));
 const openMap = () => { column.classList.add('map'); render(); };
 const closeMap = () => column.classList.remove('map');
 document.getElementById('open-map').addEventListener('click', openMap);
@@ -699,7 +710,7 @@ function edgeStatus(node) {
 	}
 	return s;
 }
-const ROW = { detail: 18, overview: 7 };
+const ROW = { detail: 16, overview: 7 };
 const PLY = { detail: 46, overview: 0 }; // overview fits the width
 const GUTTER = { detail: 180, overview: 150 };
 
@@ -715,9 +726,9 @@ function render() {
 	const parts = [];
 	let y = 28;
 
-	// Ply ruler
-	for (let p = DEFINING; p <= maxPly; p += zoom === 'detail' ? 2 : 4) {
-		const label = p % 2 === 0 ? `${p / 2 + 1}.` : `${(p + 1) / 2}…`;
+	// Ply ruler: the move number of the move that lands on that column (White's on even plies).
+	for (let p = DEFINING; p <= maxPly; p += zoom === 'detail' ? 1 : 2) {
+		const label = p % 2 === 1 ? `${(p + 1) / 2}.` : `${p / 2}…`;
 		parts.push(`<text class="ply" x="${x(p)}" y="16" text-anchor="middle">${p === DEFINING ? '3.Bb5' : label}</text>`);
 	}
 
@@ -734,8 +745,9 @@ function render() {
 		const h = Math.max(leaves.length * row, zoom === 'detail' ? 34 : 14);
 		parts.push(`<g data-band="${b.name.replace(/"/g, '&quot;')}" data-y="${y - 8}">`);
 		parts.push(`<line class="band-line" x1="8" x2="${svgW - 8}" y1="${y - 4}" y2="${y - 4}"/>`);
-		parts.push(`<text class="band-name" x="12" y="${y + 13}">${b.name}</text>`);
-		parts.push(`<text class="band-count num" x="12" y="${y + 13 + (zoom === 'detail' ? 14 : 0)}" dx="${zoom === 'detail' ? 0 : b.name.length * 7 + 6}">${b.discovered} of ${b.idx.length}</text>`);
+		parts.push(zoom === 'detail'
+			? `<text class="band-name" x="12" y="${y + 13}">${b.name}</text><text class="band-count num" x="12" y="${y + 27}">${b.discovered} of ${b.idx.length}</text>`
+			: `<text class="band-name" x="12" y="${y + 13}">${b.name}<tspan class="band-count num" dx="8">${b.discovered} of ${b.idx.length}</tspan></text>`);
 		// Edges and nodes, DFS.
 		const draw = (node, parent) => {
 			if (parent) {

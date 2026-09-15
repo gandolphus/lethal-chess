@@ -305,12 +305,13 @@
 				<Board
 					fen={explore.game.fen}
 					orientation={bundle.side}
-					interactive={explore.phase === 'your-move'}
+					interactive={explore.phase === 'your-move' || (explore.phase === 'decide' && !explore.replaying && ['find', 'retry'].includes(explore.explanation?.stage ?? ''))}
 					legalTargets={explore.game.legalTargets}
 					needsPromotion={explore.game.needsPromotion}
 					marks={explore.marks}
 					arrows={explore.arrows}
-					onMove={(from, to, promotion) => void explore?.submit(from, to, promotion).catch(ignoreDestroyed)}
+					onMove={(from, to, promotion) =>
+						void (explore?.phase === 'decide' ? explore.answerWhy(from, to, promotion) : explore?.submit(from, to, promotion))?.catch(ignoreDestroyed)}
 				/>
 			{:else if review}
 				<Board
@@ -410,9 +411,9 @@
 				{:else if explore}
 					<div class="actions">
 						{#if explore.phase === 'decide'}
-							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()}>Try again <kbd>T</kbd></button>
+							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()} disabled={explore.replaying}>Try again <kbd>T</kbd></button>
 							<button type="button" class="btn" onclick={() => explore?.explain()} disabled={Boolean(explore.explanation)}>Why? <kbd>W</kbd></button>
-							<button type="button" class="btn" onclick={() => explore?.playOn()}>Play on</button>
+							<button type="button" class="btn" onclick={() => explore?.playOn()} disabled={explore.replaying}>Play on</button>
 						{:else}
 							{#if explore.phase === 'your-move' && !explore.inOpening}
 								<button type="button" class="btn" onclick={() => explore?.hint()} disabled={explore.hintLevel >= 2}>
@@ -425,7 +426,7 @@
 						{/if}
 						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => startExplore()}>New game <kbd>N</kbd></button>
 					</div>
-					{#if explore.phase === 'decide' && explore.explanation}
+					{#if explore.phase === 'decide' && explore.explanation?.stage === 'shown'}
 						<p class="text why">
 							{#if explore.explanation.kind === 'refutation'}
 								The reply that punishes it: <b class="num">{explore.explanation.san}</b>.

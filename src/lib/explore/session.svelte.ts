@@ -114,7 +114,16 @@ export class ExploreSession {
 	 * Why a mistake was a mistake, revealed on request: the opponent's reply that punishes it — or, when
 	 * the learner missed a chance to punish the computer, the move they missed.
 	 */
-	explanation = $state<{ kind: 'refutation' | 'missed'; uci: string; san: string; line: string[] } | null>(null);
+	explanation = $state<{
+		kind: 'refutation' | 'missed';
+		uci: string;
+		san: string;
+		line: string[];
+		/** A refutation is first a question: the learner looks for it (one retry), then it is shown. */
+		stage: 'find' | 'retry' | 'shown';
+	} | null>(null);
+	/** The engine's line is being played out on the board, to be taken back afterwards. */
+	replaying = $state(false);
 
 	readonly openingMoves: string[];
 
@@ -163,7 +172,7 @@ export class ExploreSession {
 	});
 
 	readonly arrows = $derived.by<Arrow[]>(() => {
-		if (this.phase === 'decide' && this.explanation) {
+		if (this.phase === 'decide' && this.explanation?.stage === 'shown' && !this.replaying) {
 			const { from, to } = parseUci(this.explanation.uci);
 			return [{ from, to, kind: this.explanation.kind === 'refutation' ? 'refutation' : 'hint' }];
 		}
@@ -296,7 +305,7 @@ export class ExploreSession {
 
 	/** Takes back a mistake to look for a better move. */
 	tryAgain() {
-		if (this.phase !== 'decide') return;
+		if (this.phase !== 'decide' || this.replaying) return;
 		this.game.undo();
 		this.flash = null;
 		this.explanation = null;
@@ -308,7 +317,7 @@ export class ExploreSession {
 
 	/** Keeps a mistake on the board and lets the computer answer. */
 	async playOn() {
-		if (this.phase !== 'decide') return;
+		if (this.phase !== 'decide' || this.replaying) return;
 		const generation = this.#generation;
 		this.message = null;
 		this.opportunity = null;
@@ -327,7 +336,7 @@ export class ExploreSession {
 			const best = before.lines[0].move;
 			this.#shown.add(toEpd(before.fen));
 			const line = this.bundle.nodes[toEpd(before.fen)]?.line ?? sanLine(before.fen, before.lines[0].pv);
-			this.explanation = { kind: 'missed', uci: best, san: sanOf(before.fen, best), line: line.length ? line : [sanOf(before.fen, best)] };
+			this.explanation = { kind: 'missed', uci: best, san: sanOf(before.fen, best), line: line.length ? line : [sanOf(before.fen, best)], stage: 'shown' };
 			return;
 		}
 		const fen = this.game.fen;
@@ -345,7 +354,54 @@ export class ExploreSession {
 			line = analysis?.lines[0] ? sanLine(fen, analysis.lines[0].pv) : [];
 		}
 		if (!uci) return;
-		this.explanation = { kind: 'refutation', uci, san: sanOf(fen, uci), line: line.length ? line : [sanOf(fen, uci)] };
+		this.explanation = { kind: 'refutation', uci, san: sanOf(fen, uci), line: line.length ? line : [sanOf(fen, uci)], stage: 'find' };
+		const opponent = this.side === 'w' ? 'Black' : 'White';
+		this.message = { tone: 'info', text: `Why is it a mistake? Play ${opponent}'s best reply.` };
+	}
+
+	/** The learner's answer to "find the reply that punishes it". Either way the engine's line then plays out. */
+	async answerWhy(from: Square, to: Square, promotion?: string): Promise<boolean> {
+		const explanation = this.explanation;
+		if (this.phase !== 'decide' || this.replaying || !explanation || explanation.stage === 'shown') return false;
+		const legal = this.game.find({ from, to, promotion });
+		if (!legal) return false;
+		if (toUci(legal) === explanation.uci) {
+			this.flash = { from, to, kind: 'correct' };
+			this.message = { tone: 'best', text: `Exactly — ${explanation.san} punishes it.` };
+		} else if (explanation.stage === 'find') {
+			this.flash = { from, to, kind: 'wrong' };
+			this.explanation = { ...explanation, stage: 'retry' };
+			this.message = { tone: 'bad', text: 'Not that. What does the mistake allow? One more try.' };
+			return false;
+		} else {
+			this.message = { tone: 'bad', text: `${explanation.san} punishes it.` };
+		}
+		this.explanation = { ...explanation, stage: 'shown' };
+		await this.#replayLine();
+		return true;
+	}
+
+	/** Plays the first moves of the engine's line on the board, then takes them back. */
+	async #replayLine() {
+		const line = this.explanation?.line.slice(0, 5) ?? [];
+		const generation = this.#generation;
+		this.replaying = true;
+		let played = 0;
+		for (const san of line) {
+			await this.#wait(650);
+			if (generation !== this.#generation || this.phase !== 'decide') break;
+			try {
+				const move = new Chess(this.game.fen).move(san);
+				this.game.move({ from: move.from, to: move.to, promotion: move.promotion });
+				played++;
+			} catch {
+				break;
+			}
+		}
+		await this.#wait(1100);
+		if (generation === this.#generation) for (; played > 0; played--) this.game.undo();
+		this.flash = null;
+		this.replaying = false;
 	}
 
 	get canTakeBack() {

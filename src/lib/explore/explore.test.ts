@@ -227,7 +227,15 @@ describe('ExploreSession', () => {
 		await s.submit('f2', 'f3');
 		expect(s.phase).toBe('decide');
 		await s.explain();
-		expect(s.explanation).toEqual({ kind: 'refutation', uci: 'd8h4', san: 'Qh4+', line: ['Qh4+', 'g3'] });
+		// First a question: find Black's reply. No arrow yet.
+		expect(s.explanation).toMatchObject({ kind: 'refutation', uci: 'd8h4', san: 'Qh4+', line: ['Qh4+', 'g3'], stage: 'find' });
+		expect(s.arrows).toEqual([]);
+		expect(await s.answerWhy('b8', 'c6')).toBe(false);
+		expect(s.explanation?.stage).toBe('retry');
+		expect(await s.answerWhy('d8', 'h4')).toBe(true);
+		expect(s.explanation?.stage).toBe('shown');
+		// The line played out and was taken back: the learner's mistake is on the board again.
+		expect(s.game.history).toEqual(['e4', 'e5', 'f3']);
 		expect(s.arrows).toEqual([{ from: 'd8', to: 'h4', kind: 'refutation' }]);
 		s.tryAgain();
 		expect(s.explanation).toBeNull();

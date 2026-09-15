@@ -208,6 +208,9 @@ describe('ExploreSession', () => {
 		await s.submit('f2', 'f3');
 		expect(s.phase).toBe('decide');
 		expect(s.message?.tone).toBe('bad');
+		// Played at once (the test clock never moves), so the refutation is asked for straight away.
+		expect(s.message?.text).toContain('played quickly');
+		expect(s.explanation?.stage).toBe('find');
 
 		s.tryAgain();
 		expect(s.phase).toBe('your-move');

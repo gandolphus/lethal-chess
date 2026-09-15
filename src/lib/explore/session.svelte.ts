@@ -56,6 +56,9 @@ export type ExploreOptions = {
 
 // The computer's move hands the learner an opportunity only if it gives at least this much.
 const OPPORTUNITY_MIN_GAIN = 0.15;
+// A mistake played this fast was played with confidence: the correction is worth more there, so it is
+// asked for straight away rather than waiting for the learner to press Why?.
+const CONFIDENT_MS = 4000;
 // Undiscovered lines pull the computer's book replies; discovered ones keep a little weight.
 const KNOWN_LINE_WEIGHT = 0.2;
 
@@ -214,6 +217,7 @@ export class ExploreSession {
 	#shown = new Set<string>();
 	#generation = 0;
 	#eventId = 0;
+	#thinkingSince = 0;
 
 	constructor(options: ExploreOptions) {
 		this.#options = options;
@@ -292,6 +296,15 @@ export class ExploreSession {
 						text: `${verdict === 'blunder' ? 'A blunder — that can lose the game' : 'A mistake — it gives your opponent real chances'}. Try again, or play on.`
 					};
 			this.phase = 'decide';
+			// Quick and wrong: ask for the refutation at once (hypercorrection), rather than waiting for Why?.
+			if (this.#now.getTime() - this.#thinkingSince < CONFIDENT_MS && !this.opportunity) {
+				const stopped = this.message.text;
+				await this.explain();
+				if (this.explanation?.stage === 'find') {
+					const opponent = this.side === 'w' ? 'Black' : 'White';
+					this.message = { tone: 'bad', text: `${stopped.split('.')[0]}, played quickly. Find ${opponent}'s reply that punishes it.` };
+				}
+			}
 			return verdict;
 		}
 
@@ -476,6 +489,7 @@ export class ExploreSession {
 			this.#before = analysis;
 		}
 		if (this.#before?.lines[0]) this.evaluation = this.#before.lines[0].score;
+		this.#thinkingSince = this.#now.getTime();
 		this.phase = 'your-move';
 	}
 

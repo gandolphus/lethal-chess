@@ -11,6 +11,17 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 48,
+    "lines": 146,
+    "dubiousLines": [
+      "r1b1kbnr/ppp2ppp/2n5/1B1pN1q1/4P3/8/PPPP1PPP/RNBQ1RK1 b kq -",
+      "r1b1kbnr/ppp2ppp/2N5/1B1p2q1/4P3/8/PPPP1PPP/RNBQK2R b KQkq -",
+      "r1bqkb1r/pp1pnppp/2p2n2/1B2N3/4P3/3P4/PPP2PPP/RNBQK2R w KQkq -",
+      "r1bqkb1r/pppp1ppp/2n2n2/1B2N3/4P3/8/PPPP1PPP/RNBQK2R b KQkq -",
+      "r1bqkbnr/5ppp/p2p4/1pp5/3QP3/1B6/PPP2PPP/RNB1K2R w KQkq -",
+      "r1bqkb1r/2p2ppp/p1n5/1p1pp3/2PPn3/1B3N2/PP3PPP/RNBQ1RK1 b kq -",
+      "r1bqkb1r/2pp1ppp/p1n5/1p1Pp3/B3n3/5N2/PPP2PPP/RNBQ1RK1 b kq -",
+      "r1bqk2r/4bppp/p2p1n2/1pp5/3QP3/1B6/PPP2PPP/RNB1R1K1 w kq -"
+    ],
     "bytes": 382637
   },
   {
@@ -25,6 +36,15 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 48,
+    "lines": 103,
+    "dubiousLines": [
+      "r1bqkb1r/pppp1Bpp/2n5/4p3/4n3/2N2N2/PPPP1PPP/R1BQK2R b KQkq -",
+      "r1bqk1nr/pppp1Bpp/2n5/2b1p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq -",
+      "r1b3r1/ppp2k1p/1b6/nP2B1q1/3PP3/8/P1PN1PPP/R2QK2R b KQ -",
+      "r1bqk2r/ppp2ppp/2n5/3p4/2BP4/1Qb2N2/P4PPP/R1B2RK1 w kq -",
+      "r1bqk2r/ppp2ppp/2n5/3p4/2BPn3/B1P2N2/P4PPP/R2Q1RK1 b kq -",
+      "r1bq1b1r/ppn3pp/2p1k3/3np3/2BPQ3/P1N5/1PP2PPP/R1B1K2R w KQ -"
+    ],
     "bytes": 353012
   },
   {
@@ -39,6 +59,12 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 37,
+    "lines": 35,
+    "dubiousLines": [
+      "1rb2rk1/pp3ppp/5q2/3P4/1n6/2P1Q3/PP3PPP/RN2KB1R w KQ -",
+      "r1b1kbnr/pppp1ppp/2n5/5N2/4P2q/8/PPP2PPP/RNBQKB1R b KQkq -",
+      "r4b1r/ppp1kp2/2n1bN1p/q5p1/1P1p3B/5N2/P1P2PPP/R2QR1K1 b - -"
+    ],
     "bytes": 230923
   },
   {
@@ -53,6 +79,12 @@
     "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 59,
+    "lines": 31,
+    "dubiousLines": [
+      "r2qkbnr/ppp2p1p/2P5/8/2BP1pb1/2N2p2/PPP3PP/R1BQ1RK1 b kq -",
+      "r1bqkb1r/pppp1ppp/2nn4/4p2Q/3P4/1BN5/PPP2PPP/R1B1K1NR b KQkq -",
+      "r1bqkb1r/pppp1ppp/2n5/4p3/2B1nP2/2N2N2/PPPP2PP/R1BQK2R b KQkq -"
+    ],
     "bytes": 222218
   },
   {
@@ -68,6 +100,23 @@
     "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 54,
+    "lines": 112,
+    "dubiousLines": [
+      "rnbqk1nr/pppp1ppp/8/2b1p2Q/4PP2/8/PPPP2PP/RNB1KBNR b KQkq -",
+      "rnbqk1nr/ppp3pp/3b4/3p1P2/3P1p2/3B1N2/PPP3PP/RNBQK2R b KQkq -",
+      "rnbqkbnr/pppp1ppp/8/8/4Pp2/6P1/PPPP3P/RNBQKBNR b KQkq -",
+      "rnbqkbnr/pppp1ppp/8/8/4Pp2/1P6/P1PP2PP/RNBQKBNR b KQkq -",
+      "rnbqkbnr/pppp1ppp/8/8/4Pp2/8/PPPPN1PP/RNBQKB1R b KQkq -",
+      "rnbqkbnr/pppp1ppp/8/8/4Pp2/8/PPPP1KPP/RNBQ1BNR b kq -",
+      "rnbqkbnr/pppp1p1p/8/8/2B1PppP/5N2/PPPP2P1/RNBQK2R b KQkq h3",
+      "rnb2bnr/pppp1k1p/5q2/8/4P3/2N1pQ2/PPP3PP/R4RK1 w - -",
+      "rnbqkbnr/pppp1p1p/8/8/2BPPp2/5Q2/PPP3PP/RNB1K2R b KQkq -",
+      "rnbqkbnr/pppp1p1p/8/8/2BPPB2/5p2/PPP3PP/RN1QK2R b KQkq -",
+      "rnb2bnr/pppp1k1p/5q2/8/4Pp2/2N1BQ2/PPP3PP/R4RK1 b - -",
+      "rn1qkbnr/ppp2p2/3p4/6p1/2B1Ppp1/5N2/PPPP2P1/RNBQ1RK1 w kq -",
+      "rnbqk1nb/pp3p2/2pp4/4N1p1/2BPPp2/2N5/PPP3P1/R1BQK3 b Qq -",
+      "rnbqk2r/ppp2p1p/3b4/3PN3/2BP1npP/8/PPP3P1/RN1QK2R w KQkq -"
+    ],
     "bytes": 347857
   },
   {
@@ -83,6 +132,10 @@
     "learnerNodes": 184,
     "maxPly": 21,
     "opponentSharpness": 59,
+    "lines": 29,
+    "dubiousLines": [
+      "r1b3r1/ppp2k1p/1b6/nP2B1q1/3PP3/8/P1PN1PPP/R2QK2R b KQ -"
+    ],
     "bytes": 201785
   },
   {
@@ -98,6 +151,8 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 33,
+    "lines": 6,
+    "dubiousLines": [],
     "bytes": 155025
   },
   {
@@ -113,6 +168,8 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 30,
+    "lines": 22,
+    "dubiousLines": [],
     "bytes": 190501
   },
   {
@@ -127,6 +184,10 @@
     "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 31,
+    "lines": 193,
+    "dubiousLines": [
+      "rnbqk1nr/p4ppp/4p3/1p6/2pP4/2P1PN2/5PPP/R1BQKB1R w KQkq -"
+    ],
     "bytes": 513211
   },
   {
@@ -142,6 +203,8 @@
     "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 23,
+    "lines": 2,
+    "dubiousLines": [],
     "bytes": 152908
   },
   {
@@ -156,6 +219,8 @@
     "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 8,
+    "lines": 19,
+    "dubiousLines": [],
     "bytes": 206326
   },
   {
@@ -170,6 +235,11 @@
     "learnerNodes": 181,
     "maxPly": 21,
     "opponentSharpness": 19,
+    "lines": 132,
+    "dubiousLines": [
+      "rnbqkb1r/pppppppp/5n2/8/2P1P3/8/PP1P1PPP/RNBQKBNR b KQkq -",
+      "rnbqkbnr/pp1ppppp/8/2p5/1PP5/8/P2PPPPP/RNBQKBNR b KQkq -"
+    ],
     "bytes": 382286
   },
   {
@@ -184,6 +254,8 @@
     "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 27,
+    "lines": 10,
+    "dubiousLines": [],
     "bytes": 175662
   },
   {
@@ -198,6 +270,14 @@
     "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 18,
+    "lines": 254,
+    "dubiousLines": [
+      "rnbqkb1r/pp1pp1pp/7n/2p2P2/8/5N2/PPPP1PPP/RNBQKB1R w KQkq -",
+      "rnbqkbnr/pp1pp2p/6p1/2p2p2/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq -",
+      "rnbqkbnr/pp1p1ppp/8/2p1p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -",
+      "rnbqkbnr/p2ppppp/8/1pp5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -",
+      "rnbqkbnr/p3pppp/3p4/1pp5/4P3/5NP1/PPPP1P1P/RNBQKB1R w KQkq -"
+    ],
     "bytes": 588364
   },
   {
@@ -212,6 +292,8 @@
     "learnerNodes": 185,
     "maxPly": 22,
     "opponentSharpness": 35,
+    "lines": 18,
+    "dubiousLines": [],
     "bytes": 185578
   },
   {
@@ -227,6 +309,12 @@
     "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 27,
+    "lines": 70,
+    "dubiousLines": [
+      "rnb1kbnr/pp2pppp/2p5/3q4/2P5/8/PP1P1PPP/RNBQKBNR w KQkq -",
+      "rnbqkbnr/pp1pp1pp/2p5/5p2/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -",
+      "rnbqkb1r/pp1npppp/2p1P3/3p4/3P4/3B4/PPP2PPP/RNBQK1NR b KQkq -"
+    ],
     "bytes": 264389
   },
   {
@@ -242,6 +330,14 @@
     "learnerNodes": 180,
     "maxPly": 22,
     "opponentSharpness": 27,
+    "lines": 124,
+    "dubiousLines": [
+      "rnbqkbnr/p1pp1ppp/4p3/1p6/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -",
+      "rnbqkbnr/pppp2pp/4p3/5P2/3P4/8/PPP2PPP/RNBQKBNR b KQkq -",
+      "rnbqkbnr/ppp2ppp/8/3p4/3PPp2/8/PPP1Q1PP/RNB1KBNR w KQkq -",
+      "rnbqkbnr/pppp2pp/4p3/5p2/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -",
+      "r1bq1rk1/pp1n2pp/2n1pp2/2bpP3/5PQ1/P1N2N2/1PP3PP/R1B1KB1R w KQ -"
+    ],
     "bytes": 358375
   },
   {
@@ -256,6 +352,10 @@
     "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 25,
+    "lines": 31,
+    "dubiousLines": [
+      "rn2kb1r/ppp1pppp/5n2/5bN1/3qp3/2N5/PPPPQPPP/R1B1KB1R w KQkq -"
+    ],
     "bytes": 208857
   },
   {
@@ -270,6 +370,8 @@
     "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 29,
+    "lines": 16,
+    "dubiousLines": [],
     "bytes": 189113
   },
   {
@@ -284,6 +386,10 @@
     "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 30,
+    "lines": 35,
+    "dubiousLines": [
+      "rnbqkb1r/pppppppp/8/4P3/2P2n2/8/PP1P1PPP/RNBQKBNR w KQkq -"
+    ],
     "bytes": 210816
   },
   {
@@ -299,6 +405,8 @@
     "learnerNodes": 182,
     "maxPly": 22,
     "opponentSharpness": 15,
+    "lines": 74,
+    "dubiousLines": [],
     "bytes": 328801
   },
   {
@@ -314,6 +422,8 @@
     "learnerNodes": 182,
     "maxPly": 22,
     "opponentSharpness": 21,
+    "lines": 60,
+    "dubiousLines": [],
     "bytes": 264529
   },
   {
@@ -329,6 +439,8 @@
     "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 19,
+    "lines": 48,
+    "dubiousLines": [],
     "bytes": 251310
   },
   {
@@ -343,6 +455,8 @@
     "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 33,
+    "lines": 54,
+    "dubiousLines": [],
     "bytes": 267609
   },
   {
@@ -357,6 +471,8 @@
     "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 42,
+    "lines": 32,
+    "dubiousLines": [],
     "bytes": 207763
   },
   {
@@ -371,6 +487,10 @@
     "learnerNodes": 181,
     "maxPly": 18,
     "opponentSharpness": 8,
+    "lines": 42,
+    "dubiousLines": [
+      "rnbqkbnr/pppp2pp/8/4pp2/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq -"
+    ],
     "bytes": 219342
   },
   {
@@ -386,6 +506,8 @@
     "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 37,
+    "lines": 19,
+    "dubiousLines": [],
     "bytes": 181217
   },
   {
@@ -401,6 +523,8 @@
     "learnerNodes": 182,
     "maxPly": 22,
     "opponentSharpness": 21,
+    "lines": 6,
+    "dubiousLines": [],
     "bytes": 163526
   }
 ]

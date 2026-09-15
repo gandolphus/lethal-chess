@@ -69,6 +69,20 @@ const sanOf = (fen: string, uci: string) => {
 	}
 };
 
+/** A principal variation in SAN, stopping at the first move that doesn't apply; at most 8 moves. */
+const sanLine = (fen: string, pv: string[]) => {
+	const chess = new Chess(fen);
+	const line: string[] = [];
+	for (const uci of pv.slice(0, 8)) {
+		try {
+			line.push(chess.move(parseUci(uci)).san);
+		} catch {
+			break;
+		}
+	}
+	return line;
+};
+
 const fromNode = (fen: string, node: BundleNode): Analysis => ({
 	fen,
 	lines: node.candidates.map((c) => ({ move: c.uci, score: c.score, pv: [], depth: node.depth }))
@@ -96,6 +110,11 @@ export class ExploreSession {
 	hintLevel = $state(0);
 	opportunity = $state<{ san: string } | null>(null);
 	loadingEngine = $state(false);
+	/**
+	 * Why a mistake was a mistake, revealed on request: the opponent's reply that punishes it — or, when
+	 * the learner missed a chance to punish the computer, the move they missed.
+	 */
+	explanation = $state<{ kind: 'refutation' | 'missed'; uci: string; san: string; line: string[] } | null>(null);
 
 	readonly openingMoves: string[];
 
@@ -144,6 +163,10 @@ export class ExploreSession {
 	});
 
 	readonly arrows = $derived.by<Arrow[]>(() => {
+		if (this.phase === 'decide' && this.explanation) {
+			const { from, to } = parseUci(this.explanation.uci);
+			return [{ from, to, kind: this.explanation.kind === 'refutation' ? 'refutation' : 'hint' }];
+		}
 		if (this.phase !== 'your-move' || this.hintLevel < 2 || !this.#hintMove) return [];
 		const { from, to } = parseUci(this.#hintMove);
 		return [{ from, to, kind: 'hint' }];
@@ -276,6 +299,7 @@ export class ExploreSession {
 		if (this.phase !== 'decide') return;
 		this.game.undo();
 		this.flash = null;
+		this.explanation = null;
 		this.#after = null;
 		if (this.#before?.lines[0]) this.evaluation = this.#before.lines[0].score;
 		this.message = { tone: 'info', text: 'Look again — what does the position need?' };
@@ -288,8 +312,40 @@ export class ExploreSession {
 		const generation = this.#generation;
 		this.message = null;
 		this.opportunity = null;
+		this.explanation = null;
 		this.#visit();
 		await this.#afterLearnerMove(generation);
+	}
+
+	/** Reveals why the move on the board was a mistake. */
+	async explain() {
+		if (this.phase !== 'decide' || this.explanation) return;
+		const generation = this.#generation;
+		const before = this.#before;
+		if (this.opportunity && before?.lines[0]) {
+			// The explanation *is* the missed move, so it counts as shown for the lines through here.
+			const best = before.lines[0].move;
+			this.#shown.add(toEpd(before.fen));
+			const line = this.bundle.nodes[toEpd(before.fen)]?.line ?? sanLine(before.fen, before.lines[0].pv);
+			this.explanation = { kind: 'missed', uci: best, san: sanOf(before.fen, best), line: line.length ? line : [sanOf(before.fen, best)] };
+			return;
+		}
+		const fen = this.game.fen;
+		const node = this.bundle.nodes[toEpd(fen)];
+		let uci: string | undefined;
+		let line: string[] = [];
+		if (node?.candidates[0]) {
+			uci = node.candidates[0].uci;
+			line = node.line;
+		} else {
+			const analysis = this.#after?.fen === fen ? this.#after : await this.#analyse(fen);
+			if (generation !== this.#generation || this.phase !== 'decide') return;
+			if (analysis?.fen === fen) this.#after = analysis;
+			uci = analysis?.lines[0]?.move;
+			line = analysis?.lines[0] ? sanLine(fen, analysis.lines[0].pv) : [];
+		}
+		if (!uci) return;
+		this.explanation = { kind: 'refutation', uci, san: sanOf(fen, uci), line: line.length ? line : [sanOf(fen, uci)] };
 	}
 
 	get canTakeBack() {
@@ -323,6 +379,7 @@ export class ExploreSession {
 
 	#reset() {
 		this.flash = null;
+		this.explanation = null;
 		this.message = null;
 		this.opportunity = null;
 		this.#before = null;

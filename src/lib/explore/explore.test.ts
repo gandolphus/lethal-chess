@@ -219,6 +219,21 @@ describe('ExploreSession', () => {
 		expect(discoveries).toEqual([]);
 	});
 
+	it('explains a mistake on request with the punishing reply, and clears it on try again', async () => {
+		const engine = fakeEngine({
+			[epdAfter(...OPENING, 'f2f3')]: [{ move: 'd8h4', score: { cp: -250 }, pv: ['d8h4', 'g2g3'], depth: 20 }]
+		});
+		const { s } = await started({ engine });
+		await s.submit('f2', 'f3');
+		expect(s.phase).toBe('decide');
+		await s.explain();
+		expect(s.explanation).toEqual({ kind: 'refutation', uci: 'd8h4', san: 'Qh4+', line: ['Qh4+', 'g3'] });
+		expect(s.arrows).toEqual([{ from: 'd8', to: 'h4', kind: 'refutation' }]);
+		s.tryAgain();
+		expect(s.explanation).toBeNull();
+		expect(s.arrows).toEqual([]);
+	});
+
 	it('lets an established but dubious move through, and counts the dubious line', async () => {
 		const { s, discoveries } = await started();
 		await s.submit('d1', 'h5');

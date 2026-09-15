@@ -96,6 +96,10 @@ export type OpeningIndexEntry = {
 	 * decisions in the tree: how much precision this repertoire demands of opponents.
 	 */
 	opponentSharpness: number | null;
+	/** Established lines to discover, dubious ones excluded. */
+	lines?: number;
+	/** Keys (end EPDs) of the dubious lines, so a line count can leave them out without the bundle. */
+	dubiousLines?: string[];
 	bytes: number;
 };
 

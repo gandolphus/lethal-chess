@@ -251,6 +251,8 @@
 		if ((event.target as HTMLElement | null)?.closest('input, textarea, select')) return;
 		if (event.key === 'n' && (explore || session?.phase === 'done' || freeplay)) void restart();
 		else if (event.key === 'h' && explore?.phase === 'your-move') explore.hint();
+		else if (event.key === 't' && explore?.phase === 'decide') explore.tryAgain();
+		else if (event.key === 'w' && explore?.phase === 'decide') void explore.explain();
 		else if (event.key === 'b' && explore?.canTakeBack) void explore.takeBack();
 		else if (event.key === 'k' && session?.phase === 'done' && !freeplay) void keepPlaying();
 		else if (event.key === 'e' && mode !== 'explore') void startExplore();
@@ -378,7 +380,8 @@
 				{:else if explore}
 					<div class="actions">
 						{#if explore.phase === 'decide'}
-							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()}>Try again</button>
+							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()}>Try again <kbd>T</kbd></button>
+							<button type="button" class="btn" onclick={() => explore?.explain()} disabled={Boolean(explore.explanation)}>Why? <kbd>W</kbd></button>
 							<button type="button" class="btn" onclick={() => explore?.playOn()}>Play on</button>
 						{:else}
 							{#if explore.phase === 'your-move' && !explore.inOpening}
@@ -392,6 +395,16 @@
 						{/if}
 						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => startExplore()}>New game <kbd>N</kbd></button>
 					</div>
+					{#if explore.phase === 'decide' && explore.explanation}
+						<p class="text why">
+							{#if explore.explanation.kind === 'refutation'}
+								The reply that punishes it: <b class="num">{explore.explanation.san}</b>.
+							{:else}
+								You could have played <b class="num">{explore.explanation.san}</b>.
+							{/if}
+							<span class="pv num">{explore.explanation.line.join(' ')}</span>
+						</p>
+					{/if}
 					{#if explore.hintLevel === 2 && !explore.inOpening}
 						<p class="text small">Lines through a shown move need another game to count.</p>
 					{/if}
@@ -846,6 +859,13 @@
 		.discovery {
 			animation: none;
 		}
+	}
+
+	.notice .text.why .pv {
+		display: block;
+		margin-top: 0.2rem;
+		font-size: 0.85rem;
+		color: var(--text-3);
 	}
 
 	.notice .text.small {

@@ -469,6 +469,8 @@ export function indexEntry(spec: RepertoireSpec, bundle: Bundle, bytes: number):
 		learnerNodes: bundle.stats.learnerNodes,
 		maxPly: bundle.stats.maxPly,
 		opponentSharpness: sharpness.length ? Math.round(sharpness.reduce((a, b) => a + b, 0) / sharpness.length) : null,
+		lines: (bundle.lines ?? []).filter((l) => !l.dubious).length,
+		dubiousLines: (bundle.lines ?? []).filter((l) => l.dubious).map((l) => epdAfterMoves(l.moves)),
 		bytes
 	};
 }

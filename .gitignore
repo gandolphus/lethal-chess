@@ -39,3 +39,6 @@ vite.config.ts.timestamp-*
 .dev.vars.*
 .wrangler
 !.dev.vars.example
+
+# Agent worktrees and local Claude state
+.claude/

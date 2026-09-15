@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { OPENING_GROUPS } from '$lib/drill/openings';
+	import { BrowserProgressStore } from '$lib/drill/progress';
+	import { stagesOf } from '$lib/explore/book';
 	import type { OpeningIndexEntry } from '$lib/drill/bundle';
 	import Meter from '$lib/ui/Meter.svelte';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
@@ -33,6 +36,24 @@
 		const cp = o.opponentSharpness ?? 0;
 		return cp >= 60 ? 5 : cp >= 42 ? 4 : cp >= 30 ? 3 : cp >= 20 ? 2 : 1;
 	};
+
+	// Lines discovered per opening, from this browser's copy of the learner's progress (no network).
+	let found = $state<Record<string, number>>({});
+	onMount(() => {
+		let store: BrowserProgressStore;
+		try {
+			store = new BrowserProgressStore(localStorage, data.user ? `user:${data.user.id}` : '');
+		} catch {
+			return; // storage blocked: no counts, the picker works without them
+		}
+		void Promise.all(
+			data.openings.map(async (o) => {
+				const dubious = new Set(o.dubiousLines ?? []);
+				const stages = stagesOf(await store.loadDiscoveries(o.id));
+				return [o.id, [...stages].filter(([line, stage]) => stage === 'discovered' && !dubious.has(line)).length] as const;
+			})
+		).then((counts) => (found = Object.fromEntries(counts)));
+	});
 
 	const featured = $derived(data.openings.find((o) => o.id === 'ruy-lopez') ?? data.openings[0]);
 </script>
@@ -85,6 +106,13 @@
 											<span class="chip">{tag}</span>
 										{/each}
 									</span>
+									{#if opening.lines}
+										{@const count = found[opening.id] ?? 0}
+										<span class="found" title="Established lines you've discovered">
+											<span class="found-track"><span class="found-fill" style="width:{(count / opening.lines) * 100}%"></span></span>
+											<span class="found-label num">{count}/{opening.lines} lines</span>
+										</span>
+									{/if}
 								</span>
 							</a>
 						</li>
@@ -276,6 +304,33 @@
 		gap: 0.35rem;
 		margin-top: auto;
 		padding-top: 0.5rem;
+	}
+
+	.found {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding-top: 0.45rem;
+	}
+
+	.found-track {
+		flex: 1;
+		height: 3px;
+		border-radius: 2px;
+		background: var(--surface-2);
+		overflow: hidden;
+	}
+
+	.found-fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+	}
+
+	.found-label {
+		font-size: 0.7rem;
+		color: var(--text-3);
+		white-space: nowrap;
 	}
 
 	.lethal {

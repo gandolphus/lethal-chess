@@ -10,7 +10,7 @@
 	import { DrillSession, type Mode } from '$lib/drill/session.svelte';
 	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
-	import { formatScore, movePairs, SHARPNESS_WORDS, sharpnessLevel, type Score } from '$lib/ui/position';
+	import { evalWords, formatScore, movePairs, SHARPNESS_WORDS, sharpnessLevel, type Score } from '$lib/ui/position';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -63,10 +63,11 @@
 		mode = nextMode;
 		store ??= progressStore(data.user?.id ?? null);
 		const activeStore = store;
-		const cards = await activeStore.loadCards(bundle.id);
+		const [cards, attempts] = await Promise.all([activeStore.loadCards(bundle.id), activeStore.loadAttempts(bundle.id)]);
 		const next = new DrillSession({
 			bundle,
 			mode: nextMode,
+			guided: attempts.length === 0,
 			cards,
 			onAttempt: (attempt) => void activeStore.recordAttempt(attempt).then(refreshStats),
 			onReview: (epd, state) => void activeStore.saveCard(bundle.id, epd, state)
@@ -87,27 +88,24 @@
 	const yourTurn = $derived(game ? game.turn === bundle.side : false);
 	const pawns = (cp: number) => (cp / 100).toFixed(2);
 
+	/** Plain-language size of a mistake: a newcomer can't read "0.39". */
+	const howMuch = (cp: number) =>
+		cp < 50 ? 'a little' : cp < 120 ? 'about a pawn' : cp < 250 ? 'more than a pawn' : 'a lot';
+
 	function feedback(grade: Grade | null): { tone: 'pass' | 'soft' | 'fail'; text: string } | null {
 		if (!grade) return null;
-		if (grade.kind === 'pass') return { tone: 'pass', text: `${grade.played.san} — your line.` };
+		const played = session?.lastPlayedSan ?? grade.played?.san ?? 'That move';
+		if (grade.kind === 'pass') return { tone: 'pass', text: `${grade.played.san} — that's your line.` };
 		if (grade.kind === 'soft') {
-			return {
-				tone: 'soft',
-				text: `${grade.played.san} is sound (−${pawns(grade.costCp)}), but your line is ${grade.expected.san}.`
-			};
+			return { tone: 'soft', text: `${played} is playable, but your line is ${grade.expected.san}. Play ${grade.expected.san}.` };
 		}
-		const played = grade.played?.san ?? 'That move';
-		// A move outside the engine's candidates only has a lower bound on its cost, which can be 0.
-		const cost =
-			grade.costCp !== null
-				? `loses ${pawns(grade.costCp)}`
-				: grade.atLeastCp > 0
-					? `loses at least ${pawns(grade.atLeastCp)}`
-					: "isn't in your line";
+		const cost = grade.costCp ?? grade.atLeastCp;
+		const why = cost > 0 ? ` — it gives away ${howMuch(cost)}` : '';
 		// During the one unhinted retry the answer must stay hidden; it is revealed only after the second miss.
-		const answer = session?.phase === 'retry' ? '' : ` The move here is ${grade.expected.san}.`;
-		return { tone: 'fail', text: `${played} ${cost}.${answer}` };
+		if (session?.phase === 'retry') return { tone: 'fail', text: `${played} isn't in your line${why}. One more try, no hints.` };
+		return { tone: 'fail', text: `Not ${played}${why}. Here you play ${grade.expected.san} — the arrow shows it.` };
 	}
+
 
 	/**
 	 * The one card that says what is happening: whose move, what the last move
@@ -128,7 +126,7 @@
 			return {
 				tone: freeplay.phase === 'thinking' ? 'wait' : tone,
 				title,
-				text: freeplay.message?.text ?? 'Past the book now. The computer plays natural moves — and sometimes a mistake for you to punish.'
+				text: freeplay.message?.text ?? "You're past the memorised moves. Every move gets a verdict, and the computer sometimes errs on purpose — punish it."
 			};
 		}
 		if (!session) return { tone: 'wait', title: 'Loading…', text: '' };
@@ -150,8 +148,8 @@
 					title: 'Line complete',
 					text:
 						mode === 'learn'
-							? 'Next line, or keep playing past the book with the computer.'
-							: 'Every position you saw is scheduled. Next line?'
+							? "You've walked this line once. It counts when you play it from memory — try Practice, or keep playing against the computer."
+							: 'Saved. Positions you missed will come back sooner. Next line?'
 				};
 		}
 	});
@@ -264,14 +262,14 @@
 			{#if !freeplay && node && node.candidates.length}
 				<div class="position">
 					<div class="stat">
-						<p class="label">Engine</p>
-						<p class="value num">{formatScore(node.candidates[0].score)} <small>depth {node.depth}</small></p>
+						<p class="label">Evaluation</p>
+						<p class="value num">{formatScore(node.candidates[0].score)} <small>{evalWords(node.candidates[0].score)}</small></p>
 					</div>
 					{#if node.sharpness !== undefined}
 						<div class="stat">
-							<p class="label">Precision demanded</p>
+							<p class="label">How exact you must be</p>
 							<p class="value">{SHARPNESS_WORDS[sharpnessLevel(node.sharpness)]}</p>
-							<Meter level={sharpnessLevel(node.sharpness)} label="Precision demanded" />
+							<Meter level={sharpnessLevel(node.sharpness)} label="How exact you must be" />
 						</div>
 					{/if}
 					{#if session?.phase === 'reveal' || session?.phase === 'done'}
@@ -293,14 +291,14 @@
 			{#if stats}
 				<div class="prof">
 					<p class="label">{bundle.name} — your proficiency</p>
-					{#each [['Coverage', stats.coverage], ['Retention', stats.retention], ['Precision', stats.precision]] as const as [label, value] (label)}
+					{#each [['Played from memory', stats.coverage], ['Remembered right now', stats.retention], ['Right first time', stats.precision]] as const as [label, value] (label)}
 						<div class="bar">
 							<span>{label}</span>
 							<span class="num">{percent(value)}</span>
 							<span class="track"><span class="fill" style="width:{share(value)}"></span></span>
 						</div>
 					{/each}
-					<p class="label small">{stats.cards} decisions in this repertoire.</p>
+					<p class="label small">{stats.cards} positions to learn in this opening.</p>
 					<p class="label small save" data-status={sync.status ?? 'local'} role="status">
 						{#if sync.status === 'synced'}
 							Saved to your account.

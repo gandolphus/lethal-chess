@@ -228,10 +228,41 @@ describe('DrillSession', () => {
 		expect(session.name).toBe('Petrov Defense');
 	});
 
+	it('plays the main line on a guided first walk, whatever the dice say', async () => {
+		for (const random of [0, 0.5, 0.99]) {
+			const session = new DrillSession({ bundle: fixture(), mode: 'learn', guided: true, random: () => random, wait: noWait });
+			await session.start();
+			await session.submit('g1', 'f3');
+			expect(session.game.history.at(-1)).toBe('Nc6'); // the 0.7-weight reply, never the 0.3 one
+		}
+	});
+
+	it('names the played move even when the engine never considered it', async () => {
+		const session = new DrillSession({ bundle: fixture(), mode: 'practice', wait: noWait });
+		await session.start();
+		await session.submit('a2', 'a3');
+		expect(session.lastGrade?.kind).toBe('fail');
+		expect(session.lastGrade?.kind === 'fail' && session.lastGrade.played).toBeNull();
+		expect(session.lastPlayedSan).toBe('a3');
+	});
+
 	it('ignores illegal and out-of-turn submissions', async () => {
 		const session = new DrillSession({ bundle: fixture(), mode: 'practice', wait: noWait });
 		await session.start();
 		expect(await session.submit('e4', 'e6')).toBeNull();
 		expect(session.phase).toBe('await');
+	});
+});
+
+describe('proficiency', () => {
+	it('does not count a just-failed card as remembered', async () => {
+		const { proficiency } = await import('./progress');
+		const { review } = await import('./scheduler');
+		const bundle = fixture();
+		const now = new Date('2026-09-15T12:00:00Z');
+		const failed = review(undefined, Rating.Again, now); // still in learning, recall ≈ 1 right now
+		const cards = new Map([[bundle.rootEpd, failed]]);
+		const stats = proficiency(bundle, cards, [], now);
+		expect(stats.retention).toBe(0);
 	});
 });

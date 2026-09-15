@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { page } from '$app/state';
+	import { page, updated } from '$app/state';
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { progressStore } from '$lib/drill/account.svelte';
 	import { loadOpeningIndex } from '$lib/drill/openings';
@@ -92,6 +92,20 @@
 	</div>
 </nav>
 
+{#if updated.current}
+	<div class="update-banner" role="status">
+		<span>Lethal Chess has been updated.</span>
+		<button type="button" class="btn small" onclick={() => location.reload()}>Reload now</button>
+	</div>
+{/if}
+
+{#if page.url.searchParams.get('signin') === 'cancelled'}
+	<div class="update-banner" role="status">
+		<span>Sign-in was cancelled — you can keep practising without an account.</span>
+		<a class="btn small" href={page.url.pathname}>OK</a>
+	</div>
+{/if}
+
 {@render children?.()}
 
 <footer class="site-footer">
@@ -173,6 +187,22 @@
 
 	form {
 		margin: 0;
+	}
+
+	.update-banner {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem 1rem;
+		padding: 0.5rem 1rem;
+		border-bottom: 1px solid var(--border);
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-1));
+		font-size: 0.9rem;
+	}
+
+	.update-banner .btn {
+		text-decoration: none;
 	}
 
 	.site-footer {

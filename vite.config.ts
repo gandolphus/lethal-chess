@@ -16,6 +16,10 @@ export default defineConfig({
 			// and reads secrets from .dev.vars.
 			adapter: adapter(),
 
+			// Open tabs check once a minute whether a new build has been deployed. When one has,
+			// SvelteKit turns the next navigation into a full page load, and the layout offers a reload.
+			version: { pollInterval: 60_000 },
+
 			// Content Security Policy. `hash` mode lets SvelteKit hash its own inline bootstrap script,
 			// so no 'unsafe-inline' is needed for scripts.
 			csp: {

@@ -34,7 +34,19 @@ export function sharpnessLevel(cp: number | null | undefined): number {
 	return 1;
 }
 
-export const SHARPNESS_WORDS = ['', 'Wide', 'Some choice', 'Narrow', 'Sharp', 'Only move'];
+export const SHARPNESS_WORDS = ['', 'Relaxed', 'Some care', 'Careful', 'Very exact', 'One good move'];
+
+/** The evaluation in words, from White's point of view. */
+export function evalWords(score: Score): string {
+	if ('mate' in score) return score.mate > 0 ? 'White mates' : 'Black mates';
+	const cp = score.cp;
+	const side = cp > 0 ? 'White' : 'Black';
+	const size = Math.abs(cp);
+	if (size < 30) return 'equal';
+	if (size < 90) return `${side} slightly better`;
+	if (size < 250) return `${side} better`;
+	return `${side} winning`;
+}
 
 export type Score = { cp: number } | { mate: number };
 

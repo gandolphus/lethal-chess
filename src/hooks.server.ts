@@ -55,6 +55,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (event.locals.user && !/\b(?:private|no-store)\b/.test(response.headers.get('cache-control') ?? '')) {
 		response.headers.set('cache-control', 'private, no-store');
 	}
+	// Pages must be revalidated on every visit (cheap: the ETag makes it a 304), so a browser never
+	// keeps serving an old page that points at an old build. Hashed /_app/immutable assets are cached
+	// forever by the assets layer, which is correct because their names change with every build.
+	if (!response.headers.has('cache-control') && (response.headers.get('content-type') ?? '').startsWith('text/html')) {
+		response.headers.set('cache-control', 'no-cache');
+	}
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
 		if (name === 'strict-transport-security' && isLocal(url.hostname)) continue;
 		response.headers.set(name, value);

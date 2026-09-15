@@ -1,5 +1,5 @@
 import type { Bundle } from './bundle';
-import { recall, type CardState } from './scheduler';
+import { recall, State, type CardState } from './scheduler';
 import type { Attempt } from './session.svelte';
 import { learnerCards } from './tree';
 
@@ -117,7 +117,12 @@ export function proficiency(bundle: Bundle, cards: Map<string, CardState>, attem
 
 	// A pass after a reveal is being shown the answer, not knowing it: only first tries count.
 	const passed = new Set(firstTries.filter((a) => a.grade === 'pass').map((a) => a.epd));
-	const known = all.filter((epd) => recall(cards.get(epd), now) >= KNOWN_RECALL).length;
+	// Only graduated cards count as known: a card failed a minute ago has recall ~1.0 but is still
+	// being (re)learned, and counting it made Retention exceed Coverage right after a mistake.
+	const known = all.filter((epd) => {
+		const card = cards.get(epd);
+		return card?.state === State.Review && recall(card, now) >= KNOWN_RECALL;
+	}).length;
 
 	const recent = firstTries.slice(-RECENT);
 	const passTimes = firstTries

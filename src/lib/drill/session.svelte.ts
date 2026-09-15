@@ -33,6 +33,11 @@ export type SessionOptions = {
 	bundle: Bundle;
 	mode: Mode;
 	cards?: Map<string, CardState>;
+	/**
+	 * A first-ever walk: the opponent plays the most likely reply at every turn, so a newcomer
+	 * meets the main line before any sideline. Later walks sample replies as usual.
+	 */
+	guided?: boolean;
 	onAttempt?: (attempt: Attempt) => void;
 	onReview?: (epd: string, state: CardState) => void;
 	/** Pause before the opponent moves, so the learner can see it happen. */
@@ -57,6 +62,8 @@ export class DrillSession {
 
 	phase = $state<Phase>('opponent');
 	lastGrade = $state<Grade | null>(null);
+	/** SAN of the learner's last move — known even when the engine's candidates didn't include it. */
+	lastPlayedSan = $state<string | null>(null);
 	/** The move whose squares carry the current feedback flash. */
 	flash = $state<{ from: Square; to: Square; kind: 'correct' | 'soft' | 'wrong' } | null>(null);
 	name = $state<string | null>(null);
@@ -126,6 +133,7 @@ export class DrillSession {
 
 		const uci = toUci(legal);
 		const grade = gradeMove(node, uci, this.bundle.tolerances.soundCp);
+		this.lastPlayedSan = legal.san;
 		this.#attemptNo++;
 		this.#firstGrade ??= grade;
 		this.lastGrade = grade;
@@ -166,7 +174,6 @@ export class DrillSession {
 			this.phase = 'opponent';
 			const reply = this.#chooseReply(node);
 			await (this.#options.wait ?? defaultWait)(this.#options.opponentDelayMs ?? 450);
-			this.flash = null;
 			this.game.move(parseUci(reply.uci));
 			this.movesPlayed++;
 		}
@@ -174,6 +181,7 @@ export class DrillSession {
 
 	#chooseReply(node: BundleNode): Reply {
 		const replies = node.replies!;
+		if (this.#options.guided) return replies.reduce((best, r) => (r.weight > best.weight ? r : best));
 		const now = this.#now;
 		// Weight by how likely the reply is, boosted by how much of the branch needs practice.
 		const scored = replies.map((reply) => {

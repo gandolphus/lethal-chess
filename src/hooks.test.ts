@@ -32,6 +32,20 @@ describe('handle', () => {
 		for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(response.headers.get(name)).toBe(value);
 	});
 
+	it('makes browsers revalidate pages, without touching responses that set their own caching', async () => {
+		const page = await handle({
+			event: eventFor('https://lethalchess.com/'),
+			resolve: async () => new Response('<html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })
+		});
+		expect(page.headers.get('cache-control')).toBe('no-cache');
+
+		const api = await handle({
+			event: eventFor('https://lethalchess.com/api/progress/x'),
+			resolve: async () => new Response('{}', { headers: { 'content-type': 'application/json', 'cache-control': 'private, no-store' } })
+		});
+		expect(api.headers.get('cache-control')).toBe('private, no-store');
+	});
+
 	it('leaves local development on plain HTTP alone, without HSTS', async () => {
 		const response = await handle({ event: eventFor('http://localhost:5177/'), resolve });
 		expect(await response.text()).toBe('page');

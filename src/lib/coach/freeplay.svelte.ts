@@ -42,8 +42,6 @@ const san = (fen: string, uci: string) => {
 	}
 };
 
-const pawns = (loss: number) => `${Math.round(loss * 100)}%`;
-
 /**
  * Coached free play from any position: every learner move gets a verdict, the
  * computer answers with natural moves, and now and then deliberately errs so the
@@ -154,7 +152,7 @@ export class FreePlay {
 		}
 
 		this.flash = { from, to, kind: isSound(verdict) ? 'correct' : verdict === 'inaccuracy' ? 'soft' : 'wrong' };
-		this.message = this.#describe(verdict, loss, before, best);
+		this.message = this.#describe(verdict, before, best);
 		this.opportunity = null;
 		this.#misses = 0;
 
@@ -170,7 +168,7 @@ export class FreePlay {
 		return after.lines[0]?.score ?? { cp: 0 };
 	}
 
-	#describe(verdict: Verdict, loss: number, before: Analysis, best: AnalysisLine): Message {
+	#describe(verdict: Verdict, before: Analysis, best: AnalysisLine): Message {
 		const better = san(before.fen, best.move);
 		const wasOpportunity = this.opportunity;
 		switch (verdict) {
@@ -178,12 +176,13 @@ export class FreePlay {
 				return { tone: 'best', text: wasOpportunity ? `Punished! ${wasOpportunity.san} was a mistake.` : 'Best move.' };
 			case 'good':
 				return { tone: 'good', text: wasOpportunity ? `Good — you took advantage of ${wasOpportunity.san}.` : 'Good move.' };
+			// Plain words for a newcomer; the exact numbers live in the evaluation bar.
 			case 'inaccuracy':
-				return { tone: 'warn', text: `Inaccuracy (−${pawns(loss)} winning chances). ${better} was better.` };
+				return { tone: 'warn', text: `Slightly inaccurate — ${better} was better.` };
 			case 'mistake':
-				return { tone: 'bad', text: `Mistake (−${pawns(loss)} winning chances). ${better} was better.` };
+				return { tone: 'bad', text: `A mistake — it gives your opponent real chances. ${better} was better.` };
 			case 'blunder':
-				return { tone: 'bad', text: `Blunder (−${pawns(loss)} winning chances). ${better} was much better.` };
+				return { tone: 'bad', text: `A blunder — that can lose the game. ${better} was much better.` };
 		}
 	}
 
@@ -203,7 +202,6 @@ export class FreePlay {
 		const beforeFen = this.game.fen;
 		const learnerChanceBefore = winChance(analysis.lines[0].score, this.side);
 		this.game.move(parseUci(choice.line.move));
-		this.flash = null;
 		if (this.#checkOver()) return;
 
 		await this.#prepareLearnerTurn();

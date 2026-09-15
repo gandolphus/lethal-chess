@@ -1,7 +1,7 @@
-import { createEmptyCard, fsrs, Rating, type Card } from 'ts-fsrs';
+import { createEmptyCard, fsrs, Rating, State, type Card } from 'ts-fsrs';
 import type { Grade } from './grade';
 
-export { Rating };
+export { Rating, State };
 export type CardState = Card;
 
 const scheduler = fsrs({ enable_fuzz: false });

@@ -17,6 +17,8 @@ declare global {
 			env: {
 				/** D1 (wrangler.jsonc `d1_databases`). */
 				DB: Database;
+				/** Static assets (wrangler.jsonc `assets`). Absent under `vite dev`. */
+				ASSETS?: { fetch(input: Request | URL | string): Promise<Response> };
 				/** Secrets: `wrangler secret put`, locally .dev.vars. Absent until configured. */
 				GOOGLE_CLIENT_ID?: string;
 				GOOGLE_CLIENT_SECRET?: string;

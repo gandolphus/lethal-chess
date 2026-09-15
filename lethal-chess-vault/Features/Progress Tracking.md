@@ -39,6 +39,31 @@ Per track / family / repertoire:
 Exact formula to be settled when there is real data to look at, which the append-only log makes safe
 to postpone.
 
+## Planned: line mastery (user idea, 2026-09-15 — not built yet)
+
+> "A sort of SRS approach to the drilling — and that could be a way to estimate someone's proficiency
+> too: the number of lines which have been sufficiently repeated and remembered."
+
+**What already exists:** spaced repetition per *position* — every learner decision is an FSRS card, so
+missed positions return sooner and known ones later; *Retention* is computed from those schedules.
+
+**What this adds:** the same idea at the level of *lines*, which is how players think about openings.
+
+- **A line** = a path from the repertoire root to a line end in the bundle tree (a leaf, or where the
+  drill says "Line complete"). Transpositions mean lines can share positions; that's fine.
+- **A line is mastered** when *every* learner decision along it is currently remembered: recall
+  ≥ 0.9 **and** FSRS stability above a threshold (e.g. ≥ 21 days, so a line crammed today doesn't count).
+  Echoes the "known" definition in [[Opening Drills]] (≥ 3 passes at ≥ 21-day intervals).
+- **Headline proficiency:** "14 of 31 lines mastered" per opening, plus a family roll-up — more intuitive
+  than position percentages, and harder to game.
+- **Scheduling at line level:** "Next line" prefers lines that are *almost* mastered (one weak position)
+  and lines with due positions, so a session closes out whole lines instead of scattering.
+- **Weighting question (open):** a sideline that occurs 3% of the time shouldn't count like the main
+  line. Option: report both a raw count and a *reply-weighted* mastery (sum of line probabilities from the
+  bundle's reply weights), i.e. "you're ready for 82% of what opponents play here".
+
+All of this is derivable from the existing append-only attempt log and card states — no new data needed.
+
 ## Storage
 
 `node:sqlite` (Node 24 built-in, verified). One database file outside the repo so it survives

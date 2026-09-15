@@ -72,6 +72,14 @@
 
 {@render children?.()}
 
+<footer class="site-footer">
+	<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">Source code</a>
+	<span aria-hidden="true">·</span>
+	<span>AGPL-3.0</span>
+	<span aria-hidden="true">·</span>
+	<a href="/privacy">Privacy</a>
+</footer>
+
 <style>
 	.site {
 		display: flex;
@@ -141,6 +149,25 @@
 
 	form {
 		margin: 0;
+	}
+
+	.site-footer {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 2rem 1rem 2.5rem;
+		font-size: 0.8rem;
+		color: var(--text-3);
+	}
+
+	.site-footer a {
+		color: var(--text-2);
+		text-decoration: none;
+	}
+
+	.site-footer a:hover {
+		color: var(--text);
 	}
 
 	@media (max-width: 560px) {

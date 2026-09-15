@@ -9,7 +9,7 @@ export const OPENING_GROUPS: { id: OpeningIndexEntry['group']; label: string }[]
 ];
 
 /** The builder writes this next to the bundles; it is the one list of available openings. */
-export async function loadOpeningIndex(fetcher: typeof fetch): Promise<OpeningIndexEntry[]> {
+export async function loadOpeningIndex(fetcher: (path: string) => Promise<Response>): Promise<OpeningIndexEntry[]> {
 	const response = await fetcher('/openings/repertoires/index.json');
 	if (!response.ok) throw new Error(`Could not load the opening list (${response.status})`);
 	return response.json();

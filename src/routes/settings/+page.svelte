@@ -10,6 +10,40 @@
 		}));
 
 	const PREVIEW = ['k', 'q', 'n', 'b'];
+
+	let { data } = $props();
+	const user = $derived((data as { user?: { id: string; email: string } | null }).user ?? null);
+
+	let deleting = $state(false);
+	let deleteError = $state<string | null>(null);
+
+	async function deleteAccount() {
+		if (!user) return;
+		const phrase = 'delete my account';
+		const typed = window.prompt(
+			`This permanently deletes your account and all your progress. It cannot be undone.\n\nType "${phrase}" to confirm.`
+		);
+		if (typed?.trim().toLowerCase() !== phrase) return;
+
+		deleting = true;
+		deleteError = null;
+		try {
+			const response = await fetch('/api/account/delete', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ confirm: phrase })
+			});
+			if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? response.statusText);
+			// The account's local copy and unsent outbox go too, so nothing re-uploads it.
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith(`lethal:user:${user.id}:`)) localStorage.removeItem(key);
+			}
+			window.location.href = '/';
+		} catch (error) {
+			deleteError = `Could not delete your account: ${(error as Error).message}`;
+			deleting = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -18,6 +52,26 @@
 
 <main>
 	<h1>Settings</h1>
+
+	<section class="account">
+		<h2>Account & data</h2>
+		{#if user}
+			<p class="note">Signed in as <strong>{user.email}</strong>. Your progress is saved to your account.</p>
+			<div class="account-actions">
+				<a class="btn" href="/api/account/export" download>Download my data</a>
+				<button type="button" class="btn danger" onclick={deleteAccount} disabled={deleting}>
+					{deleting ? 'Deleting…' : 'Delete my account'}
+				</button>
+			</div>
+			{#if deleteError}<p class="note error" role="alert">{deleteError}</p>{/if}
+		{:else}
+			<p class="note">
+				You're not signed in, so your progress lives only in this browser. <a href="/auth/google">Sign in with Google</a> to
+				keep it across devices.
+			</p>
+		{/if}
+		<p class="note"><a href="/privacy">What we store and why</a></p>
+	</section>
 
 	<section>
 		<h2>Theme</h2>
@@ -173,6 +227,47 @@
 	.note {
 		font-size: 0.85rem;
 		color: var(--text-2);
+	}
+
+	.note strong {
+		color: var(--text);
+		font-weight: 600;
+	}
+
+	.note a {
+		color: var(--accent);
+	}
+
+	.note.error {
+		color: var(--bad);
+	}
+
+	.account-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin: 0.6rem 0;
+	}
+
+	/* The theme and piece pickers style bare buttons as swatch cards; these are ordinary buttons. */
+	.account-actions .btn {
+		display: inline-flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 0.45rem 0.9rem;
+		border-radius: 8px;
+		text-decoration: none;
+		color: var(--text);
+	}
+
+	.account-actions .btn.danger {
+		border-color: color-mix(in srgb, var(--bad) 55%, var(--border));
+		color: var(--bad);
+	}
+
+	.account-actions .btn.danger:hover:not(:disabled) {
+		border-color: var(--bad);
+		box-shadow: none;
 	}
 
 	code {

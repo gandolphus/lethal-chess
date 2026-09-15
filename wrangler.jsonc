@@ -13,9 +13,9 @@
 		{
 			"binding": "DB",
 			"database_name": "lethal-chess",
-			// Local dev and tests need no real id. Replace with the id printed by
-			// `wrangler d1 create lethal-chess` before the first deploy.
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			// Created with `wrangler d1 create lethal-chess --jurisdiction eu`: data is stored and
+			// processed only within the EU. Local dev uses a local copy and ignores this id.
+			"database_id": "54d665c7-6bd5-4009-a784-db8086d56277",
 			"migrations_dir": "migrations"
 		}
 	],

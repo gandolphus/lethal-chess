@@ -1,7 +1,17 @@
 import type { Handle } from '@sveltejs/kit';
 import { deleteSessionCookie, SESSION_COOKIE, setSessionCookie, validateSessionToken } from '$lib/server/session';
 
+/** The canonical host; `www.` is attached to the Worker only so it can redirect here. */
+const CANONICAL_HOST = 'lethalchess.com';
+
 export const handle: Handle = async ({ event, resolve }) => {
+	// Permanent redirect before anything else: sessions and the Google callback live on one host.
+	if (event.url.hostname === `www.${CANONICAL_HOST}`) {
+		const target = new URL(event.url);
+		target.hostname = CANONICAL_HOST;
+		return new Response(null, { status: 301, headers: { location: target.toString() } });
+	}
+
 	event.locals.user = null;
 	event.locals.session = null;
 

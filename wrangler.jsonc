@@ -19,6 +19,11 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	// The Worker serves the real domain; `www` only redirects to it (see src/hooks.server.ts).
+	"routes": [
+		{ "pattern": "lethalchess.com", "custom_domain": true },
+		{ "pattern": "www.lethalchess.com", "custom_domain": true }
+	],
 	"observability": {
 		"enabled": true
 	}

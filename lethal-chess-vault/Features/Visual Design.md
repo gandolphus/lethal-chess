@@ -70,6 +70,16 @@ Legibility trade-offs taken deliberately: highlight fills are orchid rather than
 saturated purple turns muddy), iridescent sheen kept at 7% with no animation, black pieces a
 desaturated plum so they separate from dark squares.
 
+### Fabulous redesign (same day)
+
+User: the first version "doesn't look that nice… the frame looks tacky, the letters overlap with the bevel,
+the gradient gives it a 90's feel". Fable (with the frontend-design skill) removed the frame entirely —
+no gradient, no bevel, one gold hairline around the playing area, coordinates in clear space. Squares
+became violet velvet (#4f2e80) against champagne (#e2d4c9); lilac highlight fills, gold rings and arrows;
+ebony black pieces with gilt lines, ivory white pieces with dark outlines; larger amethyst jewels
+(`--jewel` token) on king, queen and bishop; Fraunces + Jost. Ids unchanged so saved choices carry over.
+User: "much better".
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

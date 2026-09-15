@@ -285,7 +285,8 @@ const REGALIA: Record<'P' | 'R' | 'B' | 'N' | 'Q' | 'K', Regal> = {
 			ell(50, 63, 7.5, 2.5) +
 			P(sym('M50 63 L55 63 C55.5 68 58 71.5 61 74 L50 74')) +
 			rBase(22),
-		d: rSeam(22)
+		d: rSeam(22),
+		j: circ(50, 43, 2.9) + `<circle cx="49.1" cy="42.1" r=".8" fill="#fff" stroke="none" opacity=".85"/>`
 	},
 	N: {
 		s:
@@ -309,7 +310,7 @@ const REGALIA: Record<'P' | 'R' | 'B' | 'N' | 'Q' | 'K', Regal> = {
 			P(sym('M50 50 L59 50 C58.5 58 61 67 66 74 L50 74')) +
 			rBase(27),
 		d: P('M39 62 C44 64.5 56 64.5 61 62', ' fill="none" stroke-width="1.5" opacity=".6"') + rSeam(27),
-		j: P('M50 43.2 L54.2 47.5 L50 51.8 L45.8 47.5 Z') + `<circle cx="48.9" cy="46.3" r=".9" fill="#fff" stroke="none" opacity=".85"/>`
+		j: P('M50 41 L55.8 47.2 L50 53.4 L44.2 47.2 Z') + `<circle cx="48.4" cy="45.6" r="1.1" fill="#fff" stroke="none" opacity=".85"/>`
 	},
 	K: {
 		s:
@@ -325,7 +326,7 @@ const REGALIA: Record<'P' | 'R' | 'B' | 'N' | 'Q' | 'K', Regal> = {
 			P('M38.5 27 C43 32 45.5 38 46.2 44.5', ' fill="none" stroke-width="1.4" opacity=".55"') +
 			P('M61.5 27 C57 32 54.5 38 53.8 44.5', ' fill="none" stroke-width="1.4" opacity=".55"') +
 			rSeam(27),
-		j: circ(50, 49.5, 3.3) + `<circle cx="48.9" cy="48.4" r=".9" fill="#fff" stroke="none" opacity=".85"/>`
+		j: circ(50, 49.5, 4.3) + `<circle cx="48.5" cy="48" r="1.1" fill="#fff" stroke="none" opacity=".85"/>`
 	}
 };
 
@@ -427,7 +428,7 @@ const STYLE = `
 .lp-nocturne.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 1.8; }
 /* regalia: crisp outline, one gradient across the whole piece, a masked side-light gloss, accent jewels */
 .lp-regalia .o { stroke-width: 4.2; }
-.lp-regalia.w .o { stroke: color-mix(in srgb, var(--pws) 55%, #000); fill: color-mix(in srgb, var(--pws) 55%, #000); stroke-width: 7; }
+.lp-regalia.w .o { stroke: color-mix(in srgb, var(--pws) 55%, #000); fill: color-mix(in srgb, var(--pws) 55%, #000); stroke-width: 6.4; }
 .lp-regalia.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-regalia.w .f { fill: url(#lp-regalia-grad-w); }
 .lp-regalia.b .f { fill: url(#lp-regalia-grad-b); }
@@ -437,7 +438,7 @@ const STYLE = `
 .lp-regalia.b .gloss { fill: url(#lp-regalia-gloss-b); }
 .lp-regalia.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2.2; }
 .lp-regalia.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 2; }
-.lp-regalia .j { fill: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.lp-regalia .j { fill: var(--jewel, var(--accent)); stroke-width: 1.6; stroke-linejoin: round; }
 .lp-regalia.w .j { stroke: var(--pws); }
 .lp-regalia.b .j { stroke: var(--pbs); }
 `;

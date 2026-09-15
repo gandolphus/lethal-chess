@@ -1,0 +1,8 @@
+{
+  "theme": "obsidian",
+  "accentColor": "#b4befe",
+  "cssTheme": "",
+  "enabledCssSnippets": [
+    "catppuccin-mocha"
+  ]
+}

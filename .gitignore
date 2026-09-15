@@ -1,0 +1,25 @@
+# Dependencies / build output
+node_modules/
+dist/
+build/
+.output/
+target/
+__pycache__/
+*.pyc
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data
+/data
+
+# Obsidian per-user workspace state (theme/snippets/plugins DO get committed)
+*-vault/.obsidian/workspace.json
+*-vault/.obsidian/workspace-mobile.json
+*-vault/.obsidian/cache
+
+# OS
+.DS_Store
+Thumbs.db

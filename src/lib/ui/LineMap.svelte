@@ -36,7 +36,8 @@
 	 */
 	let chosenZoom = $state<Zoom | null>(null);
 	const zoom = $derived<Zoom>(
-		chosenZoom ?? initialZoom ?? (typeof matchMedia !== 'undefined' && matchMedia('(max-width: 860px)').matches ? 'overview' : 'detail')
+		// Overview is the honest first view: the whole opening in silhouette. Detail is a deliberate step in.
+		chosenZoom ?? initialZoom ?? 'overview'
 	);
 	let width = $state(0);
 	const collapsed = new SvelteSet<string>();

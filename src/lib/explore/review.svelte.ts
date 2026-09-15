@@ -87,6 +87,7 @@ export class ReviewSession {
 
 	#options: ReviewOptions;
 	#worst: ReviewRating = 'good';
+	#abandoned = false;
 	#attemptNo = 0;
 	#awaitingSince = 0;
 
@@ -112,13 +113,18 @@ export class ReviewSession {
 		return opening + Math.floor((this.#options.random ?? Math.random)() * (latest - opening + 1));
 	}
 
+	/** Stops this replay for good; a pending computer move is discarded. */
+	abandon() {
+		this.#abandoned = true;
+	}
+
 	async start(): Promise<void> {
 		this.game.load(this.line.moves.slice(0, this.startPly()));
 		await this.#advance();
 	}
 
 	async submit(from: Square, to: Square, promotion?: string): Promise<boolean> {
-		if (!['await', 'retry', 'reveal'].includes(this.phase) || !this.expected) return false;
+		if (this.#abandoned || !['await', 'retry', 'reveal'].includes(this.phase) || !this.expected) return false;
 		const legal = this.game.find({ from, to, promotion });
 		if (!legal) return false;
 		const uci = toUci(legal);
@@ -207,6 +213,7 @@ export class ReviewSession {
 			}
 			this.phase = 'opponent';
 			await (this.#options.wait ?? defaultWait)(this.#options.opponentDelayMs ?? 450);
+			if (this.#abandoned) return;
 			this.game.move(parseUci(this.line.moves[ply]));
 		}
 	}

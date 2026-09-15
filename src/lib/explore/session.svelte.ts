@@ -236,6 +236,14 @@ export class ExploreSession {
 		return this.#options.wait ?? defaultWait;
 	}
 
+	/**
+	 * Stops this session for good: anything it is waiting on is discarded when it resolves. The page calls
+	 * it before starting another session, so an abandoned game can't play a move or record a discovery.
+	 */
+	abandon() {
+		this.#generation++;
+	}
+
 	/** A new game from the initial position. */
 	async start(): Promise<void> {
 		const generation = ++this.#generation;
@@ -277,10 +285,11 @@ export class ExploreSession {
 		const best = before?.lines[0];
 		if (!before || !best) return null;
 		const wasInBook = this.inBook;
-		const book = this.#book.isBookMove(epd, uci);
 
 		this.phase = 'thinking';
 		this.game.move(legal);
+		// A move that transposes onto a line is established too, even when this position has no such edge.
+		const book = this.#book.isBookMove(epd, uci) || this.#book.at(toEpd(this.game.fen)).some(({ index }) => index > 0);
 		const played = await this.#scoreOfMove(before, uci);
 		if (generation !== this.#generation || (this.phase as ExplorePhase) === 'over') return null;
 		const verdict = verdictFor(lossFor(best, played, this.side), uci === best.move);
@@ -423,6 +432,12 @@ export class ExploreSession {
 
 	/** Back to the learner's previous decision, past the computer's reply. */
 	async takeBack() {
+		// In "decide" the learner's move is still on the board: taking it back is exactly Try again,
+		// which keeps the missed opportunity alive.
+		if (this.phase === 'decide') {
+			this.tryAgain();
+			return;
+		}
 		if (!this.canTakeBack) return;
 		const generation = ++this.#generation;
 		for (let plies = this.#takeBackPlies(); plies > 0; plies--) this.game.undo();
@@ -486,6 +501,11 @@ export class ExploreSession {
 			const analysis = await this.#analyse(fen);
 			if (generation !== this.#generation) return;
 			if (!analysis) return;
+			if (!analysis.lines.length) {
+				// Nothing to grade against: end the game rather than wait for a move that can't be judged.
+				this.#stall();
+				return;
+			}
 			this.#before = analysis;
 		}
 		if (this.#before?.lines[0]) this.evaluation = this.#before.lines[0].score;
@@ -514,7 +534,7 @@ export class ExploreSession {
 			const analysis = this.#after?.fen === fen ? this.#after : await this.#analyse(fen);
 			if (generation !== this.#generation || !analysis) return;
 			if (!analysis.lines.length) {
-				this.#checkOver();
+				if (!this.#checkOver()) this.#stall();
 				return;
 			}
 			const choice = chooseReply(analysis.lines, opponent, {
@@ -681,11 +701,23 @@ export class ExploreSession {
 		const epd = toEpd(this.game.fen);
 		if (this.inOpening) return this.openingMoves[this.game.uciHistory.length];
 		const best = this.#before?.lines[0]?.move ?? null;
+		const node = this.bundle.nodes[epd];
+		const mover = epd.split(' ')[1] as Side;
+		// Never point at a move the coach would then call a mistake: soundness first, then unfound lines.
+		const sound = (uci: string) => {
+			const played = node?.candidates.find((c) => c.uci === uci);
+			if (!node?.candidates[0] || !played) return 1;
+			return winChance(node.candidates[0].score, mover) - winChance(played.score, mover) < 0.1 ? 1 : 0;
+		};
 		const scored = this.#book
 			.continuations(epd)
 			.filter(({ lines }) => lines.some((l) => !l.dubious))
-			.map(({ uci, lines }) => ({ uci, open: lines.filter((l) => !l.dubious && this.#stages.get(l.key) !== 'discovered').length }))
-			.sort((a, b) => b.open - a.open || Number(b.uci === best) - Number(a.uci === best));
+			.map(({ uci, lines }) => ({
+				uci,
+				sound: sound(uci),
+				open: lines.filter((l) => !l.dubious && this.#stages.get(l.key) !== 'discovered').length
+			}))
+			.sort((a, b) => b.sound - a.sound || b.open - a.open || Number(b.uci === best) - Number(a.uci === best));
 		return scored[0]?.uci ?? best;
 	}
 
@@ -703,6 +735,12 @@ export class ExploreSession {
 		} finally {
 			this.loadingEngine = false;
 		}
+	}
+
+	/** The engine had nothing to say about a live position: stop cleanly instead of waiting forever. */
+	#stall() {
+		this.phase = 'over';
+		this.message = { tone: 'bad', text: 'The engine had no move for this position. Start a new game.' };
 	}
 
 	#checkOver(): boolean {

@@ -59,6 +59,7 @@
 
 	async function begin(i: number) {
 		if (!plan) return;
+		review?.abandon();
 		index = i;
 		const item = plan[i];
 		const store = progressStore(data.user?.id ?? null);

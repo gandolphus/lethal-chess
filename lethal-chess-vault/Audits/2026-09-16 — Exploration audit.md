@@ -272,3 +272,21 @@ positions in #5) before ranking; fall back to the unfiltered list.
 (position-keyed `book`) → 7 (filter hints by loss) → 5 (fill the 103 missing book evals, add the
 assertion) → 6 (defensive fallbacks, also in `FreePlay`). Update [[Exploration Mode]] "Behaviour" for
 the transposition rule and #8's numbers, and log the decisions in [[Decision Log]].
+
+## Resolution (2026-09-16)
+
+Fixed the same night, on top of the line map merge:
+1. **Abandoned sessions.** `ExploreSession.abandon()` / `ReviewSession.abandon()` bump the generation (or
+   set a flag); the page calls them before starting anything new and on unmount, so an old session cannot
+   move, record or celebrate.
+2. **Celebration after a take back** now needs the history to be at or past the event's ply.
+3. **Take back in "decide"** is Try again, so the missed opportunity survives.
+4. **A move that transposes onto a line** counts as book: the test is position-keyed after the move.
+5. **Missing book evals** — not fixed: filling them needs an eval-cache pass. The engine still loads for
+   those 21 learner positions. Noted in [[Exploration Mode]].
+6. **An analysis with no lines on a live position** ends the game with "The engine had no move for this
+   position", instead of leaving the session waiting.
+7. **Hints** rank sound moves before unfound lines, so the arrow can't point at a move the coach then
+   calls dubious.
+8. **Transposed line ends and lines ending on the computer's move** are left as they are; the second is an
+   open question for the owner (see the daily log).

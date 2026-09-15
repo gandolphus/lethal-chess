@@ -90,7 +90,14 @@
 		}
 	}
 
+	/** Whatever is running stops before anything new starts, so an old session can't move or record. */
+	function stopSessions() {
+		explore?.abandon();
+		review?.abandon();
+	}
+
 	async function startExplore() {
+		stopSessions();
 		freeplay = null;
 		review = null;
 		caughtUp = null;
@@ -113,6 +120,7 @@
 	 * When nothing is due it says so; `anyway` replays a random discovered line regardless.
 	 */
 	async function startPractice(anyway = false) {
+		stopSessions();
 		freeplay = null;
 		explore = null;
 		review = null;
@@ -148,7 +156,10 @@
 	onMount(() => {
 		void startExplore();
 		void refreshStats();
-		return () => engine?.destroy();
+		return () => {
+			stopSessions();
+			engine?.destroy();
+		};
 	});
 
 	const game = $derived(freeplay?.game ?? explore?.game ?? review?.game ?? null);
@@ -254,7 +265,10 @@
 	// entrance and its end, the card anticipates it instead.
 	const celebration = $derived.by<DiscoveryEvent | null>(() => {
 		const latest = explore?.events.findLast((e) => e.kind === 'discovered');
-		return latest && explore && explore.game.history.length - latest.ply <= 2 ? latest : null;
+		if (!latest || !explore) return null;
+		// A take back can put the game before the discovery: then there is nothing to celebrate.
+		const since = explore.game.history.length - latest.ply;
+		return since >= 0 && since <= 2 ? latest : null;
 	});
 	const anticipation = $derived(explore && !explore.inOpening && !celebration ? explore.progress : null);
 

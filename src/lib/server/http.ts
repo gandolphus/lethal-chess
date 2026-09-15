@@ -51,11 +51,35 @@ export async function readJson(request: Request, maxBytes: number): Promise<unkn
 	if (!/^application\/json\s*(?:;|$)/i.test(type)) throw new ApiError(415, 'Expected application/json');
 	const declared = Number(request.headers.get('content-length') ?? 0);
 	if (declared > maxBytes) throw new ApiError(413, 'Body too large');
-	const text = await request.text();
-	if (text.length > maxBytes) throw new ApiError(413, 'Body too large');
+	const text = await readCapped(request, maxBytes);
 	try {
 		return JSON.parse(text);
 	} catch {
 		throw new ApiError(400, 'Malformed JSON');
 	}
+}
+
+/** The body as text, read in chunks and abandoned as soon as it passes `maxBytes` — Content-Length can be absent or wrong. */
+async function readCapped(request: Request, maxBytes: number): Promise<string> {
+	if (!request.body) return '';
+	const reader = request.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		size += value.byteLength;
+		if (size > maxBytes) {
+			await reader.cancel();
+			throw new ApiError(413, 'Body too large');
+		}
+		chunks.push(value);
+	}
+	const body = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		body.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return new TextDecoder().decode(body);
 }

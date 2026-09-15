@@ -222,7 +222,7 @@ describe('POST /api/progress/import', () => {
 
 	it('keeps each user’s import to themselves', async () => {
 		await importLocal(local, bob);
-		expect((await progress(ann)).body).toEqual({ cards: {}, attempts: [] });
+		expect((await progress(ann)).body).toEqual({ cards: {}, attempts: [], discoveries: [] });
 		expect((await progress(bob)).body.attempts).toHaveLength(2);
 	});
 
@@ -230,6 +230,16 @@ describe('POST /api/progress/import', () => {
 		const result = await importLocal({ ...local, cards: [...local.cards, { bundleId: 'ruy-lopez', epd: EPD, state: {} }] });
 		expect(result.status).toBe(400);
 		expect(attemptCount()).toBe(0);
+	});
+
+	it('imports discoveries idempotently and rejects unknown stages', async () => {
+		const found = { bundleId: 'ruy-lopez', line: EPD2, stage: 'discovered', at: '2026-09-15T10:00:00.000Z' };
+		await importLocal({ discoveries: [found, { ...found, stage: 'entered' }] });
+		await importLocal({ discoveries: [{ ...found, at: '2026-09-16T10:00:00.000Z' }] });
+		// The first time a stage is reached is kept; a later re-send changes nothing.
+		expect((await progress()).body.discoveries).toEqual([found, { ...found, stage: 'entered' }]);
+		expect((await progress(bob)).body.discoveries).toEqual([]);
+		expect((await importLocal({ discoveries: [{ ...found, stage: 'mastered' }] })).status).toBe(400);
 	});
 
 	it('accepts an empty import', async () => {

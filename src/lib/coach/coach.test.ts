@@ -117,6 +117,17 @@ const epd = (...moves: string[]) => {
 describe('FreePlay', () => {
 	const noWait = async () => {};
 
+	it('scores a checkmate the pre-move analysis missed as a win, not 0.00', async () => {
+		// The engine sends no lines for a mated position; Qh4# wasn't among the candidates before it.
+		const engine = scriptedEngine({ [epd('f2f3', 'e7e5', 'g2g4')]: [line('b8c6', -50)] });
+		const play = new FreePlay({ engine, startMoves: ['f2f3', 'e7e5', 'g2g4'], side: 'b', random: () => 0, wait: noWait });
+		await play.start();
+		expect(await play.submit('d8', 'h4')).toBe('best');
+		expect(play.phase).toBe('over');
+		expect(play.evaluation).toEqual({ mate: -1 });
+		expect(play.game.history.at(-1)).toBe('Qh4#');
+	});
+
 	it('grades the learner’s move and answers with a natural reply', async () => {
 		const engine = scriptedEngine({
 			[epd('e2e4', 'e7e5')]: [line('g1f3', 30), line('b1c3', 25), line('f1c4', 20)],

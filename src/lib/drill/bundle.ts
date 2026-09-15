@@ -30,12 +30,28 @@ export type BundleNode = {
 	candidates: Candidate[];
 	/** Principal variation in SAN, starting with candidates[0]. */
 	line: string[];
-	/** The learner's move here (learner-to-move nodes inside the tree only). */
+	/** The learner's move here (learner-to-move nodes inside the practice tree only; book-only nodes have neither this nor replies). */
 	move?: Candidate;
 	/** Opponent replies the drill plays (opponent-to-move nodes inside the tree only). */
 	replies?: Reply[];
 	/** How narrow the position is for the side to move: centipawns the second-best move gives up. */
 	sharpness?: number;
+};
+
+/** An established line the learner can discover by exploring: a catalog line with no catalogued continuation. */
+export type BookLine = {
+	/** Catalog name at the line's end, e.g. "Ruy Lopez: Closed, Breyer Defense". */
+	name: string;
+	/** The name before its first comma, e.g. "Ruy Lopez: Closed" — how lines are grouped. */
+	variation: string;
+	/** UCI moves from the initial position to the line's end. */
+	moves: string[];
+	/** Plies to the line's entrance: the deepest named position before its end (= moves.length if none). */
+	entry: number;
+	/** Catalog name at the entrance, when it comes before the end. */
+	entryName?: string;
+	/** Following it takes a learner move the coach calls a mistake. */
+	dubious: boolean;
 };
 
 export type Bundle = {
@@ -48,9 +64,19 @@ export type Bundle = {
 	openingMoves?: string[];
 	rootEpd: string;
 	nodes: Record<string, BundleNode>;
+	/** Established lines for exploration. */
+	lines?: BookLine[];
 	/** Tolerances the bundle was built with, so grading uses the same numbers. */
 	tolerances: { soundCp: number; replyCp: number };
-	stats: { learnerNodes: number; opponentNodes: number; maxPly: number; missingEvals: number };
+	stats: {
+		learnerNodes: number;
+		opponentNodes: number;
+		maxPly: number;
+		missingEvals: number;
+		/** Nodes added only because a book line passes through them. */
+		bookNodes?: number;
+		missingBookEvals?: number;
+	};
 	source: { evalCacheRecords: number; builtAt: string };
 };
 

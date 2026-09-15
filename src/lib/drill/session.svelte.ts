@@ -104,6 +104,7 @@ export class DrillSession {
 	#firstGrade: Grade | null = null;
 	#attemptNo = 0;
 	#awaitingSince = 0;
+	#asked = new Set<string>();
 
 	constructor(options: SessionOptions) {
 		this.bundle = options.bundle;
@@ -120,6 +121,7 @@ export class DrillSession {
 	/** Loads the root and plays until the learner is on move (or the line ends). */
 	start(): Promise<void> {
 		this.game.load(this.bundle.rootMoves);
+		this.#asked.clear();
 		this.#updateName();
 		return this.#advance();
 	}
@@ -141,8 +143,8 @@ export class DrillSession {
 
 		if (grade.kind === 'pass') {
 			this.flash = { from, to, kind: this.phase === 'await' ? 'correct' : 'soft' };
-			this.#schedule(node.epd);
 			this.game.move(parseUci(uci));
+			this.#schedule(node.epd);
 			this.movesPlayed++;
 			await this.#advance();
 			return grade;
@@ -160,7 +162,13 @@ export class DrillSession {
 		for (;;) {
 			this.#updateName();
 			const node = this.node;
+			// A safety net for bundles built before cycles were removed: a repeated decision or a finished game ends the walk.
+			if (this.game.isOver || (isLearnerNode(node) && this.#asked.has(node.epd))) {
+				this.phase = 'done';
+				return;
+			}
 			if (isLearnerNode(node)) {
+				this.#asked.add(node.epd);
 				this.phase = 'await';
 				this.#firstGrade = null;
 				this.#attemptNo = 0;
@@ -208,7 +216,8 @@ export class DrillSession {
 			grade: grade.kind,
 			costCp: grade.kind === 'pass' ? 0 : grade.costCp,
 			attemptNo: this.#attemptNo,
-			responseMs: this.#now.getTime() - this.#awaitingSince,
+			// Wall-clock time can step backwards (NTP); the server rejects negative durations.
+			responseMs: Math.max(0, this.#now.getTime() - this.#awaitingSince),
 			at: this.#now.toISOString()
 		});
 	}

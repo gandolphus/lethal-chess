@@ -1,4 +1,5 @@
 import type { Attempt } from '$lib/drill/session.svelte';
+import type { Discovery } from '$lib/explore/book';
 
 /** Client input that fails validation. Endpoints turn it into a 400. */
 export class InvalidInput extends Error {}
@@ -107,6 +108,17 @@ export function parseCardState(value: unknown): CardJson {
 export function parseCardEntry(value: unknown): CardEntry {
 	if (!isRecord(value)) return fail('card must be an object');
 	return { bundleId: parseBundleId(value.bundleId), epd: parseEpd(value.epd), state: parseCardState(value.state) };
+}
+
+export function parseDiscovery(value: unknown): Discovery {
+	if (!isRecord(value)) return fail('discovery must be an object');
+	if (value.stage !== 'entered' && value.stage !== 'discovered') fail('invalid stage');
+	return {
+		bundleId: parseBundleId(value.bundleId),
+		line: parseEpd(value.line),
+		stage: value.stage as Discovery['stage'],
+		at: parseIso(value.at, 'at')
+	};
 }
 
 export function parseList<T>(value: unknown, field: string, max: number, parse: (item: unknown) => T, min = 0): T[] {

@@ -16,8 +16,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chess } from 'chess.js';
-import type { Bundle, BundleNode, Candidate, OpeningIndexEntry, Reply, Side } from '../../src/lib/drill/bundle.ts';
+import type { BookLine, Bundle, BundleNode, Candidate, OpeningIndexEntry, Reply, Side } from '../../src/lib/drill/bundle.ts';
 import { scoreFor } from '../../src/lib/drill/bundle.ts';
+import { winChance } from '../../src/lib/coach/judge.ts';
 import { toEpd } from '../lib/codec.ts';
 import { normalizeCastling } from '../lib/uci.ts';
 import type { EvalRecord } from '../eval-cache/format.ts';
@@ -158,6 +159,37 @@ export function pruneDanglingReplies(nodes: Record<string, BundleNode>, rootEpd:
 const epdAfter = (epd: string, uci: string) => toEpd(play(`${epd} 0 1`, uci).fen());
 
 /**
+ * Removes repetition cycles. Nodes are keyed by position, so a line that shuffles pieces back to an
+ * earlier position links back to that node — and a walk following it never ends. Every edge into a
+ * position already on the current path is dropped: a reply is removed (weights renormalised), a
+ * learner move ends the line there. Run before pruneDanglingReplies, which tidies what this leaves.
+ */
+export function breakCycles(nodes: Record<string, BundleNode>, rootEpd: string): void {
+	const onPath = new Set<string>();
+	const done = new Set<string>();
+	const visit = (epd: string) => {
+		const node = nodes[epd];
+		if (!node || done.has(epd)) return;
+		onPath.add(epd);
+		if (node.move) {
+			const next = epdAfter(epd, node.move.uci);
+			if (onPath.has(next)) delete node.move;
+			else visit(next);
+		}
+		if (node.replies) {
+			const kept = node.replies.filter((r) => !onPath.has(epdAfter(epd, r.uci)));
+			const total = kept.reduce((sum, r) => sum + r.weight, 0);
+			if (kept.length) node.replies = kept.map((r) => ({ ...r, weight: r.weight / total }));
+			else delete node.replies;
+			for (const reply of node.replies ?? []) visit(epdAfter(epd, reply.uci));
+		}
+		onPath.delete(epd);
+		done.add(epd);
+	};
+	visit(rootEpd);
+}
+
+/**
  * Nodes for the moves that define the opening (e.g. 1.e4 e5 2.Nf3 Nc6 3.Bb5 for the Ruy Lopez), from
  * the initial position to the tree's root. At the learner's turns the move is the defining move —
  * even when the engine prefers another, since that move *is* the opening; an engine-preferred
@@ -206,11 +238,92 @@ export function addPrelude(
 	});
 }
 
+// A line is dubious when following it takes a learner move the coach would call a mistake.
+const DUBIOUS_LOSS = 0.2;
+
+/**
+ * The established lines an explorer can discover: every catalog line that continues the opening's
+ * defining moves and has no catalogued continuation of its own (its end is where theory stops).
+ * A line's entrance is the deepest named position before its end, past the defining moves: from
+ * there the line has a name to follow. A line with no such position is entered at its end.
+ * Every position on a line gets a node (evals, name), so book moves grade without the engine.
+ */
+export function buildLines(
+	spec: RepertoireSpec,
+	catalogLines: CatalogLine[],
+	nodes: Record<string, BundleNode>,
+	evals: EvalSource,
+	catalog: CatalogIndex,
+	stats: { bookNodes: number; missingBookEvals: number }
+): BookLine[] {
+	const root = spec.rootMoves.join(' ');
+	const under = catalogLines.filter((l) => l.uci.startsWith(`${root} `));
+	const prefixes = new Set(under.flatMap((l) => l.uci.split(' ').slice(0, -1).map((_, i, all) => all.slice(0, i + 1).join(' '))));
+	const leaves = under.filter((l) => !prefixes.has(l.uci));
+	// The catalog repeats the opening's own name on later positions ("Caro-Kann Defense" after 2.d4 too);
+	// that says nothing about which line the learner is in, so it is no entrance.
+	const openingName = catalog.name(epdAfterMoves(spec.rootMoves));
+
+	const nodeAt = (fen: string, ply: number): BundleNode | undefined => {
+		const epd = toEpd(fen);
+		if (nodes[epd]) return nodes[epd];
+		const record = evals(epd);
+		if (!record) {
+			stats.missingBookEvals++;
+			return undefined;
+		}
+		const { candidates, line } = candidatesAt(fen, record);
+		if (!candidates.length) return undefined;
+		stats.bookNodes++;
+		return (nodes[epd] = {
+			epd,
+			ply,
+			name: catalog.name(epd),
+			depth: record.depth,
+			candidates,
+			line,
+			sharpness: sharpness(candidates, fen.split(' ')[1] as Side)
+		});
+	};
+
+	return leaves.map((leaf) => {
+		const moves = leaf.uci.split(' ');
+		const chess = new Chess();
+		let entry = moves.length;
+		let dubious = false;
+		moves.forEach((uci, ply) => {
+			const fen = chess.fen();
+			const before = nodeAt(fen, ply);
+			const mover = fen.split(' ')[1] as Side;
+			chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+			const after = nodeAt(chess.fen(), ply + 1);
+			if (ply >= spec.rootMoves.length && mover === spec.side && before) {
+				const played = before.candidates.find((c) => c.uci === uci)?.score ?? after?.candidates[0]?.score;
+				if (played && winChance(before.candidates[0].score, mover) - winChance(played, mover) >= DUBIOUS_LOSS) dubious = true;
+			}
+			const name = catalog.name(toEpd(chess.fen()));
+			if (ply + 1 > spec.rootMoves.length && ply + 1 < moves.length && name && name !== openingName) entry = ply + 1;
+		});
+		const entryName = entry < moves.length ? catalog.name(epdAfterMoves(moves.slice(0, entry))) : undefined;
+		return {
+			name: leaf.name,
+			variation: leaf.name.split(',')[0],
+			moves,
+			entry,
+			...(entryName ? { entryName } : {}),
+			dubious
+		};
+	});
+}
+
+const epdAfterMoves = (moves: string[]) => toEpd(moves.reduce((fen, uci) => play(fen, uci).fen(), START_FEN));
+
 export function buildRepertoire(
 	spec: RepertoireSpec,
 	evals: EvalSource,
 	catalog: CatalogIndex,
-	evalCacheRecords = 0
+	evalCacheRecords = 0,
+	catalogLines: CatalogLine[] = []
 ): Bundle {
 	const rootFen = spec.rootMoves.reduce((fen, uci) => play(fen, uci).fen(), START_FEN);
 	const rootEpd = toEpd(rootFen);
@@ -264,6 +377,7 @@ export function buildRepertoire(
 		}
 	}
 
+	breakCycles(nodes, rootEpd);
 	pruneDanglingReplies(nodes, rootEpd);
 	// Walks start from the initial position, not the opening's defining position, so the
 	// learner also practises the moves that lead into it.
@@ -272,6 +386,8 @@ export function buildRepertoire(
 	stats.learnerNodes = final.filter((n) => n.move).length;
 	stats.opponentNodes = final.filter((n) => n.replies).length;
 	stats.maxPly = Math.max(0, ...final.map((n) => n.ply));
+	const bookStats = { bookNodes: 0, missingBookEvals: 0 };
+	const lines = buildLines(spec, catalogLines, nodes, evals, catalog, bookStats);
 
 	return {
 		id: spec.id,
@@ -281,8 +397,9 @@ export function buildRepertoire(
 		rootEpd: toEpd(START_FEN),
 		openingMoves: spec.rootMoves,
 		nodes,
+		lines,
 		tolerances: { soundCp: spec.soundCp, replyCp: spec.replyCp },
-		stats,
+		stats: { ...stats, ...bookStats },
 		source: { evalCacheRecords, builtAt: new Date().toISOString() }
 	};
 }
@@ -303,14 +420,16 @@ if (import.meta.main) {
 	const index: OpeningIndexEntry[] = [];
 	for (const spec of specs) {
 		const started = performance.now();
-		const bundle = buildRepertoire(spec, (epd) => cache.get(epd), catalog, cache.size);
+		const bundle = buildRepertoire(spec, (epd) => cache.get(epd), catalog, cache.size, lines);
 		const json = JSON.stringify(bundle);
 		writeFileSync(join(outDir, `${spec.id}.json`), json);
 		index.push(indexEntry(spec, bundle, json.length));
-		const { learnerNodes, opponentNodes, maxPly, missingEvals } = bundle.stats;
+		const { learnerNodes, opponentNodes, maxPly, missingEvals, bookNodes, missingBookEvals } = bundle.stats;
 		console.log(
 			`${spec.id}: ${learnerNodes} learner + ${opponentNodes} opponent nodes, max ply ${maxPly}, ` +
-				`${missingEvals} missing evals, ${(json.length / 1024).toFixed(0)} KB, ${((performance.now() - started) / 1000).toFixed(1)}s`
+				`${missingEvals} missing evals, ${bundle.lines?.length} lines (${bundle.lines?.filter((l) => l.dubious).length} dubious), ` +
+				`${bookNodes} book nodes, ${missingBookEvals} missing book evals, ` +
+				`${(json.length / 1024).toFixed(0)} KB, ${((performance.now() - started) / 1000).toFixed(1)}s`
 		);
 	}
 	cache.close();

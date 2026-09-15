@@ -34,6 +34,13 @@ const OPPORTUNITY_MIN_GAIN = 0.15;
 
 const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** The evaluation of a finished game after `mover`'s move: mate for the mover, or level for a draw. */
+export function scoreOfEnded(game: Pick<Game, 'status'>, mover: Side): EngineScore | null {
+	if (game.status === 'checkmate') return { mate: mover === 'w' ? 1 : -1 };
+	if (game.status === 'stalemate' || game.status === 'draw') return { cp: 0 };
+	return null;
+}
+
 const san = (fen: string, uci: string) => {
 	try {
 		return new Chess(fen).move(parseUci(uci)).san;
@@ -125,6 +132,7 @@ export class FreePlay {
 		this.game.move({ from, to, promotion });
 		const after = await this.#analyse(this.game.fen);
 		if (after.lines[0]) this.evaluation = after.lines[0].score;
+		else this.evaluation = scoreOfEnded(this.game, this.side) ?? this.evaluation;
 		const playedScore = this.#scoreAfter(after, uci, before);
 		const loss = lossFor(best, playedScore, this.side);
 		const verdict = verdictFor(loss, uci === best.move);
@@ -162,9 +170,12 @@ export class FreePlay {
 	}
 
 	/** The learner's move's score: its own line if the pre-move analysis had it, otherwise the fresh analysis. */
-	#scoreAfter(after: Analysis, uci: string, before: Analysis) {
+	#scoreAfter(after: Analysis, uci: string, before: Analysis): EngineScore {
 		const known = before.lines.find((l) => l.move === uci);
 		if (known) return known.score;
+		// A finished game has no analysis lines (Stockfish sends no pv on a mated position): score it from the result.
+		const ended = scoreOfEnded(this.game, this.side);
+		if (ended) return ended;
 		return after.lines[0]?.score ?? { cp: 0 };
 	}
 

@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import { describe, expect, it } from 'vitest';
 import type { Bundle, BundleNode } from './bundle';
 import { gradeMove } from './grade';
-import { ratingFor, Rating } from './scheduler';
+import { ratingFor, Rating, review } from './scheduler';
 import { DrillSession, type Attempt } from './session.svelte';
 import { cardsBelow, childEpd, toEpd } from './tree';
 
@@ -251,6 +251,35 @@ describe('DrillSession', () => {
 		await session.start();
 		expect(await session.submit('e4', 'e6')).toBeNull();
 		expect(session.phase).toBe('await');
+	});
+});
+
+describe('safety', () => {
+	it('schedules a review stamped later than now instead of throwing', () => {
+		const future = review(undefined, Rating.Good, new Date('2026-09-20T10:00:00Z'));
+		const next = review(future, Rating.Good, new Date('2026-09-15T10:00:00Z'));
+		expect(next.reps).toBe(future.reps + 1);
+	});
+
+	it('ends a walk that would ask the same decision twice', async () => {
+		const bundle = fixture();
+		// Point Nc6's reply back at the root decision: 3.Bb5 now "returns" to the position before 2.Nf3.
+		const afterNc6 = epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6');
+		const afterBb5 = epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5');
+		bundle.nodes[afterBb5] = { epd: afterBb5, ply: 5, depth: 1, candidates: [], line: [], replies: [{ uci: 'c6b8', san: 'Nb8', weight: 1 }] };
+		const afterNb8 = epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'c6b8');
+		bundle.nodes[afterNb8] = { epd: afterNb8, ply: 6, depth: 1, candidates: [cand('b5f1', 'Bf1', 0)], line: [], move: cand('b5f1', 'Bf1', 0) };
+		const afterBf1 = epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'c6b8', 'b5f1');
+		bundle.nodes[afterBf1] = { epd: afterBf1, ply: 7, depth: 1, candidates: [], line: [], replies: [{ uci: 'b8c6', san: 'Nc6', weight: 1 }] };
+		expect(bundle.nodes[afterNc6].move).toBeDefined();
+
+		const session = new DrillSession({ bundle, mode: 'practice', guided: true, wait: noWait });
+		await session.start();
+		await session.submit('g1', 'f3');
+		await session.submit('f1', 'b5');
+		await session.submit('b5', 'f1');
+		// Back at the position after 2...Nc6 — already asked in this walk.
+		expect(session.phase).toBe('done');
 	});
 });
 

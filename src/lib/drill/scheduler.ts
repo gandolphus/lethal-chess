@@ -17,7 +17,10 @@ export function ratingFor(first: Grade): Rating {
 }
 
 export function review(state: CardState | undefined, rating: Rating, now: Date): CardState {
-	return scheduler.next(state ?? createEmptyCard(now), now, rating as Exclude<Rating, Rating.Manual>).card;
+	// A review stamped later than now (a clock that was ahead, or another device's) would make ts-fsrs
+	// throw on the negative interval; schedule from that review instead.
+	const at = state?.last_review && state.last_review.getTime() > now.getTime() ? state.last_review : now;
+	return scheduler.next(state ?? createEmptyCard(at), at, rating as Exclude<Rating, Rating.Manual>).card;
 }
 
 export const isDue = (state: CardState | undefined, now: Date) => !state || state.due.getTime() <= now.getTime();

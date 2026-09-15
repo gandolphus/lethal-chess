@@ -41,7 +41,7 @@ only; rating-based strategy is at the bottom of the backlog.
   lethalchess.com; Google sign-in; Cloudflare Workers + D1; no browser engine.
 - [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
   natural computer replies, planted mistakes to punish.
-- [[Exploration Mode]] — **idea, discuss next**. Secret lines, "x of n discovered", celebrate discoveries, keep playing on good moves.
+- [[Exploration Mode]] — **built, replaces Learn**. Given opening moves, then secret lines: entered → discovered, dubious lines apart, try again / play on.
 - [[Off-book Practice]] — **designed, first after launch**. Drill punishing the unusual moves opponents
   actually play, not only the book. The blind spot most drilling tools share.
 - [[Play vs Computer]] — **done (MVP), audited + fixed**. Board + Stockfish opponent. Local builds only.
@@ -59,6 +59,7 @@ only; rating-based strategy is at the bottom of the backlog.
 - [[2026-09-15 — Fable code audit]] — 7 findings, all fixed and verified.
 - [[2026-09-15 — Fable design review]] — strength/weakness definitions, pipeline, drill model.
 - [[2026-09-15 — Fable correctness audit 2]] — 9 findings; the drill dead-end bug and four more fixed.
+- [[2026-09-15 — Fable soundness audit]] — 9 findings (cycles, sync queue, sign-out, scheduler…); all fixed.
 
 ## Daily logs
 

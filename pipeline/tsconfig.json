@@ -9,7 +9,9 @@
 		"erasableSyntaxOnly": true,
 		"verbatimModuleSyntax": true,
 		"skipLibCheck": true,
-		"types": ["node"]
+		"types": ["node"],
+		// App modules the pipeline shares (bundle format, win-chance model) use SvelteKit's $lib alias in type imports.
+		"paths": { "$lib/*": ["../src/lib/*.ts", "../src/lib/*"] }
 	},
 	"include": ["./**/*.ts"]
 }

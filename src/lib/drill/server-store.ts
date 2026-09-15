@@ -1,11 +1,12 @@
+import type { Discovery } from '$lib/explore/book';
 import type { ProgressStore } from './progress';
 import type { CardState } from './scheduler';
 import type { Attempt } from './session.svelte';
 
 type Fetch = typeof fetch;
-type ProgressJson = { cards: Record<string, CardState>; attempts: Attempt[] };
+type ProgressJson = { cards: Record<string, CardState>; attempts: Attempt[]; discoveries?: Discovery[] };
 export type CardUpload = { bundleId: string; epd: string; state: CardState };
-export type ProgressImport = { attempts: Attempt[]; cards: CardUpload[] };
+export type ProgressImport = { attempts: Attempt[]; cards: CardUpload[]; discoveries?: Discovery[] };
 
 export class ProgressSyncError extends Error {
 	constructor(
@@ -80,6 +81,14 @@ export class ServerProgressStore implements ProgressStore {
 		return (await this.#progress(bundleId)).attempts;
 	}
 
+	async loadDiscoveries(bundleId: string) {
+		return (await this.#progress(bundleId)).discoveries ?? [];
+	}
+
+	async recordDiscovery(discovery: Discovery) {
+		await this.importProgress({ attempts: [], cards: [], discoveries: [discovery] });
+	}
+
 	/** Merges local (signed-out) progress into the account. Safe to call more than once. */
 	async importProgress(data: ProgressImport): Promise<{ importedAttempts: number; cards: number }> {
 		return this.#request('POST', '/api/progress/import', data);
@@ -88,9 +97,10 @@ export class ServerProgressStore implements ProgressStore {
 
 /** Gathers what another store (normally the BrowserProgressStore) holds for these openings, ready for import. */
 export async function collectProgress(store: ProgressStore, bundleIds: string[]): Promise<ProgressImport> {
-	const data: ProgressImport = { attempts: [], cards: [] };
+	const data: ProgressImport = { attempts: [], cards: [], discoveries: [] };
 	for (const bundleId of bundleIds) {
 		data.attempts.push(...(await store.loadAttempts(bundleId)));
+		data.discoveries!.push(...(await store.loadDiscoveries(bundleId)));
 		for (const [epd, state] of await store.loadCards(bundleId)) data.cards.push({ bundleId, epd, state });
 	}
 	return data;

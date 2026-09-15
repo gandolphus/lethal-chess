@@ -2,9 +2,10 @@ import { Chess } from 'chess.js';
 import { describe, expect, it } from 'vitest';
 import { toEpd } from '../lib/codec.ts';
 import type { EvalRecord } from '../eval-cache/format.ts';
-import { buildRepertoire, chooseReplies, sharpness, type EvalSource } from './build.ts';
+import { breakCycles, buildRepertoire, chooseReplies, sharpness, type EvalSource } from './build.ts';
 import { buildCatalogIndex, type CatalogLine } from './catalog-index.ts';
 import type { RepertoireSpec } from './spec.ts';
+import type { BundleNode } from '../../src/lib/drill/bundle.ts';
 
 const epdAfter = (...moves: string[]) => {
 	const chess = new Chess();
@@ -196,6 +197,83 @@ describe('buildRepertoire', () => {
 		}), buildCatalogIndex([]));
 		// The budget limits the tree; the prelude adds the learner's defining move 1.e4 on top.
 		expect(bundle.stats.learnerNodes).toBe(2);
+	});
+});
+
+describe('breakCycles', () => {
+	it('drops edges back into the current path, so every walk ends', () => {
+		// 1.Nf3 Nf6 2.Ng1 Ng8 returns to the start: the learner's Ng1 and the reply Ng8 would loop.
+		const n = (moves: string[], extra: Partial<BundleNode>): BundleNode => ({ epd: epdAfter(...moves), ply: moves.length, depth: 1, candidates: [], line: [], ...extra });
+		const c = (uci: string, san: string) => ({ uci, san, score: { cp: 0 } });
+		const nodes = Object.fromEntries(
+			[
+				n([], { move: c('g1f3', 'Nf3') }),
+				n(['g1f3'], { replies: [{ uci: 'g8f6', san: 'Nf6', weight: 1 }] }),
+				n(['g1f3', 'g8f6'], { move: c('f3g1', 'Ng1') }),
+				n(['g1f3', 'g8f6', 'f3g1'], { replies: [{ uci: 'f6g8', san: 'Ng8', weight: 0.5 }, { uci: 'e7e5', san: 'e5', weight: 0.5 }] }),
+				n(['g1f3', 'g8f6', 'f3g1', 'e7e5'], {})
+			].map((node) => [node.epd, node])
+		);
+		breakCycles(nodes, epdAfter());
+		expect(nodes[epdAfter('g1f3', 'g8f6', 'f3g1')].replies).toEqual([{ uci: 'e7e5', san: 'e5', weight: 1 }]);
+		expect(nodes[epdAfter()].move?.san).toBe('Nf3');
+	});
+});
+
+describe('book lines', () => {
+	const ruy = ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5'];
+	const ruySpec = { ...spec, rootMoves: ruy };
+	const catalogLines = [
+		catalogLine('Ruy Lopez', ...ruy),
+		catalogLine('Ruy Lopez: Morphy Defense', ...ruy, 'a7a6'),
+		catalogLine('Ruy Lopez: Morphy Defense, Exchange', ...ruy, 'a7a6', 'b5c6'),
+		catalogLine('Ruy Lopez: Closed', ...ruy, 'a7a6', 'b5a4', 'g8f6', 'e1g1', 'f8e7'),
+		catalogLine('Ruy Lopez: Cozio Defense', ...ruy, 'g8e7'),
+		catalogLine('Italian Game', 'e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4')
+	];
+
+	function build(table: Record<string, EvalRecord['pvs']> = {}) {
+		return buildRepertoire(ruySpec, source(table), buildCatalogIndex(catalogLines), 0, catalogLines);
+	}
+
+	it('lists only lines with no catalogued continuation, under the defining moves', () => {
+		expect(build().lines!.map((l) => l.name)).toEqual([
+			'Ruy Lopez: Morphy Defense, Exchange',
+			'Ruy Lopez: Closed',
+			'Ruy Lopez: Cozio Defense'
+		]);
+	});
+
+	it('enters a line at its deepest named position before the end, else at the end', () => {
+		const [exchange, closed, cozio] = build().lines!;
+		expect(exchange).toMatchObject({ entry: 6, entryName: 'Ruy Lopez: Morphy Defense', variation: 'Ruy Lopez: Morphy Defense' });
+		expect(closed).toMatchObject({ entry: 6, entryName: 'Ruy Lopez: Morphy Defense', moves: [...ruy, 'a7a6', 'b5a4', 'g8f6', 'e1g1', 'f8e7'] });
+		// The defining position is named too, but it is where every line starts, not an entrance.
+		expect(cozio.entry).toBe(6);
+		expect(cozio.entryName).toBeUndefined();
+	});
+
+	it('does not treat a later position that repeats the opening’s own name as an entrance', () => {
+		const lines = [...catalogLines, catalogLine('Ruy Lopez', ...ruy, 'g8f6'), catalogLine('Ruy Lopez: Berlin, Long', ...ruy, 'g8f6', 'e1g1', 'f6e4')];
+		const bundle = buildRepertoire(ruySpec, source({}), buildCatalogIndex(lines), 0, lines);
+		expect(bundle.lines!.find((l) => l.name.endsWith('Long'))).toMatchObject({ entry: 8 });
+	});
+
+	it('marks a line dubious when it takes a learner move the coach calls a mistake', () => {
+		const lines = build({
+			[epdAfter(...ruy, 'a7a6')]: [cp('b5a4', 30), cp('b5c6', -150)]
+		}).lines!;
+		expect(lines.find((l) => l.name.endsWith('Exchange'))!.dubious).toBe(true);
+		expect(lines.find((l) => l.name.endsWith('Closed'))!.dubious).toBe(false);
+	});
+
+	it('adds a node for every book position that has an eval, without drill moves', () => {
+		const afterA6 = epdAfter(...ruy, 'a7a6');
+		const bundle = build({ [afterA6]: [cp('b5a4', 30)] });
+		expect(bundle.nodes[afterA6]).toMatchObject({ name: 'Ruy Lopez: Morphy Defense', ply: 6 });
+		expect(bundle.nodes[afterA6].move).toBeUndefined();
+		expect(bundle.nodes[afterA6].replies).toBeUndefined();
+		expect(bundle.stats.bookNodes).toBe(1);
 	});
 });
 

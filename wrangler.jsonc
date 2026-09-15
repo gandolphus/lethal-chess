@@ -20,6 +20,9 @@
 		}
 	],
 	// The Worker serves the real domain; `www` only redirects to it (see src/hooks.server.ts).
+	// Only the custom domains serve the app: no second origin on workers.dev or preview URLs.
+	"workers_dev": false,
+	"preview_urls": false,
 	"routes": [
 		{ "pattern": "lethalchess.com", "custom_domain": true },
 		{ "pattern": "www.lethalchess.com", "custom_domain": true }

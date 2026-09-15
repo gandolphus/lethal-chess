@@ -1,6 +1,8 @@
+/// <reference types="vitest/config" />
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
@@ -44,6 +46,10 @@ export default defineConfig({
 			}
 		})
 	],
+	test: {
+		// Agent worktrees under .claude/ are separate checkouts, not part of this one's suite.
+		exclude: [...configDefaults.exclude, '.claude/**']
+	},
 	server: {
 		// Must match the Google OAuth redirect URI registered for local dev.
 		port: 5177,

@@ -64,7 +64,16 @@ missed positions return sooner and known ones later; *Retention* is computed fro
 
 All of this is derivable from the existing append-only attempt log and card states — no new data needed.
 
+## Discoveries (built 2026-09-15)
+
+[[Exploration Mode]] logs a second kind of fact: `{ bundleId, line, stage: entered | discovered, at }`,
+one per line and stage, first time kept. The opening page derives discovered / entered / secret counts
+per variation from them. Line mastery (above) should build on discovered lines rather than the
+single-move practice tree.
+
 ## Storage
 
-`node:sqlite` (Node 24 built-in, verified). One database file outside the repo so it survives
-reinstalls and is easy to back up. Location TBD.
+*Superseded:* the plan was `node:sqlite` in a local file. As built for the [[Public MVP]]:
+- **Signed out:** progress lives in localStorage.
+- **Signed in:** Cloudflare D1 tables `attempts`, `cards` and `discoveries`, synced through a local
+  outbox. See [[System Map]].

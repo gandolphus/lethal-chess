@@ -15,7 +15,7 @@ aliases: [Public MVP, Launch]
 ## The novice flow
 
 1. **Pick an opening** from the launch set.
-2. **Learn** — walk the line; the board shows each move with an arrow and you replay it. The variation
+2. **Learn** *(replaced by [[Exploration Mode]] 2026-09-15)* — walk the line; the board shows each move with an arrow and you replay it. The variation
    name appears as you enter it (catalog-sourced, never LLM-written).
 3. **Practice** — [[Opening Drills]]: spaced repetition, weighted opponent replies, eval grading
    (pass / "sound, but not your line" / fail with refutation).

@@ -1,17 +1,19 @@
+import type { Discovery } from '$lib/explore/book';
 import type { ProgressStore } from './progress';
 import { BrowserProgressStore } from './progress';
 import type { CardState } from './scheduler';
-import type { CardUpload, ProgressImport } from './server-store';
+import { ProgressSyncError, type CardUpload, type ProgressImport } from './server-store';
 import type { Attempt } from './session.svelte';
 
 /** The slice of ServerProgressStore sync needs — lets tests drive it with a fake. */
 export type ProgressServer = {
 	loadCards(bundleId: string): Promise<Map<string, CardState>>;
 	loadAttempts(bundleId: string): Promise<Attempt[]>;
+	loadDiscoveries(bundleId: string): Promise<Discovery[]>;
 	importProgress(data: ProgressImport): Promise<unknown>;
 };
 
-export type SyncStatus = 'synced' | 'pending' | 'offline';
+export type SyncStatus = 'synced' | 'pending' | 'offline' | 'signed-out';
 
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -23,9 +25,24 @@ export type SyncOptions = {
 	/** Retry delays after failed uploads, in ms; the last one repeats. */
 	backoffMs?: number[];
 	schedule?: (fn: () => void, ms: number) => unknown;
+	pullTimeoutMs?: number;
 };
 
 const attemptKey = (a: Attempt) => `${a.bundleId}|${a.epd}|${a.at}|${a.attemptNo}`;
+const discoveryKey = (d: Discovery) => `${d.bundleId}|${d.line}|${d.stage}`;
+
+// Rows per list per upload: keeps any request well inside the server's limits.
+const BATCH = 500;
+
+type Outbox = Required<ProgressImport>;
+
+const emptyOutbox = (): Outbox => ({ attempts: [], cards: [], discoveries: [] });
+const outboxSize = (o: Outbox) => o.attempts.length + o.cards.length + o.discoveries.length;
+const cardKey = (c: CardUpload) => `${c.bundleId}|${c.epd}|${c.state.reps}`;
+
+/** The server will never accept this upload as it is: retrying the same rows cannot help. */
+const isRejected = (error: unknown) =>
+	error instanceof ProgressSyncError && error.status >= 400 && error.status < 500 && ![401, 408, 429].includes(error.status);
 
 const newer = (a: CardState | undefined, b: CardState) =>
 	!a || (b.last_review?.getTime() ?? 0) >= (a.last_review?.getTime() ?? 0);
@@ -49,6 +66,7 @@ export class SyncedProgressStore implements ProgressStore {
 	#flushing: Promise<void> | null = null;
 	#failures = 0;
 	#retryScheduled = false;
+	#limit = BATCH;
 
 	constructor(options: SyncOptions) {
 		this.#options = options;
@@ -56,42 +74,44 @@ export class SyncedProgressStore implements ProgressStore {
 		this.#local = new BrowserProgressStore(this.#storage, `user:${options.userId}`);
 		this.#server = options.server;
 		this.#outboxKey = `lethal:user:${options.userId}:outbox`;
-		if (this.#outboxSize()) void this.flush();
+		if (this.pendingCount()) void this.flush();
 	}
 
 	// ── outbox ────────────────────────────────────────────────────────────────
 
-	#readOutbox(): ProgressImport {
+	#readOutbox(): Outbox {
 		try {
 			const raw = this.#storage.getItem(this.#outboxKey);
-			if (!raw) return { attempts: [], cards: [] };
+			if (!raw) return emptyOutbox();
 			const parsed = JSON.parse(raw) as ProgressImport;
 			return {
 				attempts: parsed.attempts ?? [],
-				cards: (parsed.cards ?? []).map((c) => ({ ...c, state: revive(c.state) }))
+				cards: (parsed.cards ?? []).map((c) => ({ ...c, state: revive(c.state) })),
+				discoveries: parsed.discoveries ?? []
 			};
 		} catch {
-			return { attempts: [], cards: [] };
+			return emptyOutbox();
 		}
 	}
 
-	#writeOutbox(outbox: ProgressImport) {
+	#writeOutbox(outbox: Outbox) {
 		try {
-			if (!outbox.attempts.length && !outbox.cards.length) this.#storage.removeItem(this.#outboxKey);
+			if (!outboxSize(outbox)) this.#storage.removeItem(this.#outboxKey);
 			else this.#storage.setItem(this.#outboxKey, JSON.stringify(outbox));
 		} catch {
 			// Storage unavailable: the in-flight upload is the only copy; the status will show it.
 		}
 	}
 
-	#outboxSize() {
-		const { attempts, cards } = this.#readOutbox();
-		return attempts.length + cards.length;
+	/** Rows not yet confirmed by the server. */
+	pendingCount() {
+		return outboxSize(this.#readOutbox());
 	}
 
 	#enqueue(add: Partial<ProgressImport>) {
 		const outbox = this.#readOutbox();
 		outbox.attempts.push(...(add.attempts ?? []));
+		outbox.discoveries.push(...(add.discoveries ?? []));
 		for (const card of add.cards ?? []) {
 			// Only the latest state of a card needs uploading.
 			const i = outbox.cards.findIndex((c) => c.bundleId === card.bundleId && c.epd === card.epd);
@@ -110,33 +130,73 @@ export class SyncedProgressStore implements ProgressStore {
 	}
 
 	async #upload() {
-		const batch = this.#readOutbox();
-		if (!batch.attempts.length && !batch.cards.length) {
+		const pending = this.#readOutbox();
+		if (!outboxSize(pending)) {
 			this.#options.onStatus?.('synced');
 			return;
 		}
+		const batch: Outbox = {
+			attempts: pending.attempts.slice(0, this.#limit),
+			cards: pending.cards.slice(0, this.#limit),
+			discoveries: pending.discoveries.slice(0, this.#limit)
+		};
 		try {
 			await this.#server.importProgress(batch);
-		} catch {
-			this.#failures++;
-			this.#options.onStatus?.('offline');
-			this.#scheduleRetry();
+		} catch (error) {
+			if (isRejected(error)) {
+				this.#reject(batch, error as ProgressSyncError);
+				queueMicrotask(() => void this.flush());
+			} else if (error instanceof ProgressSyncError && error.status === 401) {
+				// The session is gone (signed out elsewhere, or the account deleted). Keep the rows; a sign-in resumes.
+				this.#options.onStatus?.('signed-out');
+			} else {
+				this.#failures++;
+				this.#options.onStatus?.('offline');
+				this.#scheduleRetry();
+			}
 			return;
 		}
 		this.#failures = 0;
 		// Remove exactly what was sent; anything enqueued during the upload stays for the next round.
-		const sentAttempts = new Set(batch.attempts.map(attemptKey));
-		const outbox = this.#readOutbox();
-		outbox.attempts = outbox.attempts.filter((a) => !sentAttempts.has(attemptKey(a)));
-		outbox.cards = outbox.cards.filter(
-			(c) => !batch.cards.some((s) => s.bundleId === c.bundleId && s.epd === c.epd && s.state.reps === c.state.reps)
-		);
+		const outbox = this.#without(this.#readOutbox(), batch);
 		this.#writeOutbox(outbox);
-		if (outbox.attempts.length || outbox.cards.length) {
-			queueMicrotask(() => void this.flush());
+		if (outboxSize(outbox)) queueMicrotask(() => void this.flush());
+		else this.#options.onStatus?.('synced');
+	}
+
+	#without(outbox: Outbox, remove: Partial<Outbox>): Outbox {
+		const attempts = new Set((remove.attempts ?? []).map(attemptKey));
+		const cards = new Set((remove.cards ?? []).map(cardKey));
+		const discoveries = new Set((remove.discoveries ?? []).map(discoveryKey));
+		return {
+			attempts: outbox.attempts.filter((a) => !attempts.has(attemptKey(a))),
+			cards: outbox.cards.filter((c) => !cards.has(cardKey(c))),
+			discoveries: outbox.discoveries.filter((d) => !discoveries.has(discoveryKey(d)))
+		};
+	}
+
+	/**
+	 * A row the server rejects would block everything behind it forever. The server names the first bad
+	 * row ("attempts[3]: invalid responseMs"); that row is dropped. Without a name (e.g. a body too
+	 * large), the batch is halved until the offending row is alone, then dropped.
+	 */
+	#reject(batch: Outbox, error: ProgressSyncError) {
+		const named = /^(attempts|cards|discoveries)\[(\d+)\]/.exec(error.message);
+		let drop: Partial<Outbox> | null = null;
+		if (named) {
+			const list = named[1] as keyof Outbox;
+			const row = batch[list][Number(named[2])];
+			if (row) drop = { [list]: [row] };
+		} else if (outboxSize(batch) === 1) {
+			drop = batch;
 		} else {
-			this.#options.onStatus?.('synced');
+			this.#limit = Math.max(1, Math.floor(Math.max(batch.attempts.length, batch.cards.length, batch.discoveries.length) / 2));
+			return;
 		}
+		if (!drop) drop = { attempts: batch.attempts.slice(0, 1), cards: batch.cards.slice(0, 1), discoveries: batch.discoveries.slice(0, 1) };
+		console.warn('Progress rows rejected by the server and dropped:', error.message, drop);
+		this.#writeOutbox(this.#without(this.#readOutbox(), drop));
+		this.#limit = BATCH;
 	}
 
 	#scheduleRetry() {
@@ -155,7 +215,11 @@ export class SyncedProgressStore implements ProgressStore {
 	#pull(bundleId: string): Promise<void> {
 		let pending = this.#pulled.get(bundleId);
 		if (!pending) {
-			pending = this.#merge(bundleId).catch(() => {
+			// A hung connection must not keep the drill waiting: the local copy is right here.
+			const timeout = new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error('Progress pull timed out')), this.#options.pullTimeoutMs ?? 8000)
+			);
+			pending = Promise.race([this.#merge(bundleId), timeout]).catch(() => {
 				// Offline: drill from the local copy; the next page load pulls again.
 				this.#pulled.delete(bundleId);
 				this.#options.onStatus?.('offline');
@@ -166,13 +230,15 @@ export class SyncedProgressStore implements ProgressStore {
 	}
 
 	async #merge(bundleId: string) {
-		const [remoteCards, remoteAttempts] = await Promise.all([
+		const [remoteCards, remoteAttempts, remoteDiscoveries] = await Promise.all([
 			this.#server.loadCards(bundleId),
-			this.#server.loadAttempts(bundleId)
+			this.#server.loadAttempts(bundleId),
+			this.#server.loadDiscoveries(bundleId)
 		]);
-		const [localCards, localAttempts] = await Promise.all([
+		const [localCards, localAttempts, localDiscoveries] = await Promise.all([
 			this.#local.loadCards(bundleId),
-			this.#local.loadAttempts(bundleId)
+			this.#local.loadAttempts(bundleId),
+			this.#local.loadDiscoveries(bundleId)
 		]);
 
 		const seen = new Set(localAttempts.map(attemptKey));
@@ -182,8 +248,12 @@ export class SyncedProgressStore implements ProgressStore {
 		const cards = new Map(localCards);
 		for (const [epd, state] of remoteCards) if (newer(cards.get(epd), state)) cards.set(epd, state);
 
+		const found = new Set(localDiscoveries.map(discoveryKey));
+		const discoveries = [...localDiscoveries, ...remoteDiscoveries.filter((d) => !found.has(discoveryKey(d)))];
+
 		await this.#local.setAttempts(bundleId, attempts);
 		await this.#local.setCards(bundleId, cards);
+		await this.#local.setDiscoveries(bundleId, discoveries);
 	}
 
 	// ── ProgressStore ─────────────────────────────────────────────────────────
@@ -196,6 +266,15 @@ export class SyncedProgressStore implements ProgressStore {
 	async loadAttempts(bundleId: string) {
 		await this.#pull(bundleId);
 		return this.#local.loadAttempts(bundleId);
+	}
+
+	async loadDiscoveries(bundleId: string) {
+		await this.#pull(bundleId);
+		return this.#local.loadDiscoveries(bundleId);
+	}
+
+	async recordDiscovery(discovery: Discovery) {
+		if (await this.#local.recordDiscovery(discovery)) this.#enqueue({ discoveries: [discovery] });
 	}
 
 	async saveCard(bundleId: string, epd: string, state: CardState) {
@@ -217,11 +296,19 @@ export class SyncedProgressStore implements ProgressStore {
 		const anonymous = new BrowserProgressStore(this.#storage);
 		const attempts: Attempt[] = [];
 		const cards: CardUpload[] = [];
+		const discoveries: Discovery[] = [];
 		for (const bundleId of bundleIds) {
 			const a = await anonymous.loadAttempts(bundleId);
 			const c = await anonymous.loadCards(bundleId);
-			if (!a.length && !c.size) continue;
-			for (const attempt of a) await this.#local.recordAttempt(attempt);
+			const d = await anonymous.loadDiscoveries(bundleId);
+			if (!a.length && !c.size && !d.length) continue;
+			// Merge the account's copy first: a merge finishing later would overwrite what adoption writes.
+			await this.#pull(bundleId);
+			// Another tab may be adopting the same history at the same moment.
+			const known = new Set((await this.#local.loadAttempts(bundleId)).map(attemptKey));
+			for (const attempt of a) if (!known.has(attemptKey(attempt))) await this.#local.recordAttempt(attempt);
+			for (const discovery of d) await this.#local.recordDiscovery(discovery);
+			discoveries.push(...d);
 			for (const [epd, state] of c) {
 				const current = (await this.#local.loadCards(bundleId)).get(epd);
 				if (newer(current, state)) await this.#local.saveCard(bundleId, epd, state);
@@ -230,8 +317,8 @@ export class SyncedProgressStore implements ProgressStore {
 			attempts.push(...a);
 			await anonymous.clear(bundleId);
 		}
-		if (attempts.length || cards.length) this.#enqueue({ attempts, cards });
-		return { attempts: attempts.length, cards: cards.length };
+		if (attempts.length || cards.length || discoveries.length) this.#enqueue({ attempts, cards, discoveries });
+		return { attempts: attempts.length, cards: cards.length, discoveries: discoveries.length };
 	}
 }
 

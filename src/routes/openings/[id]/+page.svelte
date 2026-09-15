@@ -1,92 +1,137 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
-	import { Engine } from '$lib/chess/engine';
+	import { Engine, ignoreDestroyed } from '$lib/chess/engine';
 	import { Game } from '$lib/chess/game.svelte';
 	import { FreePlay } from '$lib/coach/freeplay.svelte';
 	import type { Grade } from '$lib/drill/grade';
 	import { progressStore, sync } from '$lib/drill/account.svelte';
 	import { proficiency, type Proficiency, type ProgressStore } from '$lib/drill/progress';
-	import { DrillSession, type Mode } from '$lib/drill/session.svelte';
+	import { DrillSession } from '$lib/drill/session.svelte';
+	import { toEpd } from '$lib/drill/tree';
+	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine } from '$lib/explore/book';
+	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
 	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import { evalWords, formatScore, movePairs, SHARPNESS_WORDS, sharpnessLevel, type Score } from '$lib/ui/position';
 	import type { PageProps } from './$types';
 
+	type PageMode = 'explore' | 'practice';
+
 	let { data }: PageProps = $props();
 	const bundle = $derived(data.bundle);
+	const book = $derived(new Book(bundle));
 
-	// The root position, rendered on the server and until the session starts, so the board never flashes empty.
-	const rootFen = $derived.by(() => {
+	// The start position, rendered on the server and until a session starts, so the board never flashes empty.
+	const rootFen = new Game().fen;
+
+	const openingSan = $derived.by(() => {
 		const preview = new Game();
 		preview.load(bundle.openingMoves ?? bundle.rootMoves);
-		return preview.fen;
+		return preview.history.map((san, i) => (i % 2 === 0 ? `${i / 2 + 1}.${san}` : san)).join(' ');
 	});
 
-	let mode = $state<Mode>('learn');
+	let mode = $state<PageMode>('explore');
+	let explore = $state<ExploreSession | null>(null);
 	let session = $state<DrillSession | null>(null);
 	let stats = $state<Proficiency | null>(null);
+	let summary = $state<DiscoverySummary | null>(null);
 	let store: ProgressStore | null = null;
 
+	const activeStore = () => (store ??= progressStore(data.user?.id ?? null));
+
 	async function refreshStats() {
-		if (!store) return;
-		const [cards, attempts] = await Promise.all([store.loadCards(bundle.id), store.loadAttempts(bundle.id)]);
+		const s = activeStore();
+		const [cards, attempts, discoveries] = await Promise.all([
+			s.loadCards(bundle.id),
+			s.loadAttempts(bundle.id),
+			s.loadDiscoveries(bundle.id)
+		]);
 		stats = proficiency(bundle, cards, attempts, new Date());
+		summary = summarize(book, stagesOf(discoveries));
 	}
 
-	// Coached free play after a learn-mode line ends. The engine (a 7 MB download) loads only when first needed.
+	// The engine (a 7 MB download) loads only when first needed: past the book, or for free play.
 	let freeplay = $state<FreePlay | null>(null);
 	let engine: Engine | null = null;
 	let engineError = $state<string | null>(null);
 	let engineLoading = $state(false);
 
+	async function loadEngine(): Promise<Engine> {
+		engine ??= new Engine();
+		try {
+			await engine.ready;
+			return engine;
+		} catch (error) {
+			engine = null;
+			throw error;
+		}
+	}
+
 	async function keepPlaying() {
 		if (!session || engineLoading) return;
 		engineLoading = true;
 		try {
-			engine ??= new Engine();
-			await engine.ready;
+			const ready = await loadEngine();
+			const next = new FreePlay({ engine: ready, startMoves: session.game.uciHistory, side: bundle.side });
+			freeplay = next;
+			await next.start();
 		} catch (error) {
+			ignoreDestroyed(error);
 			engineError = (error as Error).message;
-			engine = null;
+		} finally {
 			engineLoading = false;
-			return;
 		}
-		engineLoading = false;
-		const next = new FreePlay({ engine, startMoves: session.game.uciHistory, side: bundle.side });
-		freeplay = next;
+	}
+
+	async function startExplore() {
+		freeplay = null;
+		session = null;
+		mode = 'explore';
+		const s = activeStore();
+		const discoveries = await s.loadDiscoveries(bundle.id);
+		const next = new ExploreSession({
+			bundle,
+			book,
+			stages: stagesOf(discoveries),
+			engine: loadEngine,
+			onDiscovery: (discovery) => void s.recordDiscovery(discovery).then(refreshStats)
+		});
+		explore = next;
 		await next.start();
 	}
 
-	async function startSession(nextMode: Mode = mode) {
+	async function startPractice() {
 		freeplay = null;
-		mode = nextMode;
-		store ??= progressStore(data.user?.id ?? null);
-		const activeStore = store;
-		const [cards, attempts] = await Promise.all([activeStore.loadCards(bundle.id), activeStore.loadAttempts(bundle.id)]);
+		explore = null;
+		mode = 'practice';
+		const s = activeStore();
+		const [cards, attempts] = await Promise.all([s.loadCards(bundle.id), s.loadAttempts(bundle.id)]);
 		const next = new DrillSession({
 			bundle,
-			mode: nextMode,
+			mode: 'practice',
 			guided: attempts.length === 0,
 			cards,
-			onAttempt: (attempt) => void activeStore.recordAttempt(attempt).then(refreshStats),
-			onReview: (epd, state) => void activeStore.saveCard(bundle.id, epd, state)
+			onAttempt: (attempt) => void s.recordAttempt(attempt).then(refreshStats),
+			onReview: (epd, state) => void s.saveCard(bundle.id, epd, state)
 		});
 		session = next;
 		await next.start();
 	}
 
+	const restart = () => (mode === 'explore' ? startExplore() : startPractice());
+
 	onMount(() => {
-		void startSession();
+		void startExplore();
 		void refreshStats();
 		return () => engine?.destroy();
 	});
 
-	const node = $derived(session?.node);
+	const game = $derived(freeplay?.game ?? explore?.game ?? session?.game ?? null);
+	const node = $derived(game ? bundle.nodes[toEpd(game.fen)] : undefined);
 	const learnerToMove = $derived(session && ['await', 'retry', 'reveal'].includes(session.phase));
-	const game = $derived(freeplay?.game ?? session?.game ?? null);
 	const yourTurn = $derived(game ? game.turn === bundle.side : false);
-	const pawns = (cp: number) => (cp / 100).toFixed(2);
+	const variationName = $derived(explore?.name ?? session?.name ?? null);
 
 	/** Plain-language size of a mistake: a newcomer can't read "0.39". */
 	const howMuch = (cp: number) =>
@@ -106,6 +151,16 @@
 		return { tone: 'fail', text: `Not ${played}${why}. Here you play ${grade.expected.san} — the arrow shows it.` };
 	}
 
+	const TONES = { best: 'pass', good: 'pass', warn: 'soft', bad: 'fail', info: 'accent' } as const;
+
+	/** A line's name without its variation, e.g. "Breyer Defense" under "Ruy Lopez: Closed". */
+	const shortLine = (line: IndexedLine) =>
+		line.name === line.variation ? 'Main line' : line.name.slice(line.variation.length).replace(/^,\s*/, '');
+
+	/** A variation's name without the opening's family, e.g. "Closed" in the Ruy Lopez. */
+	const shortVariation = (name: string) => name.replace(/^[^:]+:\s*/, '') || name;
+
+	const linesWord = (n: number) => `${n} line${n === 1 ? '' : 's'}`;
 
 	/**
 	 * The one card that says what is happening: whose move, what the last move
@@ -113,9 +168,6 @@
 	 */
 	const notice = $derived.by((): { tone: 'pass' | 'soft' | 'fail' | 'wait' | 'accent'; title: string; text: string } => {
 		if (freeplay) {
-			const tone = ({ best: 'pass', good: 'pass', warn: 'soft', bad: 'fail', info: 'accent' } as const)[
-				freeplay.message?.tone ?? 'info'
-			];
 			const title = {
 				thinking: 'Computer is thinking…',
 				'your-move': 'Your move — play on',
@@ -124,10 +176,47 @@
 				over: 'Game over'
 			}[freeplay.phase];
 			return {
-				tone: freeplay.phase === 'thinking' ? 'wait' : tone,
+				tone: freeplay.phase === 'thinking' ? 'wait' : TONES[freeplay.message?.tone ?? 'info'],
 				title,
 				text: freeplay.message?.text ?? "You're past the memorised moves. Every move gets a verdict, and the computer sometimes errs on purpose — punish it."
 			};
+		}
+		if (explore) {
+			const message = explore.message;
+			const tone = message ? TONES[message.tone] : 'accent';
+			switch (explore.phase) {
+				case 'thinking':
+					return {
+						tone: 'wait',
+						title: explore.loadingEngine ? 'Loading the engine…' : yourTurn ? 'Evaluating…' : 'Computer is thinking…',
+						text: message?.text ?? ''
+					};
+				case 'your-move': {
+					if (explore.inOpening) {
+						return { tone, title: `Play the ${bundle.name}`, text: message?.text ?? `It starts ${openingSan}. The lines after that are yours to discover.` };
+					}
+					const following = explore.following;
+					if (following) {
+						return {
+							tone,
+							title: 'Follow the line',
+							text: message?.text ?? `You're in ${following.entryName ?? following.variation}. How does it continue?`
+						};
+					}
+					if (explore.inBook) {
+						return { tone, title: 'Your move', text: message?.text ?? 'Established lines continue from here. What would you play?' };
+					}
+					return {
+						tone,
+						title: 'Your move — past the known lines',
+						text: message?.text ?? 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.'
+					};
+				}
+				case 'decide':
+					return { tone: 'fail', title: 'Try again?', text: message?.text ?? '' };
+				case 'over':
+					return { tone, title: 'Game over', text: message?.text ?? '' };
+			}
 		}
 		if (!session) return { tone: 'wait', title: 'Loading…', text: '' };
 		const verdict = feedback(session.lastGrade);
@@ -135,30 +224,29 @@
 			case 'opponent':
 				return { tone: 'wait', title: 'Opponent is moving…', text: verdict?.text ?? '' };
 			case 'await':
-				return mode === 'learn'
-					? { tone: 'accent', title: 'Your move', text: verdict?.text ?? 'Play the move the arrow shows.' }
-					: { tone: 'accent', title: 'Your move', text: verdict?.text ?? 'From memory. What does your line play here?' };
+				return { tone: 'accent', title: 'Your move', text: verdict?.text ?? 'From memory. What does your line play here?' };
 			case 'retry':
 				return { tone: 'fail', title: 'Not that — one more try', text: verdict?.text ?? '' };
 			case 'reveal':
 				return { tone: verdict?.tone ?? 'accent', title: 'Play the highlighted move', text: verdict?.text ?? '' };
 			case 'done':
-				return {
-					tone: 'pass',
-					title: 'Line complete',
-					text:
-						mode === 'learn'
-							? "You've walked this line once. It counts when you play it from memory — try Practice, or keep playing against the computer."
-							: 'Saved. Positions you missed will come back sooner. Next line?'
-				};
+				return { tone: 'pass', title: 'Line complete', text: 'Saved. Positions you missed will come back sooner. Next line?' };
 		}
+	});
+
+	// The latest discovery shows beside the board until the learner's next move has been answered.
+	const banner = $derived.by<DiscoveryEvent | null>(() => {
+		const latest = explore?.events.at(-1);
+		return latest && explore && explore.game.history.length - latest.ply <= 2 ? latest : null;
 	});
 
 	const pairs = $derived(movePairs(game?.history ?? []));
 
-	// The bar holds the last known evaluation past the end of the bundle, dimmed, rather than dropping to 0.
+	// The bar holds the last known evaluation when none is available, dimmed, rather than dropping to 0.
 	let lastEval = $state<Score | null>(null);
-	const liveEval = $derived<Score | null>(freeplay ? freeplay.evaluation : (node?.candidates[0]?.score ?? null));
+	const liveEval = $derived<Score | null>(
+		freeplay ? freeplay.evaluation : explore ? explore.evaluation : (node?.candidates[0]?.score ?? null)
+	);
 	$effect(() => {
 		if (liveEval) lastEval = liveEval;
 	});
@@ -169,10 +257,13 @@
 
 	function onKey(event: KeyboardEvent) {
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
-		if (event.key === 'n' && session?.phase === 'done' && !freeplay) void startSession();
-		else if (event.key === 'k' && session?.phase === 'done' && mode === 'learn' && !freeplay) void keepPlaying();
-		else if (event.key === 'l' && mode !== 'learn') void startSession('learn');
-		else if (event.key === 'p' && mode !== 'practice') void startSession('practice');
+		if ((event.target as HTMLElement | null)?.closest('input, textarea, select')) return;
+		if (event.key === 'n' && (explore || session?.phase === 'done' || freeplay)) void restart();
+		else if (event.key === 'h' && explore?.phase === 'your-move') explore.hint();
+		else if (event.key === 'b' && explore?.canTakeBack) void explore.takeBack();
+		else if (event.key === 'k' && session?.phase === 'done' && !freeplay) void keepPlaying();
+		else if (event.key === 'e' && mode !== 'explore') void startExplore();
+		else if (event.key === 'p' && mode !== 'practice') void startPractice();
 	}
 </script>
 
@@ -196,7 +287,18 @@
 					needsPromotion={freeplay.game.needsPromotion}
 					marks={freeplay.marks}
 					arrows={freeplay.arrows}
-					onMove={(from, to, promotion) => freeplay?.submit(from, to, promotion)}
+					onMove={(from, to, promotion) => void freeplay?.submit(from, to, promotion).catch(ignoreDestroyed)}
+				/>
+			{:else if explore}
+				<Board
+					fen={explore.game.fen}
+					orientation={bundle.side}
+					interactive={explore.phase === 'your-move'}
+					legalTargets={explore.game.legalTargets}
+					needsPromotion={explore.game.needsPromotion}
+					marks={explore.marks}
+					arrows={explore.arrows}
+					onMove={(from, to, promotion) => void explore?.submit(from, to, promotion).catch(ignoreDestroyed)}
 				/>
 			{:else if session}
 				<Board
@@ -219,20 +321,40 @@
 			<header class="track">
 				<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}</p>
 				<h1>{bundle.name}</h1>
-				{#if session?.name && session.name !== bundle.name}
-					<p class="variation">{session.name}</p>
+				<p class="opening num">{openingSan}</p>
+				{#if variationName && variationName !== bundle.name}
+					<p class="variation">{variationName}</p>
 				{/if}
 			</header>
 
 			<div class="modes">
 				<div class="segmented" role="tablist" aria-label="Mode">
-					<button type="button" role="tab" aria-selected={mode === 'learn'} onclick={() => startSession('learn')}>Learn</button>
-					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => startSession('practice')}>Practice</button>
+					<button type="button" role="tab" aria-selected={mode === 'explore'} onclick={() => startExplore()}>Explore</button>
+					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => startPractice()}>Practice</button>
 				</div>
 				<p class="mode-hint">
-					{#if mode === 'learn'}Arrows show your line — play along.{:else}From memory. One retry, then the answer.{/if}
+					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}From memory. One retry, then the answer.{/if}
 				</p>
 			</div>
+
+			{#if banner}
+				{#key banner.id}
+					<div class="discovery" data-kind={banner.assisted ? 'assisted' : banner.kind} role="status">
+						{#if banner.kind === 'discovered'}
+							<p class="kicker">
+								{banner.assisted ? 'End of the line — with a hint' : banner.lines.length > 1 ? `${banner.lines.length} lines discovered` : 'Line discovered'}
+								{#if banner.lines.some((l) => l.dubious)}<span class="tag">dubious</span>{/if}
+							</p>
+							<p class="name">{banner.lines[0].name}</p>
+							{#if banner.assisted}<p class="sub">Find it without the hint to count it.</p>{/if}
+						{:else}
+							<p class="kicker">New line entered</p>
+							<p class="name">{banner.lines[0].entryName ?? banner.lines[0].variation}</p>
+							<p class="sub">{linesWord(banner.lines.length)} to follow to the end</p>
+						{/if}
+					</div>
+				{/key}
+			{/if}
 
 			<div class="notice" data-tone={notice.tone === 'accent' ? undefined : notice.tone} aria-live="polite">
 				<p class="title">
@@ -242,16 +364,34 @@
 				{#if notice.text}<p class="text">{notice.text}</p>{/if}
 				{#if freeplay}
 					<div class="actions">
-						<button type="button" class="btn" onclick={() => startSession()}>Back to drilling</button>
+						<button type="button" class="btn" onclick={() => startPractice()}>Back to practice</button>
 					</div>
+				{:else if explore}
+					<div class="actions">
+						{#if explore.phase === 'decide'}
+							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()}>Try again</button>
+							<button type="button" class="btn" onclick={() => explore?.playOn()}>Play on</button>
+						{:else}
+							{#if explore.phase === 'your-move' && !explore.inOpening}
+								<button type="button" class="btn" onclick={() => explore?.hint()} disabled={explore.hintLevel >= 2}>
+									{explore.hintLevel === 0 ? 'Hint' : 'Show the move'} <kbd>H</kbd>
+								</button>
+							{/if}
+							{#if explore.canTakeBack}
+								<button type="button" class="btn" onclick={() => explore?.takeBack()}>Take back <kbd>B</kbd></button>
+							{/if}
+						{/if}
+						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => startExplore()}>New game <kbd>N</kbd></button>
+					</div>
+					{#if explore.hintLevel === 2 && !explore.inOpening}
+						<p class="text small">Lines through a shown move need another game to count.</p>
+					{/if}
 				{:else if session?.phase === 'done'}
 					<div class="actions">
-						<button type="button" class="btn primary" onclick={() => startSession()}>Next line <kbd>N</kbd></button>
-						{#if mode === 'learn'}
-							<button type="button" class="btn" onclick={keepPlaying} disabled={engineLoading}>
-								{engineLoading ? 'Loading engine…' : 'Keep playing'} <kbd>K</kbd>
-							</button>
-						{/if}
+						<button type="button" class="btn primary" onclick={() => startPractice()}>Next line <kbd>N</kbd></button>
+						<button type="button" class="btn" onclick={keepPlaying} disabled={engineLoading}>
+							{engineLoading ? 'Loading engine…' : 'Keep playing'} <kbd>K</kbd>
+						</button>
 					</div>
 					{#if engineError}
 						<p class="text error">{engineError}</p>
@@ -288,7 +428,61 @@
 				{/each}
 			</ol>
 
-			{#if stats}
+			{#if mode === 'explore' && summary}
+				<div class="prof discoveries">
+					<p class="label">{bundle.name} — lines you've discovered</p>
+					<div class="tally">
+						<p class="count num"><strong>{summary.sound.discovered}</strong> <span>/ {summary.sound.total}</span></p>
+						<p class="label small">
+							{#if summary.sound.entered}{summary.sound.entered} more entered, not yet followed to the end.{:else}Reach a line's end to discover it.{/if}
+						</p>
+					</div>
+					<span class="track split" aria-hidden="true">
+						<span class="fill" style="width:{share(summary.sound.total ? summary.sound.discovered / summary.sound.total : 0)}"></span>
+						<span class="fill entered" style="width:{share(summary.sound.total ? summary.sound.entered / summary.sound.total : 0)}"></span>
+					</span>
+
+					<details class="variations">
+						<summary>By variation <span class="num">{summary.variations.length}</span></summary>
+						<ul>
+							{#each summary.variations as variation (variation.name)}
+								<li>
+									<p class="var-row">
+										<span>{shortVariation(variation.name)}</span>
+										<span class="num">{variation.discovered}/{variation.total}</span>
+									</p>
+									{#if variation.found.length}
+										<ul class="found">
+											{#each variation.found as { line, stage } (line.key)}
+												<li data-stage={stage}>{stage === 'discovered' ? shortLine(line) : `${line.entryName ?? line.variation} …`}</li>
+											{/each}
+										</ul>
+									{/if}
+									{#if variation.total - variation.found.length > 0}
+										<p class="secret">{variation.total - variation.found.length} still secret</p>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</details>
+
+					{#if summary.dubious.total}
+						<details class="variations">
+							<summary>Dubious lines <span class="num">{summary.dubious.discovered}/{summary.dubious.total}</span></summary>
+							<p class="label small">Established, but they take a move the engine calls a mistake. Worth knowing, not worth playing.</p>
+							<ul class="found">
+								{#each summary.dubious.found as { line, stage } (line.key)}
+									<li data-stage={stage}>{stage === 'discovered' ? line.name : `${line.entryName ?? line.variation} …`}</li>
+								{/each}
+							</ul>
+							{#if summary.dubious.total - summary.dubious.found.length > 0}
+								<p class="secret">{summary.dubious.total - summary.dubious.found.length} still secret</p>
+							{/if}
+						</details>
+					{/if}
+					{@render saveStatus()}
+				</div>
+			{:else if stats}
 				<div class="prof">
 					<p class="label">{bundle.name} — your proficiency</p>
 					{#each [['Played from memory', stats.coverage], ['Remembered right now', stats.retention], ['Right first time', stats.precision]] as const as [label, value] (label)}
@@ -299,22 +493,28 @@
 						</div>
 					{/each}
 					<p class="label small">{stats.cards} positions to learn in this opening.</p>
-					<p class="label small save" data-status={sync.status ?? 'local'} role="status">
-						{#if sync.status === 'synced'}
-							Saved to your account.
-						{:else if sync.status === 'pending'}
-							Saving…
-						{:else if sync.status === 'offline'}
-							Can't reach the server — progress is kept on this device and will sync.
-						{:else}
-							Saved in this browser. <a href="/auth/google">Sign in</a> to keep it everywhere.
-						{/if}
-					</p>
+					{@render saveStatus()}
 				</div>
 			{/if}
 		</aside>
 	</div>
 </main>
+
+{#snippet saveStatus()}
+	<p class="label small save" data-status={sync.status ?? 'local'} role="status">
+		{#if sync.status === 'synced'}
+			Saved to your account.
+		{:else if sync.status === 'pending'}
+			Saving…
+		{:else if sync.status === 'offline'}
+			Can't reach the server — progress is kept on this device and will sync.
+		{:else if sync.status === 'signed-out'}
+			Your session has ended — progress is kept on this device. <a href="/auth/google">Sign in</a> to save it.
+		{:else}
+			Saved in this browser. <a href="/auth/google">Sign in</a> to keep it everywhere.
+		{/if}
+	</p>
+{/snippet}
 
 <style>
 	main {
@@ -544,6 +744,196 @@
 		color: var(--text-3);
 	}
 
+	.opening {
+		margin: 0.2rem 0 0;
+		font-size: 0.85rem;
+		color: var(--text-3);
+	}
+
+	/* Discoveries: a card above the notice, lit in the discovery's tone. */
+	.discovery {
+		position: relative;
+		padding: 0.7rem 1rem 0.75rem 1.1rem;
+		border: 1px solid color-mix(in srgb, var(--disc-tone) 45%, var(--border));
+		border-radius: 10px;
+		background: color-mix(in srgb, var(--disc-tone) 9%, var(--surface-1));
+		box-shadow: 0 0 24px color-mix(in srgb, var(--disc-tone) 16%, transparent);
+		animation: discovery-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+		--disc-tone: var(--accent);
+	}
+
+	.discovery[data-kind='discovered'] {
+		--disc-tone: var(--ok);
+	}
+
+	.discovery[data-kind='assisted'] {
+		--disc-tone: var(--text-3);
+	}
+
+	.discovery p {
+		margin: 0;
+	}
+
+	.discovery .kicker {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--disc-tone);
+	}
+
+	.discovery .tag {
+		padding: 0 0.4em;
+		border: 1px solid var(--soft);
+		border-radius: 4px;
+		color: var(--soft);
+		letter-spacing: 0.06em;
+	}
+
+	.discovery .name {
+		margin-top: 0.2rem;
+		font-family: var(--font-display);
+		font-size: 1.3rem;
+		line-height: 1.15;
+		color: var(--text);
+	}
+
+	.discovery .sub {
+		margin-top: 0.15rem;
+		font-size: 0.8rem;
+		color: var(--text-2);
+	}
+
+	@keyframes discovery-in {
+		from {
+			opacity: 0;
+			transform: translateY(-0.4rem);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.discovery {
+			animation: none;
+		}
+	}
+
+	.notice .text.small {
+		font-size: 0.8rem;
+		color: var(--text-3);
+	}
+
+	.tally {
+		display: flex;
+		align-items: baseline;
+		gap: 0.8rem;
+	}
+
+	.count {
+		margin: 0;
+		white-space: nowrap;
+	}
+
+	.count strong {
+		font-size: 1.8rem;
+		font-weight: 500;
+	}
+
+	.count span {
+		color: var(--text-2);
+	}
+
+	.track.split {
+		display: flex;
+		height: 5px;
+		border-radius: 3px;
+		background: var(--surface-2);
+		box-shadow: 0 0 0 1px var(--border) inset;
+		overflow: hidden;
+	}
+
+	.track.split .fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+		transition: width 0.5s ease;
+	}
+
+	.track.split .fill.entered {
+		background: color-mix(in srgb, var(--accent) 35%, transparent);
+	}
+
+	.variations summary {
+		display: flex;
+		justify-content: space-between;
+		cursor: pointer;
+		font-size: 0.9rem;
+		color: var(--text-2);
+	}
+
+	.variations summary .num {
+		color: var(--text-3);
+	}
+
+	.variations ul {
+		margin: 0.5rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.variations > ul > li {
+		padding: 0.35rem 0;
+		border-top: 1px solid var(--border);
+	}
+
+	.var-row {
+		display: flex;
+		justify-content: space-between;
+		margin: 0;
+		font-size: 0.9rem;
+	}
+
+	.var-row .num {
+		color: var(--text-2);
+	}
+
+	.found {
+		display: grid;
+		gap: 0.15rem;
+		margin-top: 0.25rem !important;
+		font-size: 0.82rem;
+	}
+
+	.found li {
+		padding-left: 1rem;
+		position: relative;
+		color: var(--text);
+	}
+
+	.found li::before {
+		content: '✓';
+		position: absolute;
+		left: 0;
+		color: var(--ok);
+	}
+
+	.found li[data-stage='entered'] {
+		color: var(--text-2);
+	}
+
+	.found li[data-stage='entered']::before {
+		content: '›';
+		color: var(--accent);
+	}
+
+	.secret {
+		margin: 0.2rem 0 0;
+		font-size: 0.78rem;
+		color: var(--text-3);
+	}
+
 	@media (max-width: 860px) {
 		main {
 			padding: 0.75rem 0.75rem 2.5rem;
@@ -569,6 +959,10 @@
 			display: grid;
 			grid-template-columns: 1fr;
 			gap: 0.9rem;
+		}
+
+		.discovery {
+			order: -3;
 		}
 
 		.notice {

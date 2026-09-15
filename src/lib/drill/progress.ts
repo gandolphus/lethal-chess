@@ -1,3 +1,4 @@
+import type { Discovery } from '$lib/explore/book';
 import type { Bundle } from './bundle';
 import { recall, State, type CardState } from './scheduler';
 import type { Attempt } from './session.svelte';
@@ -13,6 +14,9 @@ export interface ProgressStore {
 	saveCard(bundleId: string, epd: string, state: CardState): Promise<void>;
 	recordAttempt(attempt: Attempt): Promise<void>;
 	loadAttempts(bundleId: string): Promise<Attempt[]>;
+	/** Lines entered and discovered while exploring. Append-only; a stage is reached once. */
+	loadDiscoveries(bundleId: string): Promise<Discovery[]>;
+	recordDiscovery(discovery: Discovery): Promise<boolean | void>;
 }
 
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -33,7 +37,7 @@ export class BrowserProgressStore implements ProgressStore {
 		this.#ns = namespace ? `${namespace}:` : '';
 	}
 
-	#key(kind: 'cards' | 'attempts', bundleId: string) {
+	#key(kind: 'cards' | 'attempts' | 'discoveries', bundleId: string) {
 		return `lethal:${this.#ns}${kind}:${bundleId}`;
 	}
 
@@ -47,10 +51,16 @@ export class BrowserProgressStore implements ProgressStore {
 		this.#write(this.#key('cards', bundleId), Object.fromEntries(cards));
 	}
 
+	/** Replaces a bundle's discoveries wholesale (used when merging with the server). */
+	async setDiscoveries(bundleId: string, discoveries: Discovery[]) {
+		this.#write(this.#key('discoveries', bundleId), discoveries);
+	}
+
 	async clear(bundleId: string) {
 		try {
 			this.#storage.removeItem(this.#key('attempts', bundleId));
 			this.#storage.removeItem(this.#key('cards', bundleId));
+			this.#storage.removeItem(this.#key('discoveries', bundleId));
 		} catch {
 			// Nothing to clear if storage is unavailable.
 		}
@@ -90,6 +100,19 @@ export class BrowserProgressStore implements ProgressStore {
 
 	async loadAttempts(bundleId: string) {
 		return this.#read<Attempt[]>(this.#key("attempts", bundleId), []);
+	}
+
+	async loadDiscoveries(bundleId: string) {
+		return this.#read<Discovery[]>(this.#key('discoveries', bundleId), []);
+	}
+
+	/** Returns whether the discovery was new. */
+	async recordDiscovery(discovery: Discovery) {
+		const key = this.#key('discoveries', discovery.bundleId);
+		const known = this.#read<Discovery[]>(key, []);
+		if (known.some((d) => d.line === discovery.line && d.stage === discovery.stage)) return false;
+		this.#write(key, [...known, discovery]);
+		return true;
 	}
 }
 

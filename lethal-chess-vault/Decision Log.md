@@ -9,6 +9,41 @@ Dated, rationale-bearing record of locked decisions. See [[System Map]] for the 
 
 ---
 
+## 2026-09-15 — Soundness audit fixed
+
+[[2026-09-15 — Fable soundness audit]] found 9 issues (1 high, 3 medium, 5 low); all are fixed.
+- **Repetition cycles.** The builder now removes edges back into the current path (`breakCycles`). The
+  King's Indian and French bundles had loops, and a first King's Indian walk never ended. Practice walks
+  also end on a finished game or a repeated decision, and `bundles.test.ts` checks every shipped bundle.
+- **Sync queue.** The outbox uploads in batches of 500. A row the server rejects is dropped: it is named
+  in the error, or found by halving the batch. A 401 stops retrying and shows "session ended". The first
+  pull times out after 8 s.
+- **Sign-out** no longer deletes unsent progress. It asks first, and keeps only the outbox so the rows
+  upload at the next sign-in.
+- **Scheduler** clamps reviews stamped in the future, which used to make ts-fsrs throw and the card
+  unpassable. Response times are clamped at ≥ 0. Cards are scheduled after the move is played.
+- **Free play** scores checkmate and draws from the result.
+- **Engine** fails fast after `destroy`, and pages ignore that one rejection.
+- **Request bodies** are read in chunks with a byte cap.
+- **Adoption** merges the server copy first and dedupes attempts.
+- **wrangler:** `workers_dev: false`, `preview_urls: false`.
+
+## 2026-09-15 — Exploration replaces Learn
+
+The user rejected arrow-led Learn in favour of active learning: established lines are secret and the
+learner discovers them. The design and definitions are in [[Exploration Mode]]. Key choices:
+- **Line.** A catalog leaf under the defining moves.
+- **Stages.** *Entered* at the deepest named position before the end, *discovered* at the end.
+- **Dubious lines** (a learner move losing ≥ 0.2 win chance) are counted separately.
+- **Try again / Play on** only for mistakes off the book.
+- **Book replies** steered toward undiscovered lines and discounted when unsound.
+- **Hints.** A line found through an arrow hint doesn't count.
+- **Storage.** D1 `discoveries` table (migration 0002). Local D1 had no migration history, so 0002 was
+  applied with `d1 execute`. Check the remote history before deploying.
+
+Bundles grew by every book position (≤ 575 KB, Sicilian); `pipeline/tsconfig.json` maps `$lib` so the
+pipeline can share `judge.ts`.
+
 ## 2026-09-15 — Analytics, admin stats, privacy contact; the "stale cache" that was Dark Reader
 
 - **Cloudflare Web Analytics** (cookieless) injected by `hooks.server.ts` on the canonical host only;

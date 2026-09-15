@@ -5,85 +5,98 @@ aliases: [Architecture, System Map]
 
 # System Map · lethal-chess
 
-Source of truth for **what exists and why**. See [[Decision Log]] for rationale, [[Home]] for vision.
+Source of truth for **what exists and why**. See [[Decision Log]] for rationale and [[Home]] for vision.
+Rewritten 2026-09-15 after [[2026-09-15 — Fable soundness audit]] found the old map still described the
+pre-drill MVP.
 
 ## Stack
 
 | Layer | Choice | Note |
 |---|---|---|
-| Framework | [[SvelteKit]] + Svelte 5 (runes) | Runes forced on in `vite.config.ts` |
-| Language | TypeScript | |
-| Build | Vite 8 | |
-| Rules engine | [[chess.js]] | Legal moves, SAN/FEN, mate/draw detection |
-| Chess engine | [[Stockfish]] 18 lite/single WASM | Web Worker, UCI |
-| Package manager | pnpm 11 | Settings live in `pnpm-workspace.yaml`, not `package.json` |
-| Styling | Plain scoped CSS, Catppuccin Mocha | Palette in `src/app.css` |
-| Persistence | **none yet** | Everything is in-memory; a reload loses the game |
-| Backend | **none yet** | SvelteKit's server layer is unused so far |
+| Framework | [[SvelteKit]] 2 + Svelte 5 (runes) | Runes forced on in `vite.config.ts` |
+| Language | TypeScript | The pipeline runs on Node 24 type stripping |
+| Build / test | Vite 8, vitest | `.claude/**` (agent worktrees) excluded from tests |
+| Rules engine | [[chess.js]] 1.4 | Legal moves, SAN/FEN, mate/draw detection |
+| Chess engine | [[Stockfish]] 18 lite, single-threaded WASM | Web Worker, UCI, serial command lock; loaded only when needed |
+| Scheduling | ts-fsrs (MIT) | Practice cards |
+| Hosting | Cloudflare Worker (`adapter-cloudflare`) | `lethalchess.com` + `www`; workers.dev and preview URLs off |
+| Database | Cloudflare D1, EU jurisdiction | Migrations in `migrations/` |
+| Auth | Google OAuth, vendored (fetch + Web Crypto) | State + PKCE; DB sessions with hashed tokens |
+| Styling | Plain scoped CSS, design tokens | 15 themes, 8 piece sets ([[Visual Design]]) |
 
 ## Directory layout
 
 ```
 src/
-  app.css                     Catppuccin Mocha tokens, global reset
+  hooks.server.ts             Canonical host/HTTPS redirects, session, security headers, cache-control, analytics
   lib/
-    chess/
-      engine.ts               Stockfish worker wrapper (UCI). Framework-agnostic.
-      game.svelte.ts          Reactive chess.js wrapper (runes)
-      pieces.ts               Glyph table
-    components/
-      Board.svelte            Hand-rolled 8x8 board: click + drag, highlights, promotion
+    chess/                    engine.ts (Stockfish wrapper), game.svelte.ts (reactive chess.js)
+    components/               Board.svelte (own board: drag/click, marks, arrows, promotion), Piece.svelte
+    coach/                    judge.ts (win-chance verdicts), opponent.ts (natural replies + planted
+                              mistakes), freeplay.svelte.ts (coached play from any position)
+    explore/                  book.ts (established lines by position, discovery summary),
+                              session.svelte.ts (ExploreSession) — see [[Exploration Mode]]
+    drill/                    bundle.ts (bundle format, shared with the pipeline), session.svelte.ts
+                              (Practice walks), grade.ts, tree.ts, scheduler.ts (FSRS),
+                              progress.ts / synced-store.ts / server-store.ts / account.svelte.ts (progress storage)
+    server/                   google.ts, session.ts, users.ts, progress.ts, account.ts, stats.ts,
+                              validate.ts, http.ts, assets.ts (static files via ASSETS in production)
+    theme/                    Themes and piece sets, settings persistence
+    ui/                       EvalBar, Meter, MiniBoard, position helpers
   routes/
-    +layout.svelte            Imports app.css
-    +page.svelte              Play-vs-computer screen (game loop lives here)
-scripts/
-  sync-engine.js              Copies the WASM build out of node_modules into static/engine
-  build-catalog.js            Fetches + validates the Lichess opening catalog (pnpm catalog:build)
-static/
-  engine/                     GENERATED, gitignored — see sync-engine.js
-  openings/catalog.json       GENERATED, committed — 3,810 lines, EPD-indexed (see [[Opening Classification]])
+    +page.svelte              Opening picker
+    openings/[id]/            Explore / Practice page
+    play/                     Play vs computer
+    settings/, privacy/, credits/, admin/ (owner only)
+    auth/google/…, api/progress, api/attempts, api/cards, api/account/{export,delete}
+pipeline/
+  eval-cache/                 Lichess eval db (CC0) → 8.27 GB lookup cache (build artefact, not shipped)
+  repertoire/                 spec.ts (28 openings), build.ts (practice tree + book lines),
+                              bundles.test.ts (checks the shipped bundles), inspect.ts
+migrations/                   0001 users/sessions/attempts/cards, 0002 discoveries
+static/openings/              catalog.json (3,810 named lines), repertoires/*.json (one bundle per opening)
 lethal-chess-vault/           This vault
 ```
 
 ## Data flow
 
-```
-user pointer → Board.svelte → onMove(from,to,promo)
-                                  ↓
-                            Game (chess.js)  ──validates, mutates, republishes runes──┐
-                                  ↓                                                   │
-                            +page.svelte sees turn flipped                            │
-                                  ↓                                                   │
-                            Engine.bestMove(fen, movetime)                            │
-                                  ↓                                                   │
-                            Worker ⇄ stockfish WASM (UCI over postMessage)            │
-                                  ↓                                                   │
-                            uci string "e7e5" → Game.move() ──────────────────────────┘
-```
+**Offline.** `pipeline/repertoire/build.ts` reads the eval cache and the opening catalog and writes one
+bundle per opening. A bundle holds:
+- the practice tree: one learner move per decision, weighted opponent replies, repetition cycles removed;
+- every catalog **book line** under the opening's defining moves, each with an entrance, an end and a
+  dubious flag;
+- engine candidates for every position involved.
 
-**The layering is the point.** `engine.ts`, `game.svelte.ts` and `pieces.ts` know nothing about
-Svelte components; `Board.svelte` knows nothing about the engine. The drill layer
-([[Opening Drills]]) plugs in at the same level `+page.svelte` does — it swaps the *policy*
-(which position, what's the expected reply, what happens on a wrong move) without touching the
-board or the engine. See [[Decision Log]] 2026-09-15 on keeping the render layer agnostic too.
+**In the browser.** The opening page loads its bundle.
+- **[[Exploration Mode]]** (`ExploreSession`) grades moves from the bundle while in book, answers with
+  book replies steered toward undiscovered lines, and falls back to Stockfish past the book. It reports
+  lines entered and discovered.
+- **Practice** (`DrillSession`) walks the tree and schedules cards with FSRS.
+- **[[Coached Free Play]]** (`FreePlay`) continues from any position with the engine.
 
-## Data model
+**Progress.** Local-first. Every write lands in localStorage at once:
+- **Signed out:** that is the only copy.
+- **Signed in:** an outbox uploads in batches of 500 through `/api/progress/import`. The import is
+  idempotent, rows the server rejects are dropped instead of blocking the queue, and a 401 stops retries.
+  Each opening's server copy is merged in once per page load, with an 8 s timeout.
 
-Deliberately thin for now — there are no persisted entities yet.
+**The layering is the point.** `engine.ts` and `game.svelte.ts` know nothing about Svelte components,
+and `Board.svelte` knows nothing about the engine or the drill. Sessions are policies over a `Game`.
 
-- `Game` — wraps a single `Chess` instance. Publishes `fen`, `turn`, `history`, `lastMove`,
-  `checkSquare`, `status`.
-- `Difficulty` — `{ id, label, elo, moveTimeMs }`. Maps to UCI `UCI_LimitStrength` + `UCI_Elo`.
-  Stockfish's floor is Elo 1320; that is the engine's limit, not a design choice.
+## Data model (D1)
 
-Everything the drilling product needs — repertoire, scheduling state, mistake history — is
-**not designed yet**. See [[Opening Drills]].
+- `users`, `sessions` (id = SHA-256 of the cookie token)
+- `attempts` — append-only Practice moves; natural key `(user, bundle, at, epd, attempt_no)`
+- `cards` — FSRS state per practice position, derived from attempts
+- `discoveries` — `(user, bundle, line, stage)`, with `stage` either `entered` or `discovered` and `line` the
+  EPD of the line's end; first time kept
+
+Account export and delete cover every table.
 
 ## Known gaps
 
-- No persistence, no routing beyond `/`.
-- Pieces are Unicode glyphs, not SVG.
 - Board has `role="application"` and no keyboard support.
-- Pieces re-render in place; moves do not animate between squares (would need stable piece IDs).
-- Engine strength below ~1320 Elo is not reachable via `UCI_Elo`; would need `Skill Level` or
-  deliberate move corruption.
+- Moves do not animate between squares.
+- Practice still drills a single repertoire move per position; making Practice review discovered lines is
+  next ([[Exploration Mode]]).
+- No rate limiting on the API ([[Public MVP]] backlog).

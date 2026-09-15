@@ -21,19 +21,24 @@
 
 	/**
 	 * Signing out removes this account's local copy of its progress, so the next person on a shared
-	 * browser can't read it. Anything still unsent in the outbox is flushed first when possible.
+	 * browser can't read it. The outbox is flushed first; whatever still hasn't reached the server stays
+	 * queued (and only that) and uploads the next time this account signs in here.
 	 */
 	async function clearLocalAccountData(event: SubmitEvent) {
 		if (!user) return;
 		event.preventDefault();
 		const form = event.currentTarget as HTMLFormElement;
 		const store = progressStore(user.id);
+		const outbox = `lethal:user:${user.id}:outbox`;
 		if (store instanceof SyncedProgressStore) {
 			await Promise.race([store.flush(), new Promise((resolve) => setTimeout(resolve, 3000))]);
+			const pending = store.pendingCount();
+			const message = `${pending} ${pending === 1 ? "change hasn't" : "changes haven't"} reached your account yet. They'll upload the next time you sign in on this browser.\n\nSign out anyway?`;
+			if (pending && !confirm(message)) return;
 		}
 		try {
 			for (const key of Object.keys(localStorage)) {
-				if (key.startsWith(`lethal:user:${user.id}:`)) localStorage.removeItem(key);
+				if (key.startsWith(`lethal:user:${user.id}:`) && key !== outbox) localStorage.removeItem(key);
 			}
 		} catch {
 			// Storage unavailable: nothing was stored locally either.

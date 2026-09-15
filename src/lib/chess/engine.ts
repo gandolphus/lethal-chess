@@ -22,6 +22,13 @@ export const DIFFICULTIES: Difficulty[] = [
 ];
 
 /** Centipawns or mate, from White's point of view. */
+export const ENGINE_DESTROYED = 'Engine destroyed';
+
+/** Swallows the rejection an in-flight analysis gets when its page is left; anything else still surfaces. */
+export const ignoreDestroyed = (error: unknown) => {
+	if ((error as Error | undefined)?.message !== ENGINE_DESTROYED) throw error;
+};
+
 export type EngineScore = { cp: number } | { mate: number };
 
 export type AnalysisLine = { move: string; score: EngineScore; pv: string[]; depth: number };
@@ -96,6 +103,7 @@ export class Engine {
 	// search. Every state-touching operation runs through this serial lock.
 	#lock: Promise<unknown> = Promise.resolve();
 	#searching = false;
+	#destroyed = false;
 	#difficulty: Difficulty | null = null;
 
 	constructor(url: string = ENGINE_URL) {
@@ -129,12 +137,15 @@ export class Engine {
 	}
 
 	#send(command: string) {
+		// A terminated worker never answers: fail now rather than wait forever.
+		if (this.#destroyed) throw new Error(ENGINE_DESTROYED);
 		this.#worker.postMessage(command);
 	}
 
 	#await(matches: (line: string) => boolean): Promise<string> {
 		return new Promise((resolve, reject) => {
-			this.#waiters.push({ matches, resolve, reject });
+			if (this.#destroyed) reject(new Error(ENGINE_DESTROYED));
+			else this.#waiters.push({ matches, resolve, reject });
 		});
 	}
 
@@ -245,7 +256,8 @@ export class Engine {
 	}
 
 	destroy() {
+		this.#destroyed = true;
 		this.#worker.terminate();
-		this.#rejectAll(new Error('Engine destroyed'));
+		this.#rejectAll(new Error(ENGINE_DESTROYED));
 	}
 }

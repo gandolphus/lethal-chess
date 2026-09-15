@@ -46,12 +46,12 @@
 		<div class="pitch">
 			<h1>Know your openings cold.</h1>
 			<p>
-				Pick a line you want to play. Learn it move by move with the moves shown. Then drill it from memory —
-				every answer checked against a deep engine evaluation, and the positions you miss come back until they stick.
+				Pick an opening you want to play. Explore it: the established lines are hidden, and you find them by
+				playing good moves — every move checked against a deep engine evaluation. Then drill it from memory.
 			</p>
 			<ol class="steps">
 				<li><b>Pick</b> an opening below</li>
-				<li><b>Learn</b> — arrows show every move</li>
+				<li><b>Explore</b> — discover the established lines</li>
 				<li><b>Practice</b> — from memory, engine-checked</li>
 			</ol>
 		</div>

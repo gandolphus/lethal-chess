@@ -384,6 +384,7 @@ const STYLE = `
 .lp-monolith .d { stroke-width: 3; }
 .lp-monolith.w .o, .lp-monolith.w .d { stroke: var(--pws); fill: var(--pws); }
 /* White pieces need a heavier outline than black to hold their silhouette on light squares. */
+/* White pieces get a heavier dark outline in every set, so they keep their silhouette on light squares. */
 .lp-monolith.w .o { stroke-width: 6.5; }
 .lp-monolith.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-monolith.b .d { stroke: var(--pbh); fill: var(--pbh); }
@@ -393,7 +394,7 @@ const STYLE = `
 #lp-monolith-grad-b stop:first-child { stop-color: var(--pb1); } #lp-monolith-grad-b stop:last-child { stop-color: var(--pb2); }
 /* material: outline pass + lit fill pass + ambient-occlusion ellipse */
 .lp-material .o { stroke-width: 2.3; }
-.lp-material.w .o { stroke: var(--pws); fill: var(--pws); }
+.lp-material.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
 .lp-material.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-material.w .f { fill: url(#lp-material-grad-w); }
 .lp-material.b .f { fill: url(#lp-material-grad-b); }
@@ -406,7 +407,7 @@ const STYLE = `
 .lp-material.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 2.2; }
 /* instrument: flat fill, CAD hairline that keeps its weight at every board size */
 .lp-instrument .o { stroke-width: 2.6px; }
-.lp-instrument.w .o { stroke: var(--pws); fill: var(--pws); }
+.lp-instrument.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 3.8px; }
 .lp-instrument.b .o { stroke: var(--pbs); fill: var(--pbs); stroke-width: 3.2px; }
 .lp-instrument.w .f { fill: var(--pw1); }
 .lp-instrument.b .f { fill: var(--pb1); }
@@ -414,7 +415,7 @@ const STYLE = `
 .lp-instrument.b .d { stroke: var(--pbh); fill: none; stroke-width: 1.2px; }
 /* nocturne: dark glass with a top rim of light */
 .lp-nocturne .o { stroke-width: 2.6; }
-.lp-nocturne.w .o { stroke: var(--pws); fill: var(--pws); }
+.lp-nocturne.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
 .lp-nocturne.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-nocturne.w .f { fill: url(#lp-nocturne-grad-w); }
 .lp-nocturne.b .f { fill: url(#lp-nocturne-grad-b); }

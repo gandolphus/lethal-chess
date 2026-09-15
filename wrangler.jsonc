@@ -24,7 +24,12 @@
 		{ "pattern": "lethalchess.com", "custom_domain": true },
 		{ "pattern": "www.lethalchess.com", "custom_domain": true }
 	],
+	// Errors and console output are kept for debugging; per-request invocation logs are off,
+	// so visitors' IP addresses and full URLs (including OAuth callback codes) are not logged.
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"logs": {
+			"invocation_logs": false
+		}
 	}
 }

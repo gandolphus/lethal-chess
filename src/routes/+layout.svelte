@@ -19,6 +19,28 @@
 		(data as { user?: { id: string; name: string; email: string; picture?: string } | null } | undefined)?.user ?? null
 	);
 
+	/**
+	 * Signing out removes this account's local copy of its progress, so the next person on a shared
+	 * browser can't read it. Anything still unsent in the outbox is flushed first when possible.
+	 */
+	async function clearLocalAccountData(event: SubmitEvent) {
+		if (!user) return;
+		event.preventDefault();
+		const form = event.currentTarget as HTMLFormElement;
+		const store = progressStore(user.id);
+		if (store instanceof SyncedProgressStore) {
+			await Promise.race([store.flush(), new Promise((resolve) => setTimeout(resolve, 3000))]);
+		}
+		try {
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith(`lethal:user:${user.id}:`)) localStorage.removeItem(key);
+			}
+		} catch {
+			// Storage unavailable: nothing was stored locally either.
+		}
+		form.submit();
+	}
+
 	// On sign-in, progress made while signed out on this browser moves into the account (once).
 	$effect(() => {
 		const store = progressStore(user?.id ?? null);
@@ -61,7 +83,7 @@
 				<img class="avatar" src={user.picture} alt="" width="26" height="26" referrerpolicy="no-referrer" />
 			{/if}
 			<span class="who">{user.name}</span>
-			<form method="POST" action="/auth/logout">
+			<form method="POST" action="/auth/logout" onsubmit={clearLocalAccountData}>
 				<button type="submit" class="btn small">Sign out</button>
 			</form>
 		{:else}
@@ -78,6 +100,8 @@
 	<span>AGPL-3.0</span>
 	<span aria-hidden="true">·</span>
 	<a href="/privacy">Privacy</a>
+	<span aria-hidden="true">·</span>
+	<a href="/credits">Credits & licences</a>
 </footer>
 
 <style>

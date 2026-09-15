@@ -307,6 +307,8 @@ const STYLE = `
 .lp-monolith .o { stroke-width: 5; }
 .lp-monolith .d { stroke-width: 3; }
 .lp-monolith.w .o, .lp-monolith.w .d { stroke: var(--pws); fill: var(--pws); }
+/* White pieces need a heavier outline than black to hold their silhouette on light squares. */
+.lp-monolith.w .o { stroke-width: 6.5; }
 .lp-monolith.b .o { stroke: var(--pbs); fill: var(--pbs); }
 .lp-monolith.b .d { stroke: var(--pbh); fill: var(--pbh); }
 .lp-monolith.w .f { fill: url(#lp-monolith-grad-w); }

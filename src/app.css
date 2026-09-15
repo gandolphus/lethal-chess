@@ -21,7 +21,11 @@
    working unchanged.
    ───────────────────────────────────────────────────────────────────────────── */
 
-:root {
+/* Every themed element — the page root and each settings preview swatch — starts from this full
+   default set, then its own [data-theme] block overrides. Without the [data-theme] selector here, a
+   swatch inherited any token its theme doesn't redefine from whichever theme is *active*. */
+:root,
+[data-theme] {
 	/* Obsidian (Round 1) is the default: neutral graphite, warm stone, ice-blue accent. */
 	--bg: #131316; --surface-1: #1b1b1f; --surface-2: #232328; --border: #2a2a30;
 	--text: #ebe8e2; --text-2: #a09da3; --text-3: #6b696f;
@@ -57,7 +61,7 @@
 [data-mode='dark'] { --hl-blend: normal; color-scheme: dark; }
 
 /* ═══ Round 1 ═══ */
-[data-theme='obsidian'] { --bg: #131316; }
+/* Obsidian is the default set above. */
 
 [data-theme='ember'] {
 	--bg: #16110e; --surface-1: #1f1814; --surface-2: #29201a; --border: #352a23;

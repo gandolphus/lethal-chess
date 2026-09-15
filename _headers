@@ -1,0 +1,7 @@
+# Headers for static files served by Cloudflare's assets layer (the Worker's hook never sees
+# these requests). Keep in step with SECURITY_HEADERS in src/hooks.server.ts.
+/*
+  Strict-Transport-Security: max-age=15552000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY

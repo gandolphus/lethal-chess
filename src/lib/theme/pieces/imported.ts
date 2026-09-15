@@ -16,14 +16,28 @@ export type ImportedSet = (typeof IMPORTED_SETS)[number];
 // detail lines on black pieces take the highlight token.
 const TINT: Record<'w' | 'b', { body: string; fill: Record<string, string>; stroke: Record<string, string> }> = {
 	w: {
-		body: 'var(--pw1)',
+		// `body` stands in for SVG's default fill, which is black. In a white piece, shapes with no
+		// fill attribute are its dark details (eyes, bands, slits), so the default must be the dark
+		// detail colour — using the light body colour here erased every interior feature.
+		body: 'var(--pws)',
 		fill: { '#fff': 'var(--pw1)', '#ffffff': 'var(--pw1)', '#000': 'var(--pws)', '#000000': 'var(--pws)' },
 		stroke: { '#000': 'var(--pws)', '#000000': 'var(--pws)', '#fff': 'var(--pw1)', '#ffffff': 'var(--pw1)' }
 	},
 	b: {
 		body: 'var(--pb2)',
 		fill: { '#000': 'var(--pb2)', '#000000': 'var(--pb2)', '#ececec': 'var(--pbh)', '#f2f2f2': 'var(--pbh)', '#fff': 'var(--pbh)', '#ffffff': 'var(--pbh)' },
-		stroke: { '#000': 'var(--pbs)', '#000000': 'var(--pbs)', '#ececec': 'var(--pbh)', '#f2f2f2': 'var(--pbh)', '#fff': 'var(--pbh)', '#ffffff': 'var(--pbh)' }
+		// These sets draw black pieces with heavy black outlines that are part of the silhouette.
+		// Instrument and Nocturne themes set --pbs to a *light* edge for their own hairline sets;
+		// used here it turned the whole piece white. Keep the outline dark, nudged slightly toward
+		// the theme's edge colour so it still separates from very dark squares.
+		stroke: {
+			'#000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))',
+			'#000000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))',
+			'#ececec': 'var(--pbh)',
+			'#f2f2f2': 'var(--pbh)',
+			'#fff': 'var(--pbh)',
+			'#ffffff': 'var(--pbh)'
+		}
 	}
 };
 

@@ -54,6 +54,10 @@ only; rating-based strategy is at the bottom of the backlog.
 - [[Opening Classification]] — **designed, catalog imported, second priority**. Objective cost,
   precision burden, weaknesses; drill the punishment.
 
+## Research
+
+- [[Learning science for opening training]] — evidence digest, critique and 15 ranked proposals (2026-09-16).
+
 ## Audits
 
 - [[2026-09-15 — Fable code audit]] — 7 findings, all fixed and verified.

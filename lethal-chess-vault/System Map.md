@@ -100,6 +100,6 @@ Account export and delete cover every table.
 
 - Board has `role="application"` and no keyboard support.
 - Moves do not animate between squares.
-- Practice still drills a single repertoire move per position; making Practice review discovered lines is
-  next ([[Exploration Mode]]).
+- The retired tree Practice (`DrillSession`, `grade.ts`, `tree.ts`, `cards` table, bundle practice trees) is
+  still in the code and data; prune once line review has proven itself.
 - No rate limiting on the API ([[Public MVP]] backlog).

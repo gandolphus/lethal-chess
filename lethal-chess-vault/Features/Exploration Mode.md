@@ -63,11 +63,20 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
   A line through a position where the move was *shown* does not count as discovered; the user is told
   to find it alone.
 - **Take back** returns to the previous decision, never into the defining moves.
-- **Announcements.** A card above the notice (under the board on phones) says "New line entered" or "Line
-  discovered". It stays until the user's next move has been answered. Each entrance name is announced
-  once per game.
-  - v1 floated the card over the board: it covered pieces and, through a timer/effect loop, reappeared
-    forever. User feedback 2026-09-15; fixed.
+- **The line card** sits above the notice (under the board on phones).
+  - **Anticipation:** from a line's entrance until its end, the card shows "Line in progress", the
+    entrance name, progress pips for the nearest unfound end, and how many lines are left to find from
+    here.
+  - **Celebration:** when the end is reached, by either side's move, the card celebrates "Line
+    discovered". A one-move line is celebrated at once.
+  - **Repeats and hints:** completing a known line again shows "Line completed again", which is not
+    recorded. A line reached through a shown move gets "End of the line — with a hint".
+  - **Duration:** a celebration stays until the user's next move has been answered.
+  - **History:** v1 floated a toast over the board; it covered pieces and reappeared forever. v2 announced
+    entries once and discoveries separately. The user asked for anticipation → celebration instead
+    (2026-09-16).
+- **No evaluation shown** (bar or number) on the opening page while learning, at the user's request
+  (2026-09-16). Evaluation belongs in a future analysis mode. "How exact you must be" stays.
 - **Page stats.**
   - Discovered / total, plus the number entered but not finished, on a split bar.
   - By variation: discovered names, entered lines (…), and how many are still secret.

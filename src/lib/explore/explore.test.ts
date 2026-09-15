@@ -160,6 +160,26 @@ describe('ExploreSession', () => {
 		expect(s.events.at(-1)).toMatchObject({ kind: 'discovered', assisted: false });
 	});
 
+	it('anticipates an entered line with its progress, until either side reaches the end', async () => {
+		const { s } = await started();
+		expect(s.progress).toBeNull();
+		await s.submit('g1', 'f3');
+		// After 3.Nf3 Nc6 the nearest open line is the Spanish: entered at ply 3, ends at ply 6, 1 of 3 half-moves played.
+		expect(s.progress).toEqual({ name: 'Test: Knight', lines: 1, allKnown: false, total: 3, played: 1 });
+		await s.submit('f1', 'b5');
+		// The computer's ...a6 ended it: celebrated, nothing left to anticipate.
+		expect(s.progress).toBeNull();
+		expect(s.events.at(-1)).toMatchObject({ kind: 'discovered', known: false, ply: 6 });
+	});
+
+	it('celebrates completing an already discovered line again, without recording it', async () => {
+		const bishop = new Book(fixture()).lines[2].key;
+		const { s, discoveries } = await started({ stages: new Map([[bishop, 'discovered']]) });
+		await s.submit('f1', 'c4');
+		expect(s.events.at(-1)).toMatchObject({ kind: 'discovered', known: true });
+		expect(discoveries).toEqual([]);
+	});
+
 	it('discovers a line with no entrance the moment its end is reached', async () => {
 		const { s, discoveries } = await started();
 		await s.submit('f1', 'c4');

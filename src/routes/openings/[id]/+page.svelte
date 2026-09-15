@@ -11,9 +11,8 @@
 	import { toEpd } from '$lib/drill/tree';
 	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine } from '$lib/explore/book';
 	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
-	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
-	import { evalWords, formatScore, movePairs, SHARPNESS_WORDS, sharpnessLevel, type Score } from '$lib/ui/position';
+	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
 	import type { PageProps } from './$types';
 
 	type PageMode = 'explore' | 'practice';
@@ -234,24 +233,16 @@
 		}
 	});
 
-	// The latest discovery shows beside the board until the learner's next move has been answered.
-	const banner = $derived.by<DiscoveryEvent | null>(() => {
-		const latest = explore?.events.at(-1);
+	// A completed line is celebrated until the learner's next move has been answered; between a line's
+	// entrance and its end, the card anticipates it instead.
+	const celebration = $derived.by<DiscoveryEvent | null>(() => {
+		const latest = explore?.events.findLast((e) => e.kind === 'discovered');
 		return latest && explore && explore.game.history.length - latest.ply <= 2 ? latest : null;
 	});
+	const anticipation = $derived(explore && !explore.inOpening && !celebration ? explore.progress : null);
 
 	const pairs = $derived(movePairs(game?.history ?? []));
 
-	// The bar holds the last known evaluation when none is available, dimmed, rather than dropping to 0.
-	let lastEval = $state<Score | null>(null);
-	const liveEval = $derived<Score | null>(
-		freeplay ? freeplay.evaluation : explore ? explore.evaluation : (node?.candidates[0]?.score ?? null)
-	);
-	$effect(() => {
-		if (liveEval) lastEval = liveEval;
-	});
-	const evalScore = $derived(liveEval ?? lastEval);
-	const evalStale = $derived(!liveEval);
 	const percent = (value: number | null | undefined) => (value === null || value === undefined ? '—' : `${Math.round(value * 100)}%`);
 	const share = (value: number | null | undefined) => `${Math.round((value ?? 0) * 100)}%`;
 
@@ -276,7 +267,6 @@
 <main>
 	<div class="layout">
 		<div class="board-column">
-			<div class="eval"><EvalBar score={evalScore} side={bundle.side} stale={evalStale} /></div>
 			<div class="board-slot">
 			{#if freeplay}
 				<Board
@@ -337,21 +327,40 @@
 				</p>
 			</div>
 
-			{#if banner}
-				{#key banner.id}
-					<div class="discovery" data-kind={banner.assisted ? 'assisted' : banner.kind} role="status">
-						{#if banner.kind === 'discovered'}
-							<p class="kicker">
-								{banner.assisted ? 'End of the line — with a hint' : banner.lines.length > 1 ? `${banner.lines.length} lines discovered` : 'Line discovered'}
-								{#if banner.lines.some((l) => l.dubious)}<span class="tag">dubious</span>{/if}
-							</p>
-							<p class="name">{banner.lines[0].name}</p>
-							{#if banner.assisted}<p class="sub">Find it without the hint to count it.</p>{/if}
-						{:else}
-							<p class="kicker">New line entered</p>
-							<p class="name">{banner.lines[0].entryName ?? banner.lines[0].variation}</p>
-							<p class="sub">{linesWord(banner.lines.length)} to follow to the end</p>
-						{/if}
+			{#if celebration}
+				{#key celebration.id}
+					<div class="discovery" data-kind={celebration.assisted ? 'assisted' : celebration.known ? 'known' : 'discovered'} role="status">
+						<p class="kicker">
+							{#if celebration.assisted}
+								End of the line — with a hint
+							{:else if celebration.known}
+								Line completed again
+							{:else}
+								{celebration.lines.length > 1 ? `${celebration.lines.length} lines discovered` : 'Line discovered'}
+							{/if}
+							{#if celebration.lines.some((l) => l.dubious)}<span class="tag">dubious</span>{/if}
+						</p>
+						<p class="name">{celebration.lines[0].name}</p>
+						{#if celebration.assisted}<p class="sub">Find it without the hint to count it.</p>{/if}
+					</div>
+				{/key}
+			{:else if anticipation}
+				{#key anticipation.name}
+					<div class="discovery" data-kind="entered" role="status">
+						<p class="kicker">{anticipation.allKnown ? 'Known line' : 'Line in progress'}</p>
+						<p class="name">{anticipation.name}</p>
+						<span class="pips" aria-hidden="true">
+							{#each { length: Math.min(anticipation.total, 24) } as _, i (i)}
+								<i class:on={i < anticipation.played}></i>
+							{/each}
+						</span>
+						<p class="sub">
+							{anticipation.allKnown
+								? 'Already discovered — see it through again.'
+								: anticipation.lines > 1
+									? `${anticipation.lines} lines to find from here. Keep going.`
+									: 'One line left here. See it through to the end.'}
+						</p>
 					</div>
 				{/key}
 			{/if}
@@ -401,10 +410,6 @@
 
 			{#if !freeplay && node && node.candidates.length}
 				<div class="position">
-					<div class="stat">
-						<p class="label">Evaluation</p>
-						<p class="value num">{formatScore(node.candidates[0].score)} <small>{evalWords(node.candidates[0].score)}</small></p>
-					</div>
 					{#if node.sharpness !== undefined}
 						<div class="stat">
 							<p class="label">How exact you must be</p>
@@ -545,11 +550,6 @@
 		min-width: 0;
 	}
 
-	.eval {
-		display: flex;
-		flex: none;
-	}
-
 	.panel {
 		display: flex;
 		flex-direction: column;
@@ -655,14 +655,6 @@
 		line-height: 1;
 	}
 
-	.value small {
-		margin-left: 0.3rem;
-		font-family: var(--font-ui);
-		font-size: 0.8rem;
-		font-weight: 400;
-		color: var(--text-2);
-	}
-
 	.line {
 		grid-column: 1 / -1;
 		margin: 0;
@@ -766,8 +758,44 @@
 		--disc-tone: var(--ok);
 	}
 
-	.discovery[data-kind='assisted'] {
+	.discovery[data-kind='assisted'],
+	.discovery[data-kind='known'] {
 		--disc-tone: var(--text-3);
+	}
+
+	.discovery[data-kind='discovered'] .name {
+		animation: celebrate 0.9s ease-out;
+	}
+
+	@keyframes celebrate {
+		0% {
+			text-shadow: 0 0 0 transparent;
+		}
+		35% {
+			text-shadow: 0 0 18px color-mix(in srgb, var(--ok) 70%, transparent);
+		}
+		100% {
+			text-shadow: 0 0 0 transparent;
+		}
+	}
+
+	.pips {
+		display: flex;
+		gap: 3px;
+		margin-top: 0.45rem;
+	}
+
+	.pips i {
+		flex: 1;
+		max-width: 1.6rem;
+		height: 4px;
+		border-radius: 2px;
+		background: color-mix(in srgb, var(--disc-tone) 22%, var(--surface-2));
+		transition: background 0.3s ease;
+	}
+
+	.pips i.on {
+		background: var(--disc-tone);
 	}
 
 	.discovery p {

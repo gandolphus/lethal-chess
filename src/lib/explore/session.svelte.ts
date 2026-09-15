@@ -16,7 +16,27 @@ export type ExplorePhase =
 	| 'over'; // checkmate, stalemate, draw — or the engine could not load
 
 /** Something the learner just found, for a celebration. Assisted discoveries are shown but not counted. */
-export type DiscoveryEvent = { id: number; kind: LineStage; lines: IndexedLine[]; assisted: boolean; /** Moves played when it happened. */ ply: number };
+/** Something found while exploring. `assisted`: reached through a shown move, not counted. `known`: discovered in an earlier game. */
+export type DiscoveryEvent = {
+	id: number;
+	kind: LineStage;
+	lines: IndexedLine[];
+	assisted: boolean;
+	known: boolean;
+	/** Moves played when it happened. */
+	ply: number;
+};
+
+/** The line the learner is inside: its entrance name and how far along the nearest unfinished end is. */
+export type LineProgress = {
+	name: string;
+	/** Lines still open from here (undiscovered ones, or all of them once every one is discovered). */
+	lines: number;
+	allKnown: boolean;
+	/** Half-moves from the entrance to the nearest end, and how many of them are played. */
+	total: number;
+	played: number;
+};
 
 export type ExploreOptions = {
 	bundle: Bundle;
@@ -106,6 +126,23 @@ export class ExploreSession {
 		return open.find((line) => this.#stages.get(line.key) !== 'discovered') ?? open[0] ?? null;
 	});
 
+	/** Anticipation: set from a line's entrance until its end is reached. */
+	readonly progress = $derived.by<LineProgress | null>(() => {
+		void this.#stageVersion;
+		const open = this.#book.at(toEpd(this.game.fen)).filter(({ line, index }) => index >= line.entry && index < line.moves.length);
+		if (!open.length) return null;
+		const unfound = open.filter(({ line }) => this.#stages.get(line.key) !== 'discovered');
+		const pool = unfound.length ? unfound : open;
+		const nearest = pool.reduce((a, b) => (b.line.moves.length - b.index < a.line.moves.length - a.index ? b : a));
+		return {
+			name: nearest.line.entryName ?? nearest.line.variation,
+			lines: pool.length,
+			allKnown: !unfound.length,
+			total: nearest.line.moves.length - nearest.line.entry,
+			played: nearest.index - nearest.line.entry
+		};
+	});
+
 	readonly arrows = $derived.by<Arrow[]>(() => {
 		if (this.phase !== 'your-move' || this.hintLevel < 2 || !this.#hintMove) return [];
 		const { from, to } = parseUci(this.#hintMove);
@@ -143,8 +180,6 @@ export class ExploreSession {
 	#hintMove = $state<string | null>(null);
 	/** Positions where the learner was shown the move: lines through them don't count as found alone. */
 	#shown = new Set<string>();
-	/** Entrance names already announced this game. */
-	#announced = new Set<string>();
 	#generation = 0;
 	#eventId = 0;
 
@@ -171,7 +206,6 @@ export class ExploreSession {
 		this.game.load([]);
 		this.#reset();
 		this.#shown.clear();
-		this.#announced.clear();
 		this.events = [];
 		this.evaluation = null;
 		this.#visit();
@@ -465,9 +499,15 @@ export class ExploreSession {
 		const discovered: IndexedLine[] = [];
 		const assisted: IndexedLine[] = [];
 
+		const known: IndexedLine[] = [];
+
 		for (const { line, index } of this.#book.at(epd)) {
 			const stage = this.#stages.get(line.key);
-			if (stage === 'discovered' || index < line.entry) continue;
+			if (index < line.entry) continue;
+			if (stage === 'discovered') {
+				if (index === line.moves.length) known.push(line);
+				continue;
+			}
 			if (index === line.moves.length) {
 				const helped = line.epds.slice(this.openingMoves.length, -1).some((p) => this.#shown.has(p));
 				if (helped) {
@@ -484,18 +524,23 @@ export class ExploreSession {
 			}
 		}
 
-		const push = (kind: LineStage, lines: IndexedLine[], isAssisted: boolean) => {
-			if (lines.length) {
-				const event = { id: ++this.#eventId, kind, lines, assisted: isAssisted, ply: this.game.uciHistory.length };
-				this.events = [...this.events.slice(-4), event];
-			}
+		const push = (kind: LineStage, lines: IndexedLine[], flags: { assisted?: boolean; known?: boolean } = {}) => {
+			if (!lines.length) return;
+			const event = {
+				id: ++this.#eventId,
+				kind,
+				lines,
+				assisted: flags.assisted ?? false,
+				known: flags.known ?? false,
+				ply: this.game.uciHistory.length
+			};
+			this.events = [...this.events.slice(-4), event];
 		};
-		push('discovered', discovered, false);
-		push('discovered', assisted, true);
-		// A name like "Ruy Lopez: Closed" marks several positions along its main line; announce it once a game.
-		const fresh = entered.filter((line) => !this.#announced.has(line.entryName ?? line.variation));
-		for (const line of entered) this.#announced.add(line.entryName ?? line.variation);
-		if (fresh.length) push('entered', entered, false);
+		push('entered', entered);
+		// Completions come last, so the newest event is the one to celebrate. Whichever side's move reached the end.
+		push('discovered', known, { known: true });
+		push('discovered', assisted, { assisted: true });
+		push('discovered', discovered);
 	}
 
 	#record(line: IndexedLine, stage: LineStage) {

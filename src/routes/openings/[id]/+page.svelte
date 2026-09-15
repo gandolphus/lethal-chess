@@ -7,10 +7,11 @@
 	import { progressStore, sync } from '$lib/drill/account.svelte';
 	import type { ProgressStore } from '$lib/drill/progress';
 	import { toEpd } from '$lib/drill/tree';
-	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine } from '$lib/explore/book';
+	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine, type LineStage } from '$lib/explore/book';
 	import { lineCards, mastery, nextLine, reviewable, type Mastery } from '$lib/explore/mastery';
 	import { ReviewSession } from '$lib/explore/review.svelte';
 	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
+	import LineMap from '$lib/ui/LineMap.svelte';
 	import LineShelf from '$lib/ui/LineShelf.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
@@ -38,6 +39,10 @@
 	let caughtUp = $state<{ lines: number } | null>(null);
 	let memory = $state<Mastery | null>(null);
 	let summary = $state<DiscoverySummary | null>(null);
+	/** The learner's progress per line, refreshed on every discovery; the map reads it live. */
+	let stages = $state<Map<string, LineStage>>(new Map());
+	/** The line map, open at a band (or at the top). */
+	let map = $state<{ band: string | null } | null>(null);
 	let store: ProgressStore | null = null;
 
 	const activeStore = () => (store ??= progressStore(data.user?.id ?? null));
@@ -45,7 +50,7 @@
 	async function refreshStats() {
 		const s = activeStore();
 		const [discoveries, reviews] = await Promise.all([s.loadDiscoveries(bundle.id), s.loadReviews(bundle.id)]);
-		const stages = stagesOf(discoveries);
+		stages = stagesOf(discoveries);
 		summary = summarize(book, stages);
 		memory = mastery(reviewable(book, stages, openingLength, bundle.side), lineCards(reviews), new Date());
 	}
@@ -302,6 +307,20 @@
 
 	const pairs = $derived(movePairs(game?.history ?? []));
 
+	/** Where the game is on the map: the line being followed, else any line through the position. */
+	const here = $derived.by(() => {
+		if (!explore || explore.inOpening) return null;
+		const at = book.at(toEpd(explore.game.fen));
+		return at.find((p) => p.line === explore?.following) ?? at[0] ?? null;
+	});
+
+	/** The map's first column: the last defining move, e.g. "3.Bb5" or "1…c5". */
+	const openingLabel = $derived.by(() => {
+		const plies = (bundle.openingMoves ?? bundle.rootMoves).length;
+		const san = openingSan.split(' ').at(-1) ?? '';
+		return plies % 2 ? san : `${plies / 2}…${san}`;
+	});
+
 	const share = (value: number | null | undefined) => `${Math.round((value ?? 0) * 100)}%`;
 
 	function onKey(event: KeyboardEvent) {
@@ -316,6 +335,7 @@
 		else if (event.key === 'k' && review?.phase === 'done' && !freeplay) void keepPlaying();
 		else if (event.key === 'e' && mode !== 'explore') void startExplore();
 		else if (event.key === 'p' && mode !== 'practice') void startPractice();
+		else if (event.key === 'm' && mode === 'explore' && summary) map = map ? null : { band: null };
 	}
 </script>
 
@@ -369,7 +389,7 @@
 				<Board fen={rootFen} orientation={bundle.side} interactive={false} onMove={() => {}} />
 			{/if}
 			{#if mode === 'explore' && summary && !freeplay}
-				<LineShelf variations={summary.variations} here={explore?.following?.variation ?? null} bind:count={counter} />
+				<LineShelf variations={summary.variations} here={explore?.following?.variation ?? null} bind:count={counter} onopen={(band) => (map = { band })} />
 			{/if}
 			</div>
 		</div>
@@ -551,6 +571,10 @@
 						{bundle.name} — {summary.sound.discovered} of {summary.sound.total} lines discovered{#if summary.sound.entered}, {summary.sound.entered} more entered{/if}.
 					</p>
 
+					<button type="button" class="btn map-button" onclick={() => (map = { band: null })}>
+						Open the map <kbd>M</kbd>
+					</button>
+
 					<details class="variations">
 						<summary>By variation <span class="num">{summary.variations.length}</span></summary>
 						<ul>
@@ -610,6 +634,23 @@
 		</aside>
 	</div>
 </main>
+
+<!-- The line map: a wide overlay on desktop, a bottom sheet on phones. Built only while open. -->
+{#if map}
+	<button type="button" class="map-scrim" aria-label="Close the map" onclick={() => (map = null)}></button>
+	<div class="map-sheet" role="dialog" aria-modal="true" aria-label="Line map">
+		<LineMap
+			lines={book.lines}
+			{stages}
+			{here}
+			opening={openingLength}
+			{openingLabel}
+			title="{bundle.name} — the lines"
+			band={map.band}
+			onclose={() => (map = null)}
+		/>
+	</div>
+{/if}
 
 {#snippet saveStatus()}
 	<p class="label small save" data-status={sync.status ?? 'local'} role="status">
@@ -1059,6 +1100,35 @@
 		color: var(--text-3);
 	}
 
+	.map-button {
+		justify-self: start;
+	}
+
+	/* The line map over the page. */
+	.map-scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		padding: 0;
+		border: 0;
+		background: color-mix(in srgb, var(--bg) 72%, transparent);
+		backdrop-filter: blur(3px);
+		cursor: default;
+	}
+
+	.map-sheet {
+		position: fixed;
+		inset: 2rem;
+		z-index: 41;
+		max-width: 1180px;
+		margin: 0 auto;
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		background: var(--surface-1);
+		box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+		overflow: hidden;
+	}
+
 	@media (max-width: 860px) {
 		main {
 			padding: 0.75rem 0.75rem 2.5rem;
@@ -1105,6 +1175,14 @@
 		.moves {
 			max-height: 11rem;
 			overflow-y: auto;
+		}
+
+		/* On a phone the map is a bottom sheet, in Overview. */
+		.map-sheet {
+			inset: auto 0 0 0;
+			height: 82dvh;
+			border-radius: 14px 14px 0 0;
+			border-bottom: 0;
 		}
 	}
 </style>

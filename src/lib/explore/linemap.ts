@@ -1,0 +1,311 @@
+import { Chess } from 'chess.js';
+import type { IndexedLine, LineStage } from './book';
+
+/**
+ * The chart: an opening's lines drawn as a tree, x = ply, one band per variation. The layout is
+ * pure so it can be tested and rebuilt wholesale on every discovery (a few milliseconds).
+ */
+
+export type Zoom = 'overview' | 'detail';
+
+/** The edge into a node: lit = on a discovered line, ember = played on an entered line, ember-dim = the entered line's secret continuation. */
+export type EdgeState = 'fog' | 'ember' | 'ember-dim' | 'lit';
+
+/** Where the game is: `index` moves along `line`. */
+export type Here = { line: IndexedLine; index: number };
+
+export type BandKind = 'variation' | 'sidelines' | 'dubious';
+
+export type Band = { name: string; kind: BandKind; lines: IndexedLine[]; discovered: number; entered: number };
+
+export type TrieNode = {
+	ply: number;
+	/** The move into this node, UCI; null at the root. */
+	uci: string | null;
+	/** Largest subtree first. */
+	children: TrieNode[];
+	/** Every line through this node. */
+	lines: IndexedLine[];
+	/** Lines ending here (transpositions share an end). */
+	ends: IndexedLine[];
+	y: number;
+};
+
+export const SIDELINES = 'Sidelines';
+export const DUBIOUS = 'Dubious lines';
+
+const shortVariation = (name: string) => name.replace(/^[^:]+:\s*/, '') || name;
+
+/** A line's name without its variation, e.g. "Breyer Defense" under "Ruy Lopez: Closed". */
+const shortLine = (line: IndexedLine) =>
+	line.name === line.variation ? 'Main line' : line.name.slice(line.variation.length).replace(/^,\s*/, '');
+
+/** Where a line is entered, as a ply; a line with no entrance is entered at its last move. */
+export const entranceOf = (line: IndexedLine) => Math.min(line.entry, line.moves.length - 1);
+
+/** One band per variation, largest first; single-line variations fold into Sidelines; dubious lines sit apart at the bottom. */
+export function bandsOf(lines: IndexedLine[], stages: Map<string, LineStage>): Band[] {
+	const byVariation = new Map<string, IndexedLine[]>();
+	const dubious: IndexedLine[] = [];
+	for (const line of lines) {
+		if (line.dubious) {
+			dubious.push(line);
+			continue;
+		}
+		const group = byVariation.get(line.variation) ?? [];
+		group.push(line);
+		byVariation.set(line.variation, group);
+	}
+	const band = (name: string, kind: BandKind, members: IndexedLine[]): Band => ({
+		name,
+		kind,
+		lines: members,
+		discovered: members.filter((l) => stages.get(l.key) === 'discovered').length,
+		entered: members.filter((l) => stages.get(l.key) === 'entered').length
+	});
+	const bands: Band[] = [];
+	const sidelines: IndexedLine[] = [];
+	for (const [name, members] of byVariation) {
+		if (members.length === 1) sidelines.push(members[0]);
+		else bands.push(band(name, 'variation', members));
+	}
+	bands.sort((a, b) => b.lines.length - a.lines.length || a.name.localeCompare(b.name));
+	if (sidelines.length) bands.push(band(SIDELINES, 'sidelines', sidelines));
+	if (dubious.length) bands.push(band(DUBIOUS, 'dubious', dubious));
+	return bands;
+}
+
+/** A trie of the lines' moves from ply `root`, children ordered largest subtree first. */
+export function trie(lines: IndexedLine[], root: number): TrieNode {
+	const node = (ply: number, uci: string | null): TrieNode => ({ ply, uci, children: [], lines: [], ends: [], y: 0 });
+	const top = node(root, null);
+	for (const line of lines) {
+		let at = top;
+		at.lines.push(line);
+		for (let ply = root; ply < line.moves.length; ply++) {
+			const uci = line.moves[ply];
+			let next = at.children.find((c) => c.uci === uci);
+			if (!next) {
+				next = node(ply + 1, uci);
+				at.children.push(next);
+			}
+			next.lines.push(line);
+			at = next;
+		}
+		at.ends.push(line);
+	}
+	const sort = (n: TrieNode) => {
+		n.children.sort((a, b) => b.lines.length - a.lines.length);
+		n.children.forEach(sort);
+	};
+	sort(top);
+	return top;
+}
+
+/** Tidy placement: leaves stacked `row` apart from `top`, each parent centred on its first and last child. Returns the leaf count. */
+export function place(node: TrieNode, row: number, top: number): number {
+	let leaves = 0;
+	const visit = (n: TrieNode) => {
+		if (!n.children.length) {
+			n.y = top + leaves * row + row / 2;
+			leaves++;
+			return;
+		}
+		n.children.forEach(visit);
+		n.y = (n.children[0].y + n.children[n.children.length - 1].y) / 2;
+	};
+	visit(node);
+	return leaves;
+}
+
+const isHere = (line: IndexedLine, here: Here | null) => here !== null && here.line.key === line.key;
+
+/** The state of the edge into `node`: lit > ember > ember-dim > fog over the lines through it. */
+export function edgeState(node: TrieNode, stages: Map<string, LineStage>, here: Here | null): EdgeState {
+	let state: EdgeState = 'fog';
+	for (const line of node.lines) {
+		const stage = stages.get(line.key);
+		if (stage === 'discovered') return 'lit';
+		const onIt = isHere(line, here);
+		if (stage === 'entered') {
+			// Solid up to the entrance, and as far as the game has come on the line being followed.
+			const solidTo = onIt ? Math.max(entranceOf(line), here!.index) : entranceOf(line);
+			if (node.ply <= solidTo) state = 'ember';
+			else if (state === 'fog') state = 'ember-dim';
+		} else if (onIt && node.ply <= here!.index) {
+			// The game is on a line it hasn't entered: only the moves played so far are warm, the entrance stays secret.
+			state = 'ember';
+		}
+	}
+	return state;
+}
+
+const sanCache = new WeakMap<IndexedLine, string[]>();
+
+/** A line's moves in SAN, converted once. */
+export function sanOf(line: IndexedLine): string[] {
+	let san = sanCache.get(line);
+	if (!san) {
+		const chess = new Chess();
+		san = line.moves.map((uci) => chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] }).san);
+		sanCache.set(line, san);
+	}
+	return san;
+}
+
+export type LayoutOptions = {
+	zoom: Zoom;
+	/** Available width in px; Overview fits it, Detail may exceed it. */
+	width: number;
+	/** Plies of the opening's defining moves: the root column. */
+	opening: number;
+	/** Label for the root column, e.g. "3.Bb5". */
+	openingLabel?: string;
+	here?: Here | null;
+	collapsed?: ReadonlySet<string>;
+};
+
+export type LayoutBand = {
+	name: string;
+	label: string;
+	kind: BandKind;
+	y: number;
+	height: number;
+	count: string;
+	collapsed: boolean;
+	here: boolean;
+};
+
+export type LayoutEdge = { d: string; state: EdgeState; label: { x: number; y: number; text: string } | null };
+
+export type LayoutNode = {
+	x: number;
+	y: number;
+	r: number;
+	kind: 'lit' | 'ember' | 'secret' | 'branch';
+	label: string | null;
+};
+
+export type Layout = {
+	width: number;
+	height: number;
+	ruler: { x: number; label: string }[];
+	bands: LayoutBand[];
+	edges: LayoutEdge[];
+	nodes: LayoutNode[];
+	here: { x: number; y: number } | null;
+};
+
+const ROW: Record<Zoom, number> = { detail: 16, overview: 7 };
+const HEAD: Record<Zoom, number> = { detail: 34, overview: 14 };
+const GAP: Record<Zoom, number> = { detail: 20, overview: 10 };
+const TOP = 28;
+
+/** The move that lands on a column: "4." for White's fourth, "4…" for Black's. */
+const plyLabel = (ply: number) => (ply % 2 === 1 ? `${(ply + 1) / 2}.` : `${ply / 2}…`);
+
+export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, options: LayoutOptions): Layout {
+	const { zoom, opening } = options;
+	const here = options.here ?? null;
+	const collapsed = options.collapsed ?? new Set<string>();
+	const detail = zoom === 'detail';
+	const bands = bandsOf(lines, stages);
+	const maxPly = Math.max(opening + 1, ...lines.map((l) => l.moves.length));
+	const row = ROW[zoom];
+	const gutter = detail ? 180 : Math.min(150, Math.round(options.width * 0.36));
+	const nameSpace = detail ? 230 : 8;
+	const plyW = detail ? 46 : Math.max(6, (options.width - gutter - nameSpace - 16) / (maxPly - opening));
+	const x = (ply: number) => gutter + (ply - opening) * plyW;
+	const width = Math.max(options.width, x(maxPly) + nameSpace);
+
+	const ruler: Layout['ruler'] = [];
+	const step = detail ? 1 : 2 * Math.max(1, Math.ceil(30 / (2 * plyW)));
+	for (let ply = opening; ply <= maxPly; ply += step) {
+		if (ply !== opening && x(ply) - x(opening) < 30) continue;
+		ruler.push({ x: x(ply), label: ply === opening ? (options.openingLabel ?? plyLabel(ply)) : plyLabel(ply) });
+	}
+
+	const out: Layout = { width, height: 0, ruler, bands: [], edges: [], nodes: [], here: null };
+	let y = TOP;
+
+	for (const band of bands) {
+		const isCollapsed = collapsed.has(band.name);
+		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
+		const root = trie(band.lines, opening);
+		const leaves = isCollapsed ? 0 : place(root, row, y);
+		const height = Math.max(leaves * row, HEAD[zoom]);
+		out.bands.push({
+			name: band.name,
+			label: band.kind === 'variation' ? shortVariation(band.name) : band.name,
+			kind: band.kind,
+			y,
+			height,
+			count: `${band.discovered} of ${band.lines.length}`,
+			collapsed: isCollapsed,
+			here: bandHere
+		});
+
+		if (!isCollapsed) {
+			const draw = (node: TrieNode, parent: TrieNode | null) => {
+				if (parent) {
+					const state = edgeState(node, stages, here);
+					const x1 = x(parent.ply);
+					const x2 = x(node.ply);
+					const d =
+						parent.y === node.y
+							? `M${x1} ${parent.y} H${x2}`
+							: `M${x1} ${parent.y} C${x1 + plyW * 0.55} ${parent.y} ${x2 - plyW * 0.55} ${node.y} ${x2} ${node.y}`;
+					let label: LayoutEdge['label'] = null;
+					// The move is written only where the learner has been: fog and the secret continuation stay unlabelled.
+					if (detail && (state === 'lit' || state === 'ember')) {
+						const shown = node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here));
+						// At the landing end, where a curved edge has flattened out, so the move reads as "what lands here".
+						if (shown) label = { x: x2 - 3, y: node.y - 5, text: sanOf(shown)[node.ply - 1] };
+					}
+					out.edges.push({ d, state, label });
+				}
+				for (const child of node.children) draw(child, node);
+				if (node.ends.length) {
+					const stage = node.ends.some((l) => stages.get(l.key) === 'discovered')
+						? 'discovered'
+						: node.ends.some((l) => stages.get(l.key) === 'entered' || isHere(l, here))
+							? 'entered'
+							: null;
+					const kind = stage === 'discovered' ? 'lit' : stage === 'entered' ? 'ember' : 'secret';
+					let label: string | null = null;
+					if (detail && stage === 'discovered') {
+						const found = node.ends.find((l) => stages.get(l.key) === 'discovered')!;
+						label = band.kind === 'variation' ? shortLine(found) : shortVariation(found.name);
+					}
+					out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label });
+				} else if (detail && node.children.length > 1) {
+					// Branch points are the only structure the fog reveals.
+					out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null });
+				}
+			};
+			draw(root, null);
+
+			if (bandHere && here!.index >= opening) {
+				let at: TrieNode | undefined = root;
+				for (let ply = opening; ply < here!.index && at; ply++) {
+					const uci: string = here!.line.moves[ply];
+					at = at.children.find((c) => c.uci === uci);
+				}
+				if (at) out.here = { x: x(at.ply), y: at.y };
+			}
+		}
+
+		y += height + GAP[zoom];
+	}
+
+	out.height = y + 8;
+	return out;
+}
+
+/** Elements the layout will render, for the performance budget. */
+export const elementCount = (l: Layout) =>
+	l.ruler.length +
+	l.bands.length * 3 +
+	l.edges.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
+	l.nodes.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
+	(l.here ? 2 : 0);

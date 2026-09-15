@@ -36,14 +36,16 @@ src/
                               mistakes), freeplay.svelte.ts (coached play from any position)
     explore/                  book.ts (established lines by position, discovery summary),
                               session.svelte.ts (ExploreSession), mastery.ts (FSRS per line from the review log),
-                              review.svelte.ts (ReviewSession: Practice) — see [[Exploration Mode]]
+                              review.svelte.ts (ReviewSession: Practice), linemap.ts (the map's layout:
+                              bands, trie, edge states) — see [[Exploration Mode]]
     drill/                    bundle.ts (bundle format, shared with the pipeline), session.svelte.ts
                               (Practice walks), grade.ts, tree.ts, scheduler.ts (FSRS),
                               progress.ts / synced-store.ts / server-store.ts / account.svelte.ts (progress storage)
     server/                   google.ts, session.ts, users.ts, progress.ts, account.ts, stats.ts,
                               validate.ts, http.ts, assets.ts (static files via ASSETS in production)
     theme/                    Themes and piece sets, settings persistence
-    ui/                       EvalBar, Meter, MiniBoard, position helpers
+    ui/                       EvalBar, Meter, MiniBoard, LineShelf (variations under the board),
+                              LineMap (the fog-of-war chart), position helpers
   routes/
     +page.svelte              Opening picker
     openings/[id]/            Explore / Practice page

@@ -4,13 +4,16 @@
 	let {
 		variations,
 		here = null,
-		count = $bindable<HTMLElement | null>(null)
+		count = $bindable<HTMLElement | null>(null),
+		onopen
 	}: {
 		variations: VariationSummary[];
 		/** The variation the game is in, ringed on the shelf. */
 		here?: string | null;
 		/** The counter element, for anything that wants to fly into it. */
 		count?: HTMLElement | null;
+		/** A click on a segment opens the map at that band ("Sidelines" for the folded one). */
+		onopen?: (band: string) => void;
 	} = $props();
 
 	/**
@@ -44,15 +47,19 @@
 <div class="shelf">
 	<div class="segments" role="img" aria-label="{totals.discovered} of {totals.total} lines discovered">
 		{#each segments as segment (segment.name)}
-			<span
+			<button
+				type="button"
 				class="segment"
 				class:here={here !== null && segment.names.includes(here)}
 				style="flex-grow: {segment.total}"
 				title="{short(segment.name)} — {segment.discovered} of {segment.total} discovered{segment.entered ? `, ${segment.entered} entered` : ''}"
+				aria-label="{short(segment.name)}: {segment.discovered} of {segment.total} discovered. Open the map."
+				disabled={!onopen}
+				onclick={() => onopen?.(segment.name)}
 			>
 				<span class="lit" style="width: {(segment.discovered / segment.total) * 100}%"></span>
 				<span class="warm" style="width: {(segment.entered / segment.total) * 100}%"></span>
-			</span>
+			</button>
 		{/each}
 	</div>
 	{#key bump}
@@ -83,8 +90,12 @@
 		display: flex;
 		flex-basis: 0;
 		min-width: 3px;
+		padding: 0;
+		border: 0;
 		border-radius: 2px;
 		overflow: hidden;
+		cursor: pointer;
+		transition: transform 160ms var(--ease);
 		background: repeating-linear-gradient(
 			-45deg,
 			color-mix(in srgb, var(--text-3) 26%, transparent) 0 2px,
@@ -94,6 +105,21 @@
 
 	.segment.here {
 		box-shadow: 0 0 0 1.5px var(--accent);
+	}
+
+	.segment:disabled {
+		cursor: default;
+	}
+
+	.segment:hover:not(:disabled),
+	.segment:focus-visible {
+		transform: scaleY(1.35);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.segment {
+			transition: none;
+		}
 	}
 
 	.lit {

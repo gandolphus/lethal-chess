@@ -41,6 +41,7 @@ only; rating-based strategy is at the bottom of the backlog.
   lethalchess.com; Google sign-in; Cloudflare Workers + D1; no browser engine.
 - [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
   natural computer replies, planted mistakes to punish.
+- [[Exploration Mode]] — **idea, discuss next**. Secret lines, "x of n discovered", celebrate discoveries, keep playing on good moves.
 - [[Off-book Practice]] — **designed, first after launch**. Drill punishing the unusual moves opponents
   actually play, not only the book. The blind spot most drilling tools share.
 - [[Play vs Computer]] — **done (MVP), audited + fixed**. Board + Stockfish opponent. Local builds only.

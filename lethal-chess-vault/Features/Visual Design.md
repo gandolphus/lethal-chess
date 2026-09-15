@@ -60,6 +60,16 @@ rather than picking one.
 must be unhinted); Ruy Lopez showed maximum Lethality because one mate-in-1 position scored 99,935 in
 the mean — sharpness is now capped (1,000 cp per position, 300 per position in the opening average).
 
+## Fabulous collection (2026-09-15, Fable 5.1)
+
+Requested by the user's friend: a purple board, "fabulous but playable". Themes **Amethyst** (dark) and
+**Wisteria** (light) on the Material board style, and the **Regalia** piece set — baroque turned forms,
+accent-coloured jewels on king and queen that pick up each theme's accent colour.
+
+Legibility trade-offs taken deliberately: highlight fills are orchid rather than gold (gold on
+saturated purple turns muddy), iridescent sheen kept at 7% with no animation, black pieces a
+desaturated plum so they separate from dark squares.
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

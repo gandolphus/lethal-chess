@@ -254,11 +254,87 @@ const NOCTURNE: Geometry = {
 	}
 };
 
+/* ── REGALIA (Fabulous): turned baroque forms — beaded collars, swelling gowns, a two-step plinth.
+   `j` is a jewel set in the theme accent; `g` its glint. The gloss is a masked gradient, not a filter. */
+const rBase = (w: number) =>
+	P(sym(`M50 73 L${50 + w - 7} 73 C${50 + w - 3} 73 ${50 + w - 1} 75 ${50 + w - 1} 78 L${50 + w - 1} 81 L50 81`)) +
+	rect(50 - w, 80, 2 * w, 6, 2) +
+	rect(50 - w - 2.5, 85.5, 2 * w + 5, 7.5, 3.5);
+const rSeam = (w: number) => P(`M${50 - w - 1} 86 H${50 + w + 1}`, ' fill="none" stroke-width="1.5" opacity=".55"');
+type Regal = Glyph & { j?: string };
+const REGALIA: Record<'P' | 'R' | 'B' | 'N' | 'Q' | 'K', Regal> = {
+	P: {
+		s: circ(50, 26, 10.5) + ell(50, 38.5, 7, 3) + P(sym('M50 40 L54.5 40 C55 50 58 62 63.5 74 L50 74')) + rBase(21),
+		d: rSeam(21)
+	},
+	R: {
+		s:
+			rect(31, 13, 9, 13, 1.5) +
+			rect(45.5, 13, 9, 13, 1.5) +
+			rect(60, 13, 9, 13, 1.5) +
+			P(sym('M50 24 L68 24 C69.5 24 70 25 70 26.5 L70 31 C70 32.5 69 33.5 67.5 33.5 L50 33.5')) +
+			P(sym('M50 33 L63 33 C62 45 62 58 65 74 L50 74')) +
+			rBase(24),
+		d: P('M32 34 H68', ' fill="none" stroke-width="1.5" opacity=".55"') + rSeam(24)
+	},
+	B: {
+		s:
+			circ(50, 8.5, 3.4) +
+			P('M50 11.5 C63 21.5 67 43 52 57.5 L48 57.5 C33 43 37 21.5 50 11.5 Z M55 23.5 L62.5 36.5 L60 38.5 L52.5 25.5 Z', ' fill-rule="evenodd"') +
+			ell(50, 58.5, 10, 3.2) +
+			ell(50, 63, 7.5, 2.5) +
+			P(sym('M50 63 L55 63 C55.5 68 58 71.5 61 74 L50 74')) +
+			rBase(22),
+		d: rSeam(22)
+	},
+	N: {
+		s:
+			P(
+				'M33 74 L33 64 C33 56 35 50 39 46 L27 44 C21 43 18 38 20 34 C22 31 26 31 29 32 C31 28 34 24 38 21 L40 9 C44 11 46 15 47 18 L51 17 C53 12 56 9 59 7 L61 19 C68 26 71 40 70 56 L70 74 Z'
+			) + rBase(24),
+		d:
+			circ(42, 27.5, 1.9) +
+			P('M62 25 C66 33 68 44 67 58', ' fill="none"') +
+			P('M55 24 C58 30 60 38 60 48', ' fill="none" stroke-width="1.3" opacity=".6"') +
+			P('M21 36 L25 35.5', ' fill="none"') +
+			rSeam(24)
+	},
+	Q: {
+		s:
+			[24, 37, 50, 63, 76].map((x, i) => circ(x, [21, 13, 9, 13, 21][i], 3.4)).join('') +
+			P(
+				'M28 46 C27 38 25 30 24 23 L33 36 C34 29 36 21 37 16 L44 35 C46 27 48 19 50 12 C52 19 54 27 56 35 L63 16 C64 21 66 29 67 36 L76 23 C75 30 73 38 72 46 Z'
+			) +
+			rect(28, 44, 44, 7, 3.5) +
+			P(sym('M50 50 L59 50 C58.5 58 61 67 66 74 L50 74')) +
+			rBase(27),
+		d: P('M39 62 C44 64.5 56 64.5 61 62', ' fill="none" stroke-width="1.5" opacity=".6"') + rSeam(27),
+		j: P('M50 43.2 L54.2 47.5 L50 51.8 L45.8 47.5 Z') + `<circle cx="48.9" cy="46.3" r=".9" fill="#fff" stroke="none" opacity=".85"/>`
+	},
+	K: {
+		s:
+			rect(47.6, 1.5, 4.8, 13, 1.5) +
+			rect(42.5, 5.5, 15, 4.6, 1.5) +
+			circ(50, 16.5, 3.8) +
+			P(sym('M50 19 C58 19 64 23 66.5 29 C68.5 35 68.5 41 67 47.5 L50 47.5')) +
+			rect(29, 46, 42, 7, 3.5) +
+			P(sym('M50 52 L60 52 C59.5 60 62 68 66 74 L50 74')) +
+			rBase(27),
+		d:
+			P('M50 22 V44.5', ' fill="none" stroke-width="1.4" opacity=".55"') +
+			P('M38.5 27 C43 32 45.5 38 46.2 44.5', ' fill="none" stroke-width="1.4" opacity=".55"') +
+			P('M61.5 27 C57 32 54.5 38 53.8 44.5', ' fill="none" stroke-width="1.4" opacity=".55"') +
+			rSeam(27),
+		j: circ(50, 49.5, 3.3) + `<circle cx="48.9" cy="48.4" r=".9" fill="#fff" stroke="none" opacity=".85"/>`
+	}
+};
+
 export const CUSTOM_SETS = {
 	monolith: MONOLITH,
 	material: MATERIAL,
 	instrument: INSTRUMENT,
-	nocturne: NOCTURNE
+	nocturne: NOCTURNE,
+	regalia: REGALIA
 } as const;
 export type CustomSet = keyof typeof CUSTOM_SETS;
 
@@ -348,7 +424,35 @@ const STYLE = `
 .lp-nocturne.b .rim { filter: url(#lp-nocturne-rim-b); }
 .lp-nocturne.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2; }
 .lp-nocturne.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 1.8; }
+/* regalia: crisp outline, one gradient across the whole piece, a masked side-light gloss, accent jewels */
+.lp-regalia .o { stroke-width: 4.2; }
+.lp-regalia.w .o { stroke: var(--pws); fill: var(--pws); stroke-width: 5; }
+.lp-regalia.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.lp-regalia.w .f { fill: url(#lp-regalia-grad-w); }
+.lp-regalia.b .f { fill: url(#lp-regalia-grad-b); }
+#lp-regalia-grad-w stop:first-child { stop-color: var(--pw1); } #lp-regalia-grad-w stop:last-child { stop-color: var(--pw2); }
+#lp-regalia-grad-b stop:first-child { stop-color: var(--pb1); } #lp-regalia-grad-b stop:last-child { stop-color: var(--pb2); }
+.lp-regalia.w .gloss { fill: url(#lp-regalia-gloss-w); }
+.lp-regalia.b .gloss { fill: url(#lp-regalia-gloss-b); }
+.lp-regalia.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2.2; }
+.lp-regalia.b .d { stroke: var(--pbh); fill: var(--pbh); stroke-width: 2; }
+.lp-regalia .j { fill: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.lp-regalia.w .j { stroke: var(--pws); }
+.lp-regalia.b .j { stroke: var(--pbs); }
 `;
+
+/* Regalia: the fill gradient spans the piece (not each turned segment); the gloss is a horizontal
+   light-left / shade-right band painted through the silhouette as a mask. */
+const spanGradient = (id: string) =>
+	`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="4" x2="0" y2="94"><stop offset="0"/><stop offset="1"/></linearGradient>`;
+const gloss = (id: string, w: boolean) =>
+	`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="0">
+	<stop offset="0" stop-color="#fff" stop-opacity="0"/>
+	<stop offset=".27" stop-color="#fff" stop-opacity="${w ? 0.34 : 0.24}"/>
+	<stop offset=".5" stop-color="#fff" stop-opacity="${w ? 0.05 : 0.03}"/>
+	<stop offset=".68" stop-color="#000" stop-opacity="0"/>
+	<stop offset="1" stop-color="#000" stop-opacity="${w ? 0.16 : 0.3}"/>
+</linearGradient>`;
 
 /** Builds the `<defs>` markup (symbols, gradients, filters) for one custom set. */
 export function customSprite(set: CustomSet): string {
@@ -360,10 +464,15 @@ export function customSprite(set: CustomSet): string {
 	if (set === 'material') defs += '<filter id="lp-material-blur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="2.2"/></filter>' + lit('lp-material-lit-w', true) + lit('lp-material-lit-b', false);
 	if (set === 'nocturne') defs += gradient('lp-nocturne-grad-w') + gradient('lp-nocturne-grad-b') + rim('lp-nocturne-rim-w', true) + rim('lp-nocturne-rim-b', false);
 	if (set === 'monolith') defs += gradient('lp-monolith-grad-w') + gradient('lp-monolith-grad-b');
+	if (set === 'regalia') defs += spanGradient('lp-regalia-grad-w') + spanGradient('lp-regalia-grad-b') + gloss('lp-regalia-gloss-w', true) + gloss('lp-regalia-gloss-b', false);
 
 	for (const t of TYPES) {
-		const g = geometry[t];
+		const g: Regal = geometry[t];
 		defs += `<g id="lp-${set}-g-${t}">${nss(g.s)}</g><g id="lp-${set}-gd-${t}">${nss(g.d ?? '')}</g>`;
+		if (set === 'regalia') {
+			defs += `<mask id="lp-regalia-m-${t}" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><use href="#lp-regalia-g-${t}" fill="#fff"/></mask>`;
+			defs += `<g id="lp-regalia-gj-${t}">${g.j ?? ''}</g>`;
+		}
 		for (const c of ['w', 'b'] as const) {
 			const o = `<use href="#lp-${set}-g-${t}" class="o"/>`;
 			const f = `<use href="#lp-${set}-g-${t}" class="f"/>`;
@@ -377,6 +486,10 @@ export function customSprite(set: CustomSet): string {
 				defs += symbol('-flat', `${ao}${o}${f}${d}`);
 			} else if (set === 'nocturne') {
 				defs += symbol('', `${o}<g class="rim">${f}</g>${d}`);
+			} else if (set === 'regalia') {
+				const gl = `<rect class="gloss" x="0" y="0" width="100" height="100" mask="url(#lp-regalia-m-${t})"/>`;
+				const j = `<use href="#lp-regalia-gj-${t}" class="j"/>`;
+				defs += symbol('', `${o}${f}${gl}${d}${j}`);
 			} else {
 				defs += symbol('', `${o}${f}${d}`);
 			}

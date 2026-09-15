@@ -12,6 +12,7 @@ const loaders: Record<SvgSet, () => string | Promise<string>> = {
 	material: () => customSprite('material'),
 	instrument: () => customSprite('instrument'),
 	nocturne: () => customSprite('nocturne'),
+	regalia: () => customSprite('regalia'),
 	chessnut: () => importedSprite('chessnut'),
 	cburnett: () => importedSprite('cburnett')
 };

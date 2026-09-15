@@ -41,7 +41,9 @@ export const THEMES: ThemeOption[] = [
 	{ id: 'graphite', name: 'Graphite', mode: 'dark', collection: 'Round 2 · Instrument', board: 'instrument' },
 	{ id: 'vellum', name: 'Vellum', mode: 'light', collection: 'Round 2 · Instrument', board: 'instrument' },
 	{ id: 'night', name: 'Night', mode: 'dark', collection: 'Round 2 · Nocturne', board: 'nocturne' },
-	{ id: 'dawn', name: 'Dawn', mode: 'light', collection: 'Round 2 · Nocturne', board: 'nocturne' }
+	{ id: 'dawn', name: 'Dawn', mode: 'light', collection: 'Round 2 · Nocturne', board: 'nocturne' },
+	{ id: 'amethyst', name: 'Amethyst', mode: 'dark', collection: 'Fabulous', board: 'material' },
+	{ id: 'wisteria', name: 'Wisteria', mode: 'light', collection: 'Fabulous', board: 'material' }
 ];
 
 export const PIECE_SETS: PieceSetOption[] = [
@@ -51,6 +53,7 @@ export const PIECE_SETS: PieceSetOption[] = [
 	{ id: 'material', name: 'Material', collection: 'Round 2', publicSafe: true },
 	{ id: 'instrument', name: 'Instrument', collection: 'Round 2', publicSafe: true },
 	{ id: 'nocturne', name: 'Nocturne', collection: 'Round 2', publicSafe: true },
+	{ id: 'regalia', name: 'Regalia', collection: 'Fabulous', publicSafe: true },
 	{ id: 'glyph', name: 'Glyph', collection: 'Base', publicSafe: true }
 ];
 

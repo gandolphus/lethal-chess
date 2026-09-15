@@ -1,0 +1,244 @@
+import { Chess, type Square } from 'chess.js';
+import type { Analysis, AnalysisLine, Engine, EngineScore } from '$lib/chess/engine';
+import { Game, parseUci, toUci } from '$lib/chess/game.svelte';
+import type { Arrow, SquareMarks } from '$lib/components/board';
+import { isSound, lossFor, verdictFor, winChance, type Side, type Verdict } from './judge';
+import { chooseReply } from './opponent';
+
+export type AnalysisEngine = Pick<Engine, 'analyse'>;
+
+export type FreePlayPhase =
+	| 'thinking' // the engine is analysing or the computer is about to move
+	| 'your-move'
+	| 'retry' // the learner missed a planted mistake; one more try
+	| 'reveal' // the punishing move is shown; the learner plays it
+	| 'over'; // checkmate, stalemate or draw
+
+export type Message = { tone: 'best' | 'good' | 'warn' | 'bad' | 'info'; text: string };
+
+export type FreePlayOptions = {
+	engine: AnalysisEngine;
+	/** UCI moves from the initial position — usually where a drill line ended. */
+	startMoves: string[];
+	side: Side;
+	mistakeRate?: number;
+	multipv?: number;
+	moveTimeMs?: number;
+	opponentDelayMs?: number;
+	random?: () => number;
+	wait?: (ms: number) => Promise<void>;
+};
+
+// A planted mistake only counts as an opportunity if it hands the learner at least this much.
+const OPPORTUNITY_MIN_GAIN = 0.15;
+
+const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const san = (fen: string, uci: string) => {
+	try {
+		return new Chess(fen).move(parseUci(uci)).san;
+	} catch {
+		return uci;
+	}
+};
+
+const pawns = (loss: number) => `${Math.round(loss * 100)}%`;
+
+/**
+ * Coached free play from any position: every learner move gets a verdict, the
+ * computer answers with natural moves, and now and then deliberately errs so the
+ * learner has something to punish. Missing the punishment means trying again.
+ */
+export class FreePlay {
+	readonly game = new Game();
+	readonly side: Side;
+
+	phase = $state<FreePlayPhase>('thinking');
+	message = $state<Message | null>(null);
+	lastVerdict = $state<Verdict | null>(null);
+	/** The computer's last move was a planted mistake worth punishing. */
+	opportunity = $state<{ move: string; san: string } | null>(null);
+	flash = $state<{ from: Square; to: Square; kind: 'correct' | 'soft' | 'wrong' } | null>(null);
+	/** Engine evaluation of the position on the board (White's point of view), for an eval bar. */
+	evaluation = $state<EngineScore | null>(null);
+
+	readonly arrows = $derived.by<Arrow[]>(() => {
+		if (this.phase !== 'reveal' || !this.#before?.lines[0]) return [];
+		const { from, to } = parseUci(this.#before.lines[0].move);
+		return [{ from, to, kind: 'hint' }];
+	});
+
+	readonly marks = $derived.by<SquareMarks>(() => {
+		const marks: SquareMarks = {};
+		const add = (square: Square, mark: NonNullable<SquareMarks[Square]>[number]) => {
+			marks[square] = [...(marks[square] ?? []), mark];
+		};
+		const last = this.game.lastMove;
+		if (last) {
+			add(last.from, 'last-move');
+			add(last.to, 'last-move');
+		}
+		if (this.game.checkSquare) add(this.game.checkSquare, 'check');
+		if (this.flash) {
+			add(this.flash.from, this.flash.kind);
+			add(this.flash.to, this.flash.kind);
+		}
+		return marks;
+	});
+
+	#options: FreePlayOptions;
+	/** Analysis of the current position when it is the learner's move. */
+	#before: Analysis | null = null;
+	#misses = 0;
+
+	constructor(options: FreePlayOptions) {
+		this.#options = options;
+		this.side = options.side;
+	}
+
+	#analyse(fen: string) {
+		return this.#options.engine.analyse(fen, {
+			multipv: this.#options.multipv ?? 6,
+			moveTimeMs: this.#options.moveTimeMs ?? 700
+		});
+	}
+
+	async start() {
+		this.game.load(this.#options.startMoves);
+		if (this.#checkOver()) return;
+		if (this.game.turn === this.side) await this.#prepareLearnerTurn();
+		else await this.#computerMove(await this.#analyse(this.game.fen));
+	}
+
+	async submit(from: Square, to: Square, promotion?: string): Promise<Verdict | null> {
+		if (!['your-move', 'retry', 'reveal'].includes(this.phase) || !this.#before) return null;
+		const before = this.#before;
+		const best = before.lines[0];
+		const move = this.game.find({ from, to, promotion });
+		if (!move || !best) return null;
+
+		const uci = toUci(move);
+		if (this.phase === 'reveal' && uci !== best.move) {
+			this.message = { tone: 'info', text: `Play ${san(before.fen, best.move)} — the arrow shows it.` };
+			return null;
+		}
+
+		this.phase = 'thinking';
+		this.game.move({ from, to, promotion });
+		const after = await this.#analyse(this.game.fen);
+		if (after.lines[0]) this.evaluation = after.lines[0].score;
+		const playedScore = this.#scoreAfter(after, uci, before);
+		const loss = lossFor(best, playedScore, this.side);
+		const verdict = verdictFor(loss, uci === best.move);
+		this.lastVerdict = verdict;
+
+		if (this.opportunity && !isSound(verdict)) {
+			this.game.undo();
+			// The move was taken back, so the bar goes back to the position it came from.
+			if (best) this.evaluation = best.score;
+			this.#misses++;
+			const punish = san(before.fen, best.move);
+			if (this.#misses >= 2) {
+				this.phase = 'reveal';
+				this.flash = { from, to, kind: 'wrong' };
+				this.message = { tone: 'bad', text: `${punish} punishes ${this.opportunity.san}. Play it.` };
+			} else {
+				this.phase = 'retry';
+				this.flash = { from, to, kind: 'wrong' };
+				this.message = {
+					tone: 'bad',
+					text: `You missed an opportunity: ${this.opportunity.san} can be punished. Try again.`
+				};
+			}
+			return verdict;
+		}
+
+		this.flash = { from, to, kind: isSound(verdict) ? 'correct' : verdict === 'inaccuracy' ? 'soft' : 'wrong' };
+		this.message = this.#describe(verdict, loss, before, best);
+		this.opportunity = null;
+		this.#misses = 0;
+
+		if (this.#checkOver()) return verdict;
+		await this.#computerMove(after);
+		return verdict;
+	}
+
+	/** The learner's move's score: its own line if the pre-move analysis had it, otherwise the fresh analysis. */
+	#scoreAfter(after: Analysis, uci: string, before: Analysis) {
+		const known = before.lines.find((l) => l.move === uci);
+		if (known) return known.score;
+		return after.lines[0]?.score ?? { cp: 0 };
+	}
+
+	#describe(verdict: Verdict, loss: number, before: Analysis, best: AnalysisLine): Message {
+		const better = san(before.fen, best.move);
+		const wasOpportunity = this.opportunity;
+		switch (verdict) {
+			case 'best':
+				return { tone: 'best', text: wasOpportunity ? `Punished! ${wasOpportunity.san} was a mistake.` : 'Best move.' };
+			case 'good':
+				return { tone: 'good', text: wasOpportunity ? `Good — you took advantage of ${wasOpportunity.san}.` : 'Good move.' };
+			case 'inaccuracy':
+				return { tone: 'warn', text: `Inaccuracy (−${pawns(loss)} winning chances). ${better} was better.` };
+			case 'mistake':
+				return { tone: 'bad', text: `Mistake (−${pawns(loss)} winning chances). ${better} was better.` };
+			case 'blunder':
+				return { tone: 'bad', text: `Blunder (−${pawns(loss)} winning chances). ${better} was much better.` };
+		}
+	}
+
+	async #computerMove(analysis: Analysis) {
+		this.phase = 'thinking';
+		const opponent: Side = this.side === 'w' ? 'b' : 'w';
+		if (!analysis.lines.length) {
+			this.#checkOver();
+			return;
+		}
+		const choice = chooseReply(analysis.lines, opponent, {
+			mistakeRate: this.#options.mistakeRate ?? 0.15,
+			random: this.#options.random ?? Math.random
+		});
+		await (this.#options.wait ?? defaultWait)(this.#options.opponentDelayMs ?? 400);
+
+		const beforeFen = this.game.fen;
+		const learnerChanceBefore = winChance(analysis.lines[0].score, this.side);
+		this.game.move(parseUci(choice.line.move));
+		this.flash = null;
+		if (this.#checkOver()) return;
+
+		await this.#prepareLearnerTurn();
+		// No analysis lines (e.g. a search cut too short) means no evidence of an opportunity.
+		const bestNow = this.#before?.lines[0];
+		const gain = bestNow ? winChance(bestNow.score, this.side) - learnerChanceBefore : 0;
+		this.opportunity =
+			choice.kind === 'mistake' && gain >= OPPORTUNITY_MIN_GAIN
+				? { move: choice.line.move, san: san(beforeFen, choice.line.move) }
+				: null;
+		this.#misses = 0;
+	}
+
+	async #prepareLearnerTurn() {
+		this.phase = 'thinking';
+		this.#before = await this.#analyse(this.game.fen);
+		if (this.#before.lines[0]) this.evaluation = this.#before.lines[0].score;
+		this.phase = 'your-move';
+	}
+
+	#checkOver(): boolean {
+		if (!this.game.isOver) return false;
+		this.phase = 'over';
+		const status = this.game.status;
+		this.message = {
+			tone: 'info',
+			text:
+				status === 'checkmate'
+					? this.game.turn === this.side
+						? 'Checkmate — the computer wins.'
+						: 'Checkmate — you win.'
+					: status === 'stalemate'
+						? 'Stalemate.'
+						: 'Draw.'
+		};
+		return true;
+	}
+}

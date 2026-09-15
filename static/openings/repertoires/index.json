@@ -1,0 +1,406 @@
+[
+  {
+    "id": "ruy-lopez",
+    "name": "Ruy Lopez",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.e4 e5 2.Nf3 Nc6 3.Bb5",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 48,
+    "bytes": 172481
+  },
+  {
+    "id": "italian-game",
+    "name": "Italian Game",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.e4 e5 2.Nf3 Nc6 3.Bc4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 48,
+    "bytes": 168386
+  },
+  {
+    "id": "scotch-game",
+    "name": "Scotch Game",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.e4 e5 2.Nf3 Nc6 3.d4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 37,
+    "bytes": 165493
+  },
+  {
+    "id": "vienna-game",
+    "name": "Vienna Game",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.e4 e5 2.Nc3",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 59,
+    "bytes": 168608
+  },
+  {
+    "id": "kings-gambit",
+    "name": "King's Gambit",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.e4 e5 2.f4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 54,
+    "bytes": 169031
+  },
+  {
+    "id": "evans-gambit",
+    "name": "Evans Gambit",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 60,
+    "bytes": 159865
+  },
+  {
+    "id": "danish-gambit",
+    "name": "Danish Gambit",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.e4 e5 2.d4 exd4 3.c3",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 33,
+    "bytes": 149725
+  },
+  {
+    "id": "smith-morra-gambit",
+    "name": "Smith-Morra Gambit",
+    "side": "w",
+    "group": "white-e4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.e4 c5 2.d4 cxd4 3.c3",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 30,
+    "bytes": 166753
+  },
+  {
+    "id": "queens-gambit",
+    "name": "Queen's Gambit",
+    "side": "w",
+    "group": "white-d4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.d4 d5 2.c4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 32,
+    "bytes": 175111
+  },
+  {
+    "id": "london-system",
+    "name": "London System",
+    "side": "w",
+    "group": "white-d4",
+    "tags": [
+      "popular",
+      "system"
+    ],
+    "moves": "1.d4 d5 2.Bf4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 23,
+    "bytes": 149374
+  },
+  {
+    "id": "catalan",
+    "name": "Catalan Opening",
+    "side": "w",
+    "group": "white-d4",
+    "tags": [
+      "solid"
+    ],
+    "moves": "1.d4 Nf6 2.c4 e6 3.g3",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 8,
+    "bytes": 171934
+  },
+  {
+    "id": "english",
+    "name": "English Opening",
+    "side": "w",
+    "group": "white-flank",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.c4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 19,
+    "bytes": 173607
+  },
+  {
+    "id": "reti",
+    "name": "Réti Opening",
+    "side": "w",
+    "group": "white-flank",
+    "tags": [
+      "solid"
+    ],
+    "moves": "1.Nf3 d5 2.c4",
+    "learnerNodes": 180,
+    "maxPly": 21,
+    "opponentSharpness": 27,
+    "bytes": 159871
+  },
+  {
+    "id": "sicilian",
+    "name": "Sicilian Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.e4 c5",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 18,
+    "bytes": 167968
+  },
+  {
+    "id": "sicilian-dragon",
+    "name": "Sicilian Dragon",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 g6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 37,
+    "bytes": 158804
+  },
+  {
+    "id": "caro-kann",
+    "name": "Caro-Kann Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "popular",
+      "solid"
+    ],
+    "moves": "1.e4 c6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 27,
+    "bytes": 167467
+  },
+  {
+    "id": "french",
+    "name": "French Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "popular",
+      "solid"
+    ],
+    "moves": "1.e4 e6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 27,
+    "bytes": 173644
+  },
+  {
+    "id": "scandinavian",
+    "name": "Scandinavian Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.e4 d5",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 25,
+    "bytes": 168324
+  },
+  {
+    "id": "pirc",
+    "name": "Pirc Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.e4 d6 2.d4 Nf6 3.Nc3 g6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 30,
+    "bytes": 174240
+  },
+  {
+    "id": "alekhine",
+    "name": "Alekhine's Defense",
+    "side": "b",
+    "group": "black-e4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.e4 Nf6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 30,
+    "bytes": 167301
+  },
+  {
+    "id": "queens-gambit-declined",
+    "name": "Queen's Gambit Declined",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "popular",
+      "solid"
+    ],
+    "moves": "1.d4 d5 2.c4 e6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 15,
+    "bytes": 171336
+  },
+  {
+    "id": "slav",
+    "name": "Slav Defense",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "popular",
+      "solid"
+    ],
+    "moves": "1.d4 d5 2.c4 c6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 21,
+    "bytes": 167511
+  },
+  {
+    "id": "kings-indian",
+    "name": "King's Indian Defense",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "popular",
+      "aggressive"
+    ],
+    "moves": "1.d4 Nf6 2.c4 g6 3.Nc3 Bg7 4.e4 d6",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 20,
+    "bytes": 172244
+  },
+  {
+    "id": "nimzo-indian",
+    "name": "Nimzo-Indian Defense",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "popular"
+    ],
+    "moves": "1.d4 Nf6 2.c4 e6 3.Nc3 Bb4",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 34,
+    "bytes": 165164
+  },
+  {
+    "id": "grunfeld",
+    "name": "Grünfeld Defense",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.d4 Nf6 2.c4 g6 3.Nc3 d5",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 43,
+    "bytes": 164534
+  },
+  {
+    "id": "dutch",
+    "name": "Dutch Defense",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "aggressive"
+    ],
+    "moves": "1.d4 f5",
+    "learnerNodes": 180,
+    "maxPly": 18,
+    "opponentSharpness": 8,
+    "bytes": 166521
+  },
+  {
+    "id": "benko-gambit",
+    "name": "Benko Gambit",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.d4 Nf6 2.c4 c5 3.d5 b5",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 37,
+    "bytes": 165933
+  },
+  {
+    "id": "budapest-gambit",
+    "name": "Budapest Gambit",
+    "side": "b",
+    "group": "black-d4",
+    "tags": [
+      "aggressive",
+      "gambit"
+    ],
+    "moves": "1.d4 Nf6 2.c4 e5",
+    "learnerNodes": 180,
+    "maxPly": 22,
+    "opponentSharpness": 22,
+    "bytes": 156820
+  }
+]

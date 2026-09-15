@@ -9,22 +9,65 @@ Entry note for the planning / brainstorm / decision / memory vault. Lives at `le
 
 ## Vision
 
-_TODO: one paragraph — what is lethal-chess and why does it exist?_
+**A tool for drilling chess, starting with openings.** Not a course, not an analysis board — a
+training loop. You meet a position, you play the move, you find out immediately whether you were
+right, and the system decides when you see it again. The goal is *instinctive recall* of a
+repertoire, not knowledge that you can only reconstruct slowly.
+
+This is a **deliberate narrowing** of the earlier "Chess Lethality Visualizer" concept (see
+[[Lineage — from lethality analyzer to drilling tool]]). That project's premise — that the
+interesting signal is *how humans actually fail*, not what the engine prefers — is still the
+long-term differentiator, and its scoring pipeline still exists in `../chess-lethality-analyzer`.
+But it is parked. First build the thing that is useful to one person every day.
+
+## Current state
+
+MVP is playable: [[Play vs Computer]] — board, legal moves, engine opponent. That is the
+substrate the drilling layer sits on, not the product.
 
 ## Maps of content
 
 - [[System Map]] — architecture, directory layout, data model (source of truth for *what exists and why*).
 - [[Decision Log]] — dated, rationale-bearing record of every locked decision.
 - [[Stack (MOC)]] — the technologies in use.
+- [[Data sources]] — what data exists for classification, all verified.
 
 ## Features
 
-_Add one note per feature under `Features/` and link them here._
+**Direction (2026-09-15): precision first. A serious tool, not a hacky one.** Objective engine truth
+only; rating-based strategy is at the bottom of the backlog.
+
+- [[Public MVP]] — **in progress, top priority**. Novice-friendly Learn → Practice → Progress on
+  lethalchess.com; Google sign-in; Cloudflare Workers + D1; no browser engine.
+- [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
+  natural computer replies, planted mistakes to punish.
+- [[Off-book Practice]] — **designed, first after launch**. Drill punishing the unusual moves opponents
+  actually play, not only the book. The blind spot most drilling tools share.
+- [[Play vs Computer]] — **done (MVP), audited + fixed**. Board + Stockfish opponent. Local builds only.
+- [[Opening Drills]] — **designed, first priority**. English (White), Sicilian and Caro-Kann (Black);
+  catalog-named tracks, eval-graded moves, sharpest lines first.
+- [[Progress Tracking]] — **designed**. Append-only attempt log in SQLite; proficiency per track,
+  family, repertoire.
+- [[Visual Design]] — **ported + overhauled**. 13 themes and 7 piece sets selectable in settings, eval bar,
+  redesigned picker and drill page.
+- [[Opening Classification]] — **designed, catalog imported, second priority**. Objective cost,
+  precision burden, weaknesses; drill the punishment.
+
+## Audits
+
+- [[2026-09-15 — Fable code audit]] — 7 findings, all fixed and verified.
+- [[2026-09-15 — Fable design review]] — strength/weakness definitions, pipeline, drill model.
+- [[2026-09-15 — Fable correctness audit 2]] — 9 findings; the drill dead-end bug and four more fixed.
 
 ## Daily logs
 
-- [[2026-09-15]] — kickoff.
+- [[2026-09-15]] — kickoff, stack chosen, MVP playable, audits, catalog imported.
 
 ## Backlog
 
-- _TODO_
+- Foundation: audit refactors, SQLite persistence, theme tokens (after [[Visual Design]] review).
+- Eval-db cache + tree builder for the three repertoires.
+- *Bottom of the list, "maybe":* rating-band stats, practical edge, "beat players at your level".
+- [[Engine licensing]] — Stockfish is GPL-3.0. Decide before anything commercial.
+- Piece rendering: Unicode glyphs are a placeholder, want SVG.
+- Board keyboard/screen-reader support.

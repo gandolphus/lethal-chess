@@ -1,9 +1,15 @@
 ---
 tags: [moc, tech]
+aliases: [Stack]
 ---
 
 # Stack (MOC) · lethal-chess
 
-Map of content for the technologies used in lethal-chess. Add one `Tech/<name>.md` note per technology (What / Why here / How used / Gotchas / Related) and link it here.
+Technologies in use. Table of *what* lives in [[System Map]]; these notes hold the gotchas.
 
-- _TODO_
+- [[SvelteKit]] — framework. Runes mode forced project-wide.
+- [[chess.js]] — rules, SAN/FEN, terminal-state detection.
+- [[Stockfish]] — the opponent. WASM in a Worker, UCI.
+- [[pnpm]] — package manager. v11 moved settings out of `package.json`.
+
+Related: [[Engine licensing]] · [[Decision Log]]

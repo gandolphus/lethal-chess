@@ -1,0 +1,8 @@
+# Copy to .dev.vars (gitignored) for local dev; `pnpm dev` and `wrangler dev` read it.
+# Production values go in as secrets: `pnpm exec wrangler secret put GOOGLE_CLIENT_ID` (and _SECRET).
+# Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application),
+# authorized redirect URIs:
+#   http://localhost:5177/auth/google/callback
+#   https://lethalchess.com/auth/google/callback
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret

@@ -1,0 +1,40 @@
+{
+	"name": "lethal-chess",
+	"private": true,
+	"version": "0.0.1",
+	"license": "AGPL-3.0-or-later",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "node scripts/sync-engine.js && vite build",
+		"preview": "vite preview",
+		"prepare": "node scripts/sync-engine.js && svelte-kit sync || echo ''",
+		"engine:sync": "node scripts/sync-engine.js",
+		"catalog:build": "node scripts/build-catalog.js",
+		"pipeline:eval-cache": "node pipeline/eval-cache/build.ts",
+		"test": "vitest run",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p pipeline",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"db:migrate:local": "wrangler d1 migrations apply lethal-chess --local",
+		"db:migrate:remote": "wrangler d1 migrations apply lethal-chess --remote",
+		"cf:preview": "pnpm build && wrangler dev",
+		"cf:deploy": "pnpm build && wrangler d1 migrations apply lethal-chess --remote && wrangler deploy"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-cloudflare": "7.2.9",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/node": "^26.5.1",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16",
+		"vitest": "^5.0.0",
+		"wrangler": "^4.131.2"
+	},
+	"dependencies": {
+		"chess.js": "^1.4.0",
+		"stockfish": "^18.0.8",
+		"ts-fsrs": "^5.4.2"
+	}
+}

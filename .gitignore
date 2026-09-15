@@ -23,3 +23,19 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# SvelteKit
+/.svelte-kit
+.vercel
+.netlify
+.wrangler
+vite.config.ts.timestamp-*
+
+# Stockfish build copied out of node_modules by scripts/sync-engine.js
+/static/engine
+
+# Local secrets for wrangler / Google OAuth — never commit
+.dev.vars
+.dev.vars.*
+.wrangler
+!.dev.vars.example

@@ -9,6 +9,271 @@ Dated, rationale-bearing record of locked decisions. See [[System Map]] for the 
 
 ---
 
+## 2026-09-15 — Open source under AGPL-3.0; Stockfish ships in the browser
+
+**Reverses** "no browser engine" from the Public MVP entry below, the same evening. The user wants
+coached play past the end of a line ([[Coached Free Play]]): grading any move, natural computer replies,
+planted mistakes. That needs an engine that can evaluate *arbitrary* positions live; Lichess cloud eval
+covers only already-analysed positions and fails a few moves after a deviation.
+
+Options were browser engine + publish source (AGPL) or server engine + closed source. User:
+"engine in the browser for now with the open source license for sure." Chosen for instant response,
+zero server cost, offline capability, and speed to ship. `LICENSE` is the official AGPL-3.0 text;
+`package.json` declares `AGPL-3.0-or-later`. Consequences: cburnett (GPLv2+) is usable publicly;
+[[Engine licensing]] is resolved; a closed paid tier is off the table unless this is revisited.
+
+**Still to do before public launch:** a public source repository and a visible "Source" link (AGPL §13).
+
+## 2026-09-15 — OAuth without Arctic: vendored Google flow on fetch + Web Crypto
+
+Arctic and most `@oslojs/*` packages were deprecated by their author on 2026-07-29 (his blog post; the
+repository's `/code` examples are the recommended replacement). Verified the deprecation was deliberate,
+not a compromise. Auth is security-critical, so no unmaintained dependency: `src/lib/server/google.ts`
+implements state + PKCE (S256 checked against the RFC 7636 test vector), token exchange (no redirect
+following, 10 s timeout), and ID-token claim checks. Hand-rolled database sessions (SHA-256-hashed
+tokens, 30-day sliding) unchanged. See `src/lib/server/CODEX.md`.
+
+## 2026-09-15 — Engine analysis collects multi-PV per depth
+
+Verified against the real WASM engine in Chromium: a search stopped by movetime mid-depth mixes ranks
+from two depths and can list the same move twice (seen: `Nc3` at ranks 4 and 5). `MultiPvCollector`
+keeps lines per depth and returns the deepest *complete* set, deduplicated. A unit test reproduces the
+real output.
+
+## 2026-09-15 — Audit #2 fixes: drill trees end on learner decisions
+
+[[2026-09-15 — Fable correctness audit 2]]: the builder stopped at its card budget leaving replies that
+pointed at unexpanded positions, so 55–99% of drill walks ended right after an opponent move with no
+decision asked. Fix: `pruneDanglingReplies` — replies must lead to a learner decision, weights
+renormalised, unreachable nodes removed. **Re-running the audit's own 20,000-walk simulation: 0.0%
+dangling, 3–10 decisions per walk (mean 5.3–6.3).** Also fixed: duplicate PVs from the eval db
+(deduplicated in the builder), sound engine replies now seated before thin catalogued theory,
+coverage counts first-try passes only, per-attempt response time, and three tests that would have
+passed on broken code.
+
+## 2026-09-15 — 28 launch openings; the index is generated
+
+User: "all the popular ones and some not so popular ones if they have potential, or are especially
+aggressive." `pipeline/repertoire/spec.ts` now lists 28 (13 White, 15 Black) with groups and tags
+(popular / aggressive / gambit / system / solid). The builder writes `repertoires/index.json` — the
+single list the app reads (the hand-maintained `launch.ts` duplicate is gone). Budget raised to 180
+learner decisions, maxPly 22. Less popular lines have more positions without cached evals (up to 72,
+London System) — a native-Stockfish fallback in the pipeline ([[Off-book Practice]] needs it too) would
+deepen them.
+
+## 2026-09-15 — Public MVP on lethalchess.com: Cloudflare Workers + D1, no browser engine
+
+User direction: "Build an MVP where a novice can start practicing pretty well, with a database and
+Google auth so data is saved… put it on lethalchess.com… send a link to a friend and have them
+practice the Ruy Lopez." Scope: [[Public MVP]].
+
+**Architecture — analysis is offline, the site does no chess computation:**
+1. *Offline, locally:* the pipeline precomputes every tree position's candidate moves, evals,
+   engine lines, names and sharpness → static per-opening bundles.
+2. *Browser:* the whole drill. Grading a move is a lookup in the bundle. Moves outside the data
+   are still gradeable (worse than every stored candidate). Free exploration past the data can call
+   Lichess cloud eval directly — **verified `access-control-allow-origin: *`**.
+3. *Cloudflare:* static site + bundles on the CDN; a small Worker for Google sign-in, sessions and
+   the attempt log; **D1** (SQLite, 30-day point-in-time recovery) for storage.
+
+**Hosting: Cloudflare Workers + D1** over a VPS — the domain is already on Cloudflare (verified:
+serving the "Coming Soon" page), zero servers to maintain. **Supersedes** "Persistence is SQLite on
+disk via the SvelteKit server": that was right for a local tool, not a hosted multi-user one. The
+append-only attempt log and derive-everything principle carry over unchanged; only the engine changes.
+
+**No Stockfish in the public app.** Drills never needed it; only play-vs-computer does. Shipping
+GPL-3.0 WASM publicly would oblige publishing source ([[Engine licensing]]); launching without it
+keeps that decision open. Play-vs-computer stays in local builds.
+
+**Launch openings (default, user may extend):** Ruy Lopez and Italian Game (the novice entry point)
+plus the user's English, Sicilian and Caro-Kann.
+
+## 2026-09-15 — Full eval cache built and validated
+
+129,235,757 positions (≥ 26 pieces) from 409,710,113 lines, **8.27 GB, 12.5 min**, 0 duplicates,
+0 malformed. **Coverage of all 7,855 catalog positions: 99.5%** — 100% through ply 17, 98% at 18–19,
+92% at 20. 84.5% of hits carry ≥ 3 candidate moves, 80.1% depth ≥ 30. All 831 king-takes-rook
+castling moves are legal after normalisation. King's Gambit spot check agrees with cloud eval.
+Report: `node pipeline/eval-cache/coverage.ts`. Raw 22 GB kept until the tree builder is proven,
+then deleted.
+
+## 2026-09-15 — Precision first; rating-based strategy goes to the bottom of the backlog
+
+User direction: "Forget about my rating. We're doing a serious tool first and foremost, not a hacky
+one. I want to get super proficient first." The first rollout is built on **objective engine truth
+only**. Everything keyed to a rating band — practical edge, "what players at your level get wrong",
+frequency by band — is deferred indefinitely ("maybe").
+
+Consequences:
+- The **30 GB game dump is not needed** for the first rollout. The **22 GB eval db is**.
+- "Common responses" can no longer mean "frequent at your band". Replaced by
+  **engine-sound replies ∪ catalog-named replies** — the catalog lists the dubious-but-real lines
+  people actually play (Wing Gambit, Morra, …), which covers what a frequency filter would have
+  caught, without any rating assumption.
+- The strength model in [[Opening Classification]] keeps *objective cost* and drops *practical edge*
+  for now.
+
+## 2026-09-15 — Repertoires organised as catalog-named tracks, not one chosen line
+
+Repertoires: **English (White), Sicilian (Black), Caro-Kann (Black)** — the user wants proficiency
+in "all aspects", especially the aggressive English lines and those demanding the most precision from
+the opponent.
+
+Rather than forcing an upfront choice ("which Sicilian?"), each named catalog line is a **track**
+(`Sicilian Defense: Najdorf Variation, English Attack`), and names give a family hierarchy for free
+(Sicilian → Najdorf → English Attack). Tracks are what you choose to study and what proficiency is
+measured on. See [[Opening Drills]] and [[Progress Tracking]].
+
+**"Most precision demanded from the opponent" is computable**: at each opponent-to-move position,
+how many moves stay within tolerance of best, and how far the second-best falls. The eval db stores
+5 candidate lines for most opening positions, which is exactly this. **"Aggressive" is not directly
+computable** — approximated by that sharpness score, refined by hand-tagging. Stated plainly so
+nobody mistakes the proxy for the thing.
+
+## 2026-09-15 — Moves graded by eval, not just match/no-match
+
+Your repertoire move = pass. A different move within tolerance of best = **soft result**
+("sound, but not your line" — shown, not failed). Anything else = fail, with the centipawn cost and
+the engine line. A precision tool should distinguish "wrong" from "different", and the eval db makes
+it free.
+
+## 2026-09-15 — Persistence is SQLite on disk via the SvelteKit server
+
+Reverses "no backend" for one reason: the user requires **reliable** progress tracking. Browser
+storage is per-browser, evictable, and invisible to backups; a SQLite file is none of those.
+Using Node 24's built-in **`node:sqlite`** (verified working, no flag, no native build — so no
+repeat of the [[pnpm]] install-script trouble).
+
+The attempt log is **append-only** (card, time, move played, expected, grade, cp loss, response time);
+scheduling state (FSRS) and proficiency are *derived* from it. So the scheduling algorithm or the
+proficiency formula can change later and be recomputed over full history — nothing is lost to an
+early design mistake.
+
+## 2026-09-15 — Eval data: stream once, keep a temporary cache, discard
+
+One streamed pass over the eval db, keeping positions with ≥ 26 pieces (the opening phase) as a local
+cache: measured ~14 min single-thread at ~490k lines/s, est. **5–17 GB depending on encoding**.
+Enough to expand all three repertoire trees *and* all 3,810 catalog openings without re-streaming.
+The raw 22 GB file is never stored. The cache is deleted once the shipped bundles are built, per the
+user: "discarded as soon as they've outlived their use". Details in [[Data sources]].
+
+## 2026-09-15 — Lethality is back in scope, rebuilt from real data
+
+Reverses part of "Scope narrowed to a drilling tool" below, the same day. The user's goals now
+include classifying every opening by strength and drilling its weaknesses — which *is* the lethality
+pipeline. Drilling stays the product; classification becomes the content it drills.
+See [[Opening Classification]] and [[2026-09-15 — Fable design review]].
+
+**`scoring.py` is not ported.** The review showed, and we confirmed at `aggregate_store.py:305`,
+that all five factors of the old formula were derived from one number — the mover's score rate.
+"Engine soundness" was `(score_rate − 0.5) × 420`, not engine output. The replacement keeps
+objective cost (real evals) and practical edge (Elo- and colour-corrected results by band) as
+**two separate numbers**, never blended by fixed weights.
+
+## 2026-09-15 — Classification is an offline native build; the app ships static data
+
+Analysis runs offline with native [[Stockfish]] + python over the Lichess game dump and eval db,
+not in the browser — WASM is ~10× slower with no parallelism. Output is per-opening JSON bundles,
+lazily loaded; still no backend. All three data sources are **CC0**; the explorer API is not
+crawled. Offline engine use is not distribution, so the shipped data carries no GPL obligation.
+See [[Data sources]].
+
+Positions are keyed by **EPD** (FEN minus move counters) so transpositions share stats and cards;
+opening names live on paths, not positions.
+
+## 2026-09-15 — Opening catalog imported and validated at build time
+
+`scripts/build-catalog.js` fetches `lichess-org/chess-openings` and replays all 3,810 lines through
+[[chess.js]], failing the build on any mismatch — the review flagged SAN drift between catalog and
+rules engine as a risk, so it is caught at build time rather than mid-drill. Output
+`static/openings/catalog.json` is committed (derived data, reproducible via `pnpm catalog:build`).
+
+## 2026-09-15 — Engine commands are serialised; results carry their FEN
+
+A Fable 5.1 audit found that a new game started mid-search could receive the *old* search's move
+(details in [[Play vs Computer]]). The underlying fact: the Stockfish worker queues `go`/`setoption`
+behind a running search but runs `position`/`isready`/`ucinewgame` immediately, so any caller that
+interleaves commands silently corrupts state.
+
+Decision: `Engine` owns that problem, not its callers. Every state-touching operation goes through
+one serial lock; `bestMove()` returns `{ fen, move }` so a caller can always check the result still
+applies. Callers additionally keep a generation token. This matters more for [[Opening Drills]]
+than for play — drills jump positions constantly, so the bug would have been routine, not rare.
+
+## 2026-09-15 — Scope narrowed to a drilling tool
+
+The product is **a tool for drilling openings**, not the "Chess Lethality Visualizer" described in
+`../pre-lethalchess`. The lethality premise (train against *human* failure patterns, not engine
+best-play) survives as the eventual differentiator, and the FastAPI + Lichess ingestion pipeline in
+`../chess-lethality-analyzer` is left intact to be pulled back in later. See
+[[Lineage — from lethality analyzer to drilling tool]]. Building the daily-useful thing first.
+
+## 2026-09-15 — SvelteKit over React
+
+Considered React 19 (continuity with the analyzer prototype, `react-chessboard`, react-three-fiber)
+against SvelteKit. Chose **SvelteKit + Svelte 5 runes** because:
+
+1. **Built-in server layer.** Drilling needs persistence and eventually the Lichess failure-rate
+   data. SvelteKit gives routing + server endpoints in one thing; the React path means React Router
+   plus a separate backend, which is exactly what the old prototype did.
+2. **Less ceremony for state machines.** A drill *is* a state machine
+   (present → await → judge → feedback → advance). Runes express that without
+   `useEffect`/`useCallback`/dependency arrays; worker lifecycle especially.
+3. Smaller runtime, scoped CSS.
+
+**Explicitly not a factor: rendering performance.** A 64-square board is nothing; VDOM overhead here
+is unmeasurable. Rejecting React on "no virtual DOM" grounds would have been a non-reason.
+
+**What we gave up:** react-three-fiber. If the tree visualization ever wants declarative 3D, Svelte's
+Threlte is smaller-ecosystem. Judged acceptable — see the next entry.
+
+## 2026-09-15 — Graphics stay framework-agnostic
+
+Asked whether shaders/WebGL later would favour React. Conclusion: **no — shader work happens outside
+the framework either way.** You mount a canvas, hand it to a renderer, and keep the framework away
+from it.
+
+Therefore the rule: any future render layer ships as a **plain TS module with a
+`mount(canvas, opts) → { update, destroy }` API**, exactly like [[Stockfish]] and [[chess.js]] are
+today. The framework wraps ~20 lines around it. This keeps the SvelteKit decision cheap to reverse
+and is why `src/lib/chess/*` imports nothing from Svelte.
+
+Corollary: the board is **DOM/SVG now, WebGL overlay canvas later** — not WebGL from day one.
+Crisp text, trivial hit-testing, effects composite on top.
+
+## 2026-09-15 — Hand-rolled board, not a library
+
+`Board.svelte` is ~250 lines of our own: 8×8 grid, click-to-move + pointer drag, legal-target dots,
+last-move and check highlights, promotion picker. Rejected `react-chessboard` (wrong framework once
+SvelteKit was chosen) and chessground (Lichess's own, framework-agnostic, genuinely good).
+
+Reason: the drill UI is going to need overlays chessground doesn't model — correct/wrong flashes,
+masked squares, hint arrows tied to drill state. Owning the board means those are props, not
+fights with a library. **Revisit if** premoves or serious animation become priorities; chessground
+has years of polish there that we do not.
+
+## 2026-09-15 — Stockfish 18 *lite/single-threaded* WASM
+
+Using the lite single-threaded build (7 MB) rather than the full one (113 MB) or the
+multi-threaded one. Multi-threaded needs `SharedArrayBuffer`, which needs COOP/COEP cross-origin
+isolation headers — a deployment constraint we do not want to inherit for an opponent that only has
+to play at club strength. `scripts/sync-engine.js` copies it into `static/engine/` (gitignored);
+pnpm's `allowBuilds: stockfish: false` in `pnpm-workspace.yaml` suppresses the package's own
+postinstall, which only symlinks the 113 MB build we are not using.
+
+Difficulty maps to `UCI_LimitStrength` + `UCI_Elo`. **Stockfish refuses Elo below 1320**, so
+"Beginner" is 1320 — a genuine floor, not a chosen one. Going weaker needs `Skill Level` or
+deliberate move corruption.
+
+## 2026-09-15 — Engine licensing flagged, not resolved
+
+`stockfish` npm is **GPL-3.0**, and shipping WASM to a browser is distribution. A closed or paid
+tier built around it is legally awkward — this is why Lichess is AGPL. Options: keep the whole app
+GPL (fine while it is a personal tool), move the engine server-side behind an API, or swap to a
+permissively-licensed engine. **Not blocking a local drilling tool. Must be settled before anything
+commercial.** See [[Engine licensing]].
+
 ## 2026-09-15 — Project scaffolded with `forge`
 
-Created the repo, this Obsidian planning vault (`lethal-chess-vault`, Catppuccin Mocha), and the initial skeleton. _Record stack/architecture decisions below as they are made._
+Created the repo, this Obsidian planning vault (`lethal-chess-vault`, Catppuccin Mocha), and the
+initial skeleton.

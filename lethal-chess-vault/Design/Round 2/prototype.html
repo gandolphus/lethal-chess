@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en" data-dir="material" data-variant="dark" data-state="drill" data-view="app">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lethal — design round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300..600;1,300..600&family=Figtree:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKENS — every direction × variant implements the same set. Nothing below
+   the token blocks knows which direction is active except the per-direction
+   board/piece treatments, which are the point of this round.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+	--font-ui: 'Figtree', system-ui, sans-serif;
+	--font-display: 'Fraunces', Georgia, serif;
+	--font-num: var(--font-ui);
+	--frame-pad: 30px;
+	--radius: 8px;
+	--hl-blend: normal;
+	--ease: cubic-bezier(.2,.8,.2,1);
+	--move-ms: 260ms;
+}
+
+/* ─── MATERIAL · onyx (dark) ─────────────────────────────────────────────── */
+[data-dir="material"][data-variant="dark"] {
+	color-scheme: dark;
+	--bg: #151417; --surface: #1c1b1f; --surface-2: #26252a; --border: #333238;
+	--text: #ede8df; --text-2: #a6a099; --text-3: #6e6963;
+	--sq-light: #958c81; --sq-dark: #5a5452;
+	--tile-hi: rgba(255,255,255,.09); --tile-lo: rgba(0,0,0,.34); --grout: #1e1c1f;
+	--frame-a: #2c2a2f; --frame-b: #1a191c; --frame-edge: rgba(255,255,255,.08);
+	--coord: #8a837b;
+	--board-shadow: 0 50px 90px -30px rgba(0,0,0,.85), 0 2px 0 rgba(255,255,255,.04) inset;
+	--pw: #f4efe6; --pw2: #d8d0c3; --pws: #2a2320; --pb: #47444b; --pb2: #1f1d22; --pbs: #0e0c0f; --pbd: #b3ada4;
+	--accent: #d9b56d; --sel: rgba(217,181,109,.40); --last: rgba(217,181,109,.20);
+	--ring: #d9b56d; --dot: rgba(20,16,12,.34); --dot-on-dark: rgba(255,240,210,.22);
+	--hint: #d9b56d;
+	--ok: #79d6a4; --ok-fill: rgba(121,214,164,.48);
+	--soft: #f2c94c; --soft-fill: rgba(242,201,76,.42);
+	--bad: #f0715e; --bad-fill: rgba(240,113,94,.50);
+	--check: #ff5a3c; --focus: #f3e3bf;
+}
+/* ─── MATERIAL · alabaster (light) ───────────────────────────────────────── */
+[data-dir="material"][data-variant="light"] {
+	color-scheme: light;
+	--bg: #e9e4dc; --surface: #f4f1eb; --surface-2: #e1dbd1; --border: #d0c8bc;
+	--text: #26221f; --text-2: #6f6862; --text-3: #a59d93;
+	--sq-light: #ebe4d8; --sq-dark: #b6a690;
+	--tile-hi: rgba(255,255,255,.55); --tile-lo: rgba(70,50,30,.22); --grout: #cdc4b6;
+	--frame-a: #f3eee6; --frame-b: #d8d0c4; --frame-edge: rgba(70,50,30,.18);
+	--coord: #7a7166;
+	--board-shadow: 0 36px 70px -30px rgba(70,50,30,.55);
+	--pw: #fbf8f2; --pw2: #e2dbcf; --pws: #40352e; --pb: #46414a; --pb2: #221f24; --pbs: #17141a; --pbd: #b9b0a6;
+	--accent: #b0873f; --sel: #e6cf7c; --last: #efe2ac; --hl-blend: multiply;
+	--ring: #b0873f; --dot: rgba(60,40,20,.30); --dot-on-dark: rgba(255,255,255,.34);
+	--hint: #1f6e72;
+	--ok: #2c9b62; --ok-fill: rgba(44,155,98,.40);
+	--soft: #d59d16; --soft-fill: rgba(213,157,22,.38);
+	--bad: #d1493a; --bad-fill: rgba(209,73,58,.42);
+	--check: #e33a2c; --focus: #1f6e72;
+}
+
+/* ─── INSTRUMENT · graphite (dark) ───────────────────────────────────────── */
+[data-dir="instrument"] {
+	--font-ui: 'Geist', system-ui, sans-serif;
+	--font-display: 'Geist', system-ui, sans-serif;
+	--font-num: 'Geist Mono', ui-monospace, monospace;
+	--frame-pad: 58px; --radius: 2px;
+	--ease: cubic-bezier(.3,0,.1,1); --move-ms: 170ms;
+}
+[data-dir="instrument"][data-variant="dark"] {
+	color-scheme: dark;
+	--bg: #111215; --surface: #16171b; --surface-2: #1e1f24; --border: #2a2c32;
+	--text: #ebebed; --text-2: #9b9da5; --text-3: #5f616a;
+	--sq-light: #2b2d33; --sq-dark: #1a1b1f; --grid: #40434b; --coord: #8d9098;
+	--frame-a: transparent; --frame-b: transparent; --frame-edge: transparent;
+	--board-shadow: none;
+	--pw: #e9e9eb; --pws: #101114; --pb: #0b0c0f; --pbs: #c9ccd3; --pbd: #c9ccd3;
+	--signal: #ff6a1a;
+	--accent: #ffffff; --sel: rgba(255,255,255,.09); --last: rgba(255,255,255,.05);
+	--ring: #f4f4f6; --dot: rgba(255,255,255,.55); --dot-on-dark: rgba(255,255,255,.55);
+	--hint: var(--signal);
+	--ok: #ffffff; --ok-fill: rgba(255,255,255,.14);
+	--soft: var(--signal); --soft-fill: rgba(255,106,26,.32);
+	--bad: var(--signal); --bad-fill: rgba(255,106,26,.55);
+	--check: var(--signal); --focus: #ffffff;
+}
+/* ─── INSTRUMENT · vellum (light) ────────────────────────────────────────── */
+[data-dir="instrument"][data-variant="light"] {
+	color-scheme: light;
+	--bg: #ecece8; --surface: #f6f6f3; --surface-2: #e4e4df; --border: #cfcfc8;
+	--text: #17181a; --text-2: #5f6166; --text-3: #9c9ea3;
+	--sq-light: #f5f4ef; --sq-dark: #cbc9bf; --grid: #a9a89f; --coord: #5f6166;
+	--frame-a: transparent; --frame-b: transparent; --frame-edge: transparent;
+	--board-shadow: none;
+	--pw: #fcfcfa; --pws: #17181a; --pb: #202226; --pbs: #17181a; --pbd: #e8e8e4;
+	--signal: #ee5a0c;
+	--accent: #17181a; --sel: rgba(23,24,26,.10); --last: rgba(23,24,26,.06);
+	--ring: #17181a; --dot: rgba(23,24,26,.6); --dot-on-dark: rgba(23,24,26,.6);
+	--hint: var(--signal);
+	--ok: #17181a; --ok-fill: rgba(23,24,26,.10);
+	--soft: var(--signal); --soft-fill: rgba(238,90,12,.30);
+	--bad: var(--signal); --bad-fill: rgba(238,90,12,.50);
+	--check: var(--signal); --focus: #17181a;
+}
+
+/* ─── NOCTURNE · night (dark) ────────────────────────────────────────────── */
+[data-dir="nocturne"] {
+	--font-ui: 'Jost', system-ui, sans-serif;
+	--font-display: 'Jost', system-ui, sans-serif;
+	--frame-pad: 0px; --radius: 4px;
+	--ease: cubic-bezier(.25,.6,.2,1); --move-ms: 300ms;
+}
+[data-dir="nocturne"][data-variant="dark"] {
+	color-scheme: dark;
+	--bg: #090b10; --surface: #0e1117; --surface-2: #151923; --border: #1d2330;
+	--text: #e6ebf4; --text-2: #8e98ab; --text-3: #525b6c;
+	--sq-light: #232a38; --sq-dark: #151a25; --coord: #4c566a;
+	--frame-a: transparent; --frame-b: transparent; --frame-edge: transparent;
+	--board-shadow: 0 0 0 1px rgba(160,190,255,.06), 0 60px 120px -40px rgba(0,0,0,.9);
+	--pw: #e2e8f1; --pw2: #aeb9ca; --pws: #0a0d13; --pb: #252c3b; --pb2: #10141c; --pbs: #8595b1; --pbd: #c6d4ea;
+	--rim-w: #ffffff; --rim-b: #cfe3ff;
+	--accent: #8ec6ff; --sel: rgba(142,198,255,.55); --last: rgba(142,198,255,.26);
+	--ring: #bfe0ff; --dot: rgba(180,214,255,.7); --dot-on-dark: rgba(180,214,255,.7);
+	--hint: #cfe6ff;
+	--ok: #7ff0c4; --ok-fill: rgba(127,240,196,.72);
+	--soft: #ffd37a; --soft-fill: rgba(255,211,122,.68);
+	--bad: #ff6b6b; --bad-fill: rgba(255,107,107,.72);
+	--check: #ff5f5f; --focus: #ffffff;
+}
+/* ─── NOCTURNE · dawn (light) ────────────────────────────────────────────── */
+[data-dir="nocturne"][data-variant="light"] {
+	color-scheme: light;
+	--bg: #e2e7ee; --surface: #eceff5; --surface-2: #dbe1ea; --border: #c6cfdb;
+	--text: #1a2130; --text-2: #5b6577; --text-3: #98a2b3;
+	--sq-light: #eef1f6; --sq-dark: #b9c3d2; --coord: #6f7b8f;
+	--frame-a: transparent; --frame-b: transparent; --frame-edge: transparent;
+	--board-shadow: 0 0 0 1px rgba(30,50,90,.10), 0 40px 80px -36px rgba(30,50,90,.45);
+	--pw: #fdfdff; --pw2: #dde4ee; --pws: #2a3242; --pb: #3b4356; --pb2: #1a2030; --pbs: #11151f; --pbd: #aeb9cc;
+	--rim-w: #ffffff; --rim-b: #93a2bd;
+	--accent: #3e5fd0; --sel: #93a8ec; --last: #c3d0f2; --hl-blend: multiply;
+	--ring: #3e5fd0; --dot: rgba(40,60,120,.32); --dot-on-dark: rgba(40,60,120,.4);
+	--hint: #3e5fd0;
+	--ok: #24a06a; --ok-fill: rgba(36,160,106,.40);
+	--soft: #d69a1c; --soft-fill: rgba(214,154,28,.36);
+	--bad: #d7453b; --bad-fill: rgba(215,69,59,.42);
+	--check: #e33a2c; --focus: #3e5fd0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+	margin: 0; background: var(--bg); color: var(--text);
+	font: 15px/1.45 var(--font-ui); font-feature-settings: 'tnum' 1;
+	-webkit-font-smoothing: antialiased;
+	display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+[hidden] { display: none !important; }
+
+/* ─── frame ──────────────────────────────────────────────────────────────── */
+.top { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); }
+.wordmark { font-family: var(--font-display); font-size: 24px; letter-spacing: -.01em; }
+.session { display: flex; gap: 24px; color: var(--text-2); font-size: 14px; }
+.session b { color: var(--text); font-weight: 600; }
+.app { display: grid; grid-template-columns: 1fr 392px; min-height: 0; }
+.stage { display: grid; grid-template-rows: 1fr auto; place-items: center; gap: 14px; padding: 22px 28px 14px; min-height: 0; }
+.panel { border-left: 1px solid var(--border); background: var(--surface); padding: 28px 30px 22px; display: flex; flex-direction: column; gap: 22px; min-height: 0; overflow: hidden; }
+
+/* ─── board ──────────────────────────────────────────────────────────────── */
+.board-wrap {
+	position: relative; user-select: none;
+	width: min(calc(100vh - 190px), calc(100vw - 520px), 820px); aspect-ratio: 1;
+	padding: var(--frame-pad); border-radius: calc(var(--radius) + var(--frame-pad) * .4);
+	background: linear-gradient(160deg, var(--frame-a), var(--frame-b));
+	box-shadow: var(--board-shadow), 0 0 0 1px var(--frame-edge);
+	container-type: inline-size;
+}
+[data-view="small"] .board-wrap { width: 360px; }
+.board-area { position: absolute; inset: var(--frame-pad); border-radius: var(--radius); }
+.board { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8,1fr); grid-template-rows: repeat(8,1fr); border-radius: var(--radius); overflow: hidden; }
+.sq { position: relative; background: var(--sq-dark); }
+.sq.light { background: var(--sq-light); }
+.sq::before { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: var(--hl-blend); }
+.sq.last::before { background: var(--last); }
+.sq.sel::before { background: var(--sel); box-shadow: inset 0 0 0 .34cqi var(--ring); }
+.sq.hover::before { box-shadow: inset 0 0 0 .34cqi var(--ring); }
+.sq.focus::after { content: ''; position: absolute; inset: .4cqi; pointer-events: none; border: .3cqi solid var(--focus); border-radius: 2px; }
+.sq.check::before { background: radial-gradient(circle at 50% 50%, var(--check) 0%, color-mix(in srgb, var(--check) 60%, transparent) 42%, transparent 72%); }
+.sq.ok::before   { background: var(--ok-fill);   box-shadow: inset 0 0 0 .34cqi var(--ok);   animation: settle-ok 1.4s .5s ease-out forwards; }
+.sq.soft::before { background: var(--soft-fill); box-shadow: inset 0 0 0 .34cqi var(--soft); animation: settle-soft 1.4s .5s ease-out forwards; }
+.sq.bad::before  { background: var(--bad-fill);  box-shadow: inset 0 0 0 .34cqi var(--bad);  animation: shake .32s ease-out, settle-bad 1.2s .6s ease-out forwards; }
+@keyframes settle-ok   { to { background: var(--last); box-shadow: inset 0 0 0 0 transparent; } }
+@keyframes settle-soft { to { background: color-mix(in srgb, var(--soft) 22%, transparent); box-shadow: inset 0 0 0 .34cqi color-mix(in srgb, var(--soft) 55%, transparent); } }
+@keyframes settle-bad  { to { background: color-mix(in srgb, var(--bad) 26%, transparent);  box-shadow: inset 0 0 0 .34cqi color-mix(in srgb, var(--bad) 60%, transparent); } }
+@keyframes shake { 0%,100% { transform: none } 25% { transform: translateX(-2.5%) } 75% { transform: translateX(2.5%) } }
+
+/* legal-move markers */
+.sq.target:not(.focus)::after { content: ''; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; transform: translate(-50%,-50%); border-radius: 50%; background: var(--dot); pointer-events: none; }
+.sq.dark.target:not(.focus)::after { background: var(--dot-on-dark); }
+.sq.target.capture:not(.focus)::after { width: 90%; background: none; border: .85cqi solid var(--dot); }
+.sq.dark.target.capture:not(.focus)::after { border-color: var(--dot-on-dark); }
+
+/* pieces */
+.pieces { position: absolute; inset: 0; pointer-events: none; }
+.pc { position: absolute; left: 0; top: 0; width: 12.5%; height: 12.5%; padding: .3%; transition: transform var(--move-ms) var(--ease); will-change: transform; }
+.pc svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pc.moved svg { animation: lift var(--move-ms) var(--ease); }
+@keyframes lift { 0% { transform: scale(1) } 45% { transform: scale(1.07) } 100% { transform: scale(1) } }
+.pc.lifted { opacity: .32; }
+.pc.drag { z-index: 6; transition: none; }
+.pc.drag svg { transform: scale(1.14) translateY(-6%); filter: drop-shadow(0 14px 12px rgba(0,0,0,.45)); }
+
+/* arrows + overlays */
+.arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.arrows .hint { fill: var(--hint); opacity: .92; }
+.coords { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; font-family: var(--font-num); fill: var(--coord); }
+.coords text { font-size: 3.2px; font-weight: 500; text-anchor: middle; }
+.coords line, .coords path { stroke: var(--coord); fill: none; }
+
+/* promotion picker */
+.promo { position: absolute; z-index: 5; display: none; flex-direction: column; width: 12.5%; background: var(--surface); border-radius: 6px; box-shadow: 0 16px 36px rgba(0,0,0,.4), 0 0 0 1px var(--border); overflow: hidden; }
+.promo button { border: 0; background: none; padding: 7%; cursor: pointer; aspect-ratio: 1; }
+.promo button:hover, .promo button.first { background: var(--sel); }
+.promo button svg { width: 100%; height: 100%; display: block; }
+[data-state="promo"] .promo { display: flex; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIRECTION: MATERIAL — inlaid stone tiles, chamfered frame, engraved coords
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-dir="material"] .board-wrap::before { content: ''; position: absolute; inset: 6px; border-radius: calc(var(--radius) + 6px); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.35); pointer-events: none; }
+[data-dir="material"] .board-area { box-shadow: inset 0 3px 8px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.06); }
+[data-dir="material"][data-variant="light"] .board-area { box-shadow: inset 0 2px 6px rgba(70,50,30,.3), 0 1px 0 rgba(255,255,255,.7); }
+[data-dir="material"] .board { gap: 1px; background: var(--grout); padding: 1px; }
+[data-dir="material"] .sq { box-shadow: inset 0 1px 0 var(--tile-hi), inset 1px 0 0 color-mix(in srgb, var(--tile-hi) 60%, transparent), inset 0 -1px 0 var(--tile-lo), inset -1px 0 0 color-mix(in srgb, var(--tile-lo) 60%, transparent); }
+[data-dir="material"] .sq::before { inset: 1px; }
+[data-dir="material"] .sheen { position: absolute; inset: 0; border-radius: var(--radius); pointer-events: none; background: linear-gradient(135deg, rgba(255,255,255,.07) 0%, transparent 38%, transparent 62%, rgba(0,0,0,.10) 100%); }
+[data-dir="material"][data-variant="light"] .sheen { background: linear-gradient(135deg, rgba(255,255,255,.35) 0%, transparent 38%, transparent 62%, rgba(70,50,30,.08) 100%); }
+[data-dir="material"] .coords text { font-family: var(--font-ui); font-size: 2.1px; font-weight: 600; letter-spacing: .04em; fill: var(--coord); }
+[data-dir="material"] .pc svg { filter: drop-shadow(0 2.5px 2px rgba(0,0,0,.42)); }
+[data-dir="material"][data-variant="light"] .pc svg { filter: drop-shadow(0 2px 1.5px rgba(70,50,30,.35)); }
+[data-dir="material"] .pc.moved svg { animation: lift-mat var(--move-ms) var(--ease); }
+@keyframes lift-mat { 0% { transform: scale(1) } 45% { transform: scale(1.08) translateY(-3%); filter: drop-shadow(0 10px 10px rgba(0,0,0,.5)) } 100% { transform: scale(1) } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIRECTION: INSTRUMENT — hairline grid, ruler ticks, one signal colour
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-dir="instrument"] .board { gap: 1px; background: var(--grid); padding: 1px; border-radius: 0; }
+[data-dir="instrument"] .board-area { border-radius: 0; box-shadow: 0 0 0 1px var(--grid); }
+[data-dir="instrument"] .board-wrap { border-radius: 0; }
+[data-dir="instrument"] .sq::before { inset: 0; }
+[data-dir="instrument"] .sq.sel::before { background: var(--sel); box-shadow: inset 0 0 0 .22cqi var(--ring); }
+[data-dir="instrument"] .sq.last::before { background: var(--last); box-shadow: inset 0 0 0 .12cqi color-mix(in srgb, var(--ring) 45%, transparent); }
+[data-dir="instrument"] .sq.hover::before { box-shadow: inset 0 0 0 .22cqi var(--ring); }
+[data-dir="instrument"] .sq.focus::after { border: .22cqi dashed var(--focus); border-radius: 0; inset: .6cqi; }
+/* markers are crosshairs, captures are reticles */
+[data-dir="instrument"] .sq.target:not(.focus)::after {
+	width: 22%; border-radius: 0; background: none;
+	background-image: linear-gradient(var(--dot), var(--dot)), linear-gradient(var(--dot), var(--dot));
+	background-size: 100% 1.5px, 1.5px 100%; background-position: center; background-repeat: no-repeat;
+}
+[data-dir="instrument"] .sq.target.capture:not(.focus)::after { width: 78%; border: .18cqi solid var(--dot); border-radius: 50%; background-size: 22% 1.5px, 1.5px 22%; }
+[data-dir="instrument"] .sq.check::before { background: none; box-shadow: inset 0 0 0 .22cqi var(--check); }
+[data-dir="instrument"] .sq.check::after { content: ''; position: absolute; inset: 18%; border: .18cqi solid var(--check); border-radius: 50%; pointer-events: none; }
+/* feedback: pass = monochrome ring, soft = hatched signal, fail = solid signal */
+[data-dir="instrument"] .sq.ok::before { background: var(--ok-fill); box-shadow: inset 0 0 0 .22cqi var(--ok); animation: settle-ok-i 1.4s .5s ease-out forwards; }
+@keyframes settle-ok-i { to { background: var(--last); box-shadow: inset 0 0 0 .12cqi color-mix(in srgb, var(--ring) 45%, transparent); } }
+[data-dir="instrument"] .sq.soft::before {
+	background: repeating-linear-gradient(-45deg, var(--soft-fill) 0 .55cqi, transparent .55cqi 1.6cqi);
+	box-shadow: inset 0 0 0 .22cqi var(--soft); animation: settle-soft-i 1.4s .5s ease-out forwards;
+}
+@keyframes settle-soft-i { to { box-shadow: inset 0 0 0 .12cqi color-mix(in srgb, var(--soft) 60%, transparent); opacity: .7; } }
+[data-dir="instrument"] .sq.bad::before { background: var(--bad-fill); box-shadow: inset 0 0 0 .22cqi var(--bad); animation: settle-bad-i 1.2s .5s ease-out forwards; }
+@keyframes settle-bad-i { to { background: color-mix(in srgb, var(--bad) 22%, transparent); box-shadow: inset 0 0 0 .22cqi var(--bad); } }
+[data-dir="instrument"] .arrows .hint { fill: none; stroke: var(--hint); stroke-width: 3.2; stroke-linecap: square; stroke-linejoin: miter; opacity: 1; }
+[data-dir="instrument"] .coords text { font-size: 2.5px; font-weight: 500; fill: var(--coord); }
+[data-dir="instrument"] .coords line { stroke-width: .22; }
+[data-dir="instrument"] .coords path.bracket { stroke-width: .3; }
+[data-dir="instrument"] .pc svg { filter: none; }
+[data-dir="instrument"] .pc.moved svg { animation: none; }
+[data-dir="instrument"] .pc.drag svg { transform: scale(1.06); filter: drop-shadow(0 6px 6px rgba(0,0,0,.35)); }
+[data-dir="instrument"] .promo { border-radius: 0; box-shadow: 0 0 0 1px var(--grid), 0 16px 36px rgba(0,0,0,.4); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIRECTION: NOCTURNE — light is the feedback medium
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-dir="nocturne"] .board-wrap { background: none; }
+[data-dir="nocturne"] .board { overflow: visible; }
+[data-dir="nocturne"] .board-area::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); pointer-events: none; background: radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0,0,0,.28) 100%); }
+[data-dir="nocturne"][data-variant="light"] .board-area::after { background: radial-gradient(120% 120% at 50% 40%, transparent 60%, rgba(30,50,90,.10) 100%); }
+[data-dir="nocturne"] .sq::before { inset: -22%; border-radius: 50%; }
+[data-dir="nocturne"] .sq.last::before { background: radial-gradient(circle, var(--last) 0%, color-mix(in srgb, var(--last) 40%, transparent) 38%, transparent 66%); }
+[data-dir="nocturne"] .sq.sel::before { background: radial-gradient(circle, var(--sel) 0%, color-mix(in srgb, var(--sel) 45%, transparent) 36%, transparent 64%); box-shadow: none; }
+[data-dir="nocturne"] .sq.hover::before { background: radial-gradient(circle, color-mix(in srgb, var(--sel) 50%, transparent) 0%, transparent 60%); box-shadow: none; }
+[data-dir="nocturne"] .sq.sel::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 .2cqi color-mix(in srgb, var(--ring) 70%, transparent); border-radius: 2px; }
+[data-dir="nocturne"] .sq.focus::after { border: .28cqi solid var(--focus); inset: .5cqi; box-shadow: 0 0 1.2cqi color-mix(in srgb, var(--focus) 60%, transparent); }
+[data-dir="nocturne"] .sq.check::before { background: radial-gradient(circle, var(--check) 0%, color-mix(in srgb, var(--check) 55%, transparent) 26%, transparent 60%); }
+[data-dir="nocturne"] .sq.target:not(.focus)::after { width: 14%; background: var(--dot); box-shadow: 0 0 1.4cqi .2cqi color-mix(in srgb, var(--dot) 55%, transparent); }
+[data-dir="nocturne"] .sq.dark.target:not(.focus)::after { background: var(--dot-on-dark); }
+[data-dir="nocturne"] .sq.target.capture:not(.focus)::after { width: 84%; border: .5cqi solid var(--dot); background: none; box-shadow: 0 0 1.4cqi color-mix(in srgb, var(--dot) 50%, transparent), inset 0 0 1.4cqi color-mix(in srgb, var(--dot) 40%, transparent); }
+/* feedback: blooms of light that settle into the last-move pool */
+[data-dir="nocturne"] .sq.ok::before   { background: radial-gradient(circle, var(--ok-fill) 0%, color-mix(in srgb, var(--ok-fill) 45%, transparent) 36%, transparent 64%); box-shadow: none; animation: bloom-ok 1.8s ease-out forwards; }
+[data-dir="nocturne"] .sq.soft::before { background: radial-gradient(circle, var(--soft-fill) 0%, color-mix(in srgb, var(--soft-fill) 45%, transparent) 36%, transparent 64%); box-shadow: none; animation: bloom-soft 1.8s ease-out forwards; }
+[data-dir="nocturne"] .sq.bad::before  { background: radial-gradient(circle, var(--bad-fill) 0%, color-mix(in srgb, var(--bad-fill) 45%, transparent) 36%, transparent 64%); box-shadow: none; animation: bloom-bad 1.6s ease-out forwards; }
+@keyframes bloom-ok   { 0% { transform: scale(.4); opacity: 0 } 18% { transform: scale(1.2); opacity: 1 } 45% { transform: scale(1); opacity: 1 } 100% { transform: scale(1); opacity: .85; filter: saturate(.45) } }
+@keyframes bloom-soft { 0% { transform: scale(.4); opacity: 0 } 18% { transform: scale(1.15); opacity: 1 } 45% { transform: scale(1); opacity: 1 } 100% { transform: scale(1); opacity: .85 } }
+@keyframes bloom-bad  { 0% { transform: scale(.6); opacity: 0 } 12% { transform: scale(1.25); opacity: 1 } 40% { transform: scale(1); opacity: 1 } 100% { transform: scale(.96); opacity: .8 } }
+[data-dir="nocturne"] .sq.ok, [data-dir="nocturne"] .sq.soft, [data-dir="nocturne"] .sq.bad, [data-dir="nocturne"] .sq.sel, [data-dir="nocturne"] .sq.last, [data-dir="nocturne"] .sq.check { z-index: 1; }
+[data-dir="nocturne"] .sq.ok::after, [data-dir="nocturne"] .sq.soft::after, [data-dir="nocturne"] .sq.bad::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: 2px; }
+[data-dir="nocturne"] .sq.ok::after { box-shadow: inset 0 0 0 .18cqi color-mix(in srgb, var(--ok) 55%, transparent); }
+[data-dir="nocturne"] .sq.soft::after { box-shadow: inset 0 0 0 .18cqi color-mix(in srgb, var(--soft) 55%, transparent); }
+[data-dir="nocturne"] .sq.bad::after { box-shadow: inset 0 0 0 .18cqi color-mix(in srgb, var(--bad) 55%, transparent); }
+[data-dir="nocturne"] .arrows .hint { fill: var(--hint); opacity: .95; filter: url(#beam); }
+[data-dir="nocturne"] .coords text { font-size: 2.4px; font-weight: 500; fill: var(--coord); text-anchor: start; }
+[data-dir="nocturne"] .pc svg { filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+[data-dir="nocturne"][data-variant="light"] .pc svg { filter: drop-shadow(0 3px 4px rgba(30,50,90,.3)); }
+[data-dir="nocturne"] .pc.moved svg { animation: lift-noc var(--move-ms) var(--ease); }
+@keyframes lift-noc { 0% { transform: scale(1) } 50% { transform: scale(1.05); filter: drop-shadow(0 10px 12px rgba(0,0,0,.7)) brightness(1.15) } 100% { transform: scale(1) } }
+[data-dir="nocturne"] .promo { box-shadow: 0 0 0 1px var(--border), 0 0 40px rgba(142,198,255,.18), 0 24px 50px rgba(0,0,0,.6); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PIECE RENDERING (symbols carry class w/b; tokens inherit through <use>)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.ps .o { stroke-linejoin: round; stroke-linecap: round; }
+.ps .d { stroke-linecap: round; stroke-linejoin: round; }
+/* material: outline pass + lit fill pass + AO */
+.ps.material .o { stroke-width: 2.3; }
+.ps.material.w .o { stroke: var(--pws); fill: var(--pws); }
+.ps.material.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.ps.material.w .f { fill: url(#mg-w); }
+.ps.material.b .f { fill: url(#mg-b); }
+#mg-w stop:first-child { stop-color: var(--pw); } #mg-w stop:last-child { stop-color: var(--pw2); }
+#mg-b stop:first-child { stop-color: var(--pb); } #mg-b stop:last-child { stop-color: var(--pb2); }
+.ps.material.w .lit { filter: url(#lit-w); }
+.ps.material.b .lit { filter: url(#lit-b); }
+.ps.material .ao { fill: #000; opacity: .38; filter: url(#blur2); }
+.ps.material.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2.2; }
+.ps.material.b .d { stroke: var(--pbd); fill: var(--pbd); stroke-width: 2.2; }
+/* instrument: hairline, flat */
+.ps.instrument .o { stroke-width: 2.6px; }
+.ps.instrument.w .o { stroke: var(--pws); fill: var(--pws); }
+.ps.instrument.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.ps.instrument.w .f { fill: var(--pw); }
+.ps.instrument.b .f { fill: var(--pb); }
+.ps.instrument.w .d { stroke: var(--pws); fill: none; stroke-width: 1.2px; }
+.ps.instrument.b .d { stroke: var(--pbd); fill: none; stroke-width: 1.2px; }
+.ps.instrument .d.solid { fill: currentColor; stroke: none; }
+/* nocturne: dark glass with a top rim of light */
+.ps.nocturne .o { stroke-width: 2.6; }
+.ps.nocturne.w .o { stroke: var(--pws); fill: var(--pws); }
+.ps.nocturne.b .o { stroke: var(--pbs); fill: var(--pbs); }
+.ps.nocturne.w .f { fill: url(#ng-w); }
+.ps.nocturne.b .f { fill: url(#ng-b); }
+.ps.nocturne.w .rim { filter: url(#rim-w); }
+.ps.nocturne.b .rim { filter: url(#rim-b); }
+.ps.nocturne.w .d { stroke: var(--pws); fill: var(--pws); stroke-width: 2; }
+.ps.nocturne.b .d { stroke: var(--pbd); fill: var(--pbd); stroke-width: 1.8; }
+#ng-w stop:first-child { stop-color: var(--pw); } #ng-w stop:last-child { stop-color: var(--pw2); }
+#ng-b stop:first-child { stop-color: var(--pb); } #ng-b stop:last-child { stop-color: var(--pb2); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDE PANEL — shared structure, direction-specific dress
+   ═══════════════════════════════════════════════════════════════════════════ */
+.track h1 { margin: 0; font: 400 27px/1.12 var(--font-display); letter-spacing: -.01em; }
+.track p { margin: 6px 0 0; color: var(--text-2); font-size: 14px; }
+.moves { display: grid; grid-template-columns: 2.2em 1fr 1fr; row-gap: 2px; font-size: 15px; font-family: var(--font-num); }
+.moves .n { color: var(--text-3); }
+.moves .m { padding: 2px 8px; border-radius: 4px; }
+.moves .m.cur { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.moves .m.ghost { color: var(--text-3); }
+.moves .m.soft { color: var(--soft); } .moves .m.bad { color: var(--bad); } .moves .m.ok { color: var(--ok); }
+
+.verdict { padding: 16px 18px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--accent); }
+.verdict h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.verdict h2 span { font-family: var(--font-num); font-weight: 500; font-size: 14px; color: var(--text-2); }
+.verdict p { margin: 0; color: var(--text-2); font-size: 14px; }
+.verdict kbd { font: 600 12px var(--font-ui); background: var(--surface); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; color: var(--text-2); }
+[data-state="correct"] .verdict { border-left-color: var(--ok); }
+[data-state="soft"] .verdict { border-left-color: var(--soft); }
+[data-state="wrong"] .verdict { border-left-color: var(--bad); }
+[data-state="check"] .verdict { border-left-color: var(--check); }
+[data-state="wrong"] .verdict h2 span { color: var(--bad); }
+[data-state="soft"] .verdict h2 span { color: var(--soft); }
+[data-state="correct"] .verdict h2 span { color: var(--ok); }
+
+.position { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.stat .lbl { font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
+.stat .val { font-size: 20px; font-weight: 500; font-family: var(--font-num); line-height: 1; }
+.stat .val small { font-size: 13px; color: var(--text-2); margin-left: 6px; font-family: var(--font-ui); }
+.evalbar { margin-top: 8px; height: 6px; border-radius: 3px; background: var(--pb); overflow: hidden; box-shadow: 0 0 0 1px var(--border); }
+.evalbar i { display: block; height: 100%; background: var(--pw); }
+.meter { margin-top: 8px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; height: 6px; }
+.meter i { border-radius: 2px; background: var(--surface-2); box-shadow: 0 0 0 1px var(--border) inset; }
+.meter i.on { background: var(--accent); box-shadow: none; }
+.meter[data-level="5"] i.on, .meter[data-level="4"] i.on { background: var(--bad); }
+
+.sessionrow .lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+.sessionrow .lbl b { color: var(--text); font-weight: 600; font-family: var(--font-num); }
+.strip { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; height: 8px; }
+.strip i { border-radius: 2px; background: var(--surface-2); box-shadow: 0 0 0 1px var(--border) inset; }
+.strip i.ok { background: var(--ok); box-shadow: none; } .strip i.soft { background: var(--soft); box-shadow: none; } .strip i.bad { background: var(--bad); box-shadow: none; }
+.strip i.now { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+
+.prof { margin-top: auto; display: grid; gap: 12px; }
+.prof h3 { margin: 0 0 2px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.bar { display: grid; grid-template-columns: 1fr auto; row-gap: 5px; font-size: 14px; }
+.bar .lbl { color: var(--text-2); }
+.bar .val { font-weight: 600; font-family: var(--font-num); }
+.bar .track { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; box-shadow: 0 0 0 1px var(--border) inset; }
+.bar .fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+/* material dress: engraved rules, brass */
+[data-dir="material"] .track h1 { font-weight: 300; font-size: 29px; }
+[data-dir="material"] .track h1 em { font-style: italic; font-weight: 400; }
+[data-dir="material"] .verdict { background: linear-gradient(180deg, var(--surface-2), color-mix(in srgb, var(--surface-2) 70%, var(--surface))); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 8px 20px -12px rgba(0,0,0,.5); border-left-width: 3px; }
+[data-dir="material"] .prof, [data-dir="material"] .sessionrow, [data-dir="material"] .position { padding-top: 18px; border-top: 1px solid var(--border); box-shadow: 0 1px 0 rgba(255,255,255,.04) inset; }
+[data-dir="material"] .bar .track, [data-dir="material"] .meter i, [data-dir="material"] .strip i { box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
+[data-dir="material"] .bar .fill, [data-dir="material"] .meter i.on { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, white), var(--accent)); }
+
+/* instrument dress: hairlines, mono figures, gauge ticks */
+[data-dir="instrument"] .panel { padding-top: 24px; gap: 18px; }
+[data-dir="instrument"] .track h1 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+[data-dir="instrument"] .track p { font-family: var(--font-num); font-size: 12.5px; }
+[data-dir="instrument"] .moves { font-size: 14px; row-gap: 0; }
+[data-dir="instrument"] .moves .m { border-radius: 0; padding: 3px 8px; border-bottom: 1px solid var(--border); }
+[data-dir="instrument"] .moves .n { border-bottom: 1px solid var(--border); padding: 3px 0; }
+[data-dir="instrument"] .moves .m.cur { background: none; box-shadow: inset 2px 0 0 var(--text); font-weight: 500; }
+[data-dir="instrument"] .verdict { border-radius: 0; background: none; border: 1px solid var(--border); border-left: 3px solid var(--text); padding: 14px 16px; }
+[data-dir="instrument"][data-state="correct"] .verdict { border-left-color: var(--text); }
+[data-dir="instrument"] .verdict h2 { font-size: 15px; font-weight: 500; }
+[data-dir="instrument"][data-state="correct"] .verdict h2 span { color: var(--text); }
+[data-dir="instrument"] .stat .val, [data-dir="instrument"] .bar .val, [data-dir="instrument"] .sessionrow .lbl b { font-weight: 500; }
+[data-dir="instrument"] .evalbar, [data-dir="instrument"] .bar .track, [data-dir="instrument"] .meter i, [data-dir="instrument"] .strip i, [data-dir="instrument"] .bar .fill, [data-dir="instrument"] .evalbar i { border-radius: 0; }
+[data-dir="instrument"] .meter i.on { background: var(--text); }
+[data-dir="instrument"] .meter[data-level="5"] i.on, [data-dir="instrument"] .meter[data-level="4"] i.on { background: var(--signal); }
+[data-dir="instrument"] .bar .fill { background: var(--text); }
+[data-dir="instrument"] .strip i.ok { background: var(--text); } [data-dir="instrument"] .strip i.soft { background: repeating-linear-gradient(-45deg, var(--signal) 0 2px, transparent 2px 5px); box-shadow: 0 0 0 1px var(--signal) inset; } [data-dir="instrument"] .strip i.bad { background: var(--signal); }
+[data-dir="instrument"] .strip i.now { box-shadow: 0 0 0 1px var(--text) inset; }
+[data-dir="instrument"] .moves .m.ok { color: var(--text); }
+[data-dir="instrument"] .prof, [data-dir="instrument"] .sessionrow, [data-dir="instrument"] .position { padding-top: 14px; border-top: 1px solid var(--border); }
+[data-dir="instrument"] .scale { display: flex; justify-content: space-between; margin-top: 4px; }
+[data-dir="instrument"] .scale i { width: 1px; height: 4px; background: var(--text-3); }
+[data-dir="instrument"] .stat .lbl, [data-dir="instrument"] .bar .lbl, [data-dir="instrument"] .prof h3, [data-dir="instrument"] .sessionrow .lbl { font-size: 12.5px; }
+
+/* nocturne dress: no rules, luminance hierarchy, glowing marks */
+[data-dir="nocturne"] .panel { border-left-color: transparent; background: linear-gradient(180deg, var(--surface), var(--bg)); gap: 24px; }
+[data-dir="nocturne"] .top { border-bottom-color: transparent; }
+[data-dir="nocturne"] .track h1 { font-weight: 300; font-size: 28px; letter-spacing: .01em; }
+[data-dir="nocturne"] .moves .m.cur { background: none; color: var(--text); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
+[data-dir="nocturne"] .verdict { background: none; border-left: 0; padding: 0 0 0 16px; position: relative; }
+[data-dir="nocturne"] .verdict::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; border-radius: 1px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+[data-dir="nocturne"][data-state="correct"] .verdict::before { background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+[data-dir="nocturne"][data-state="soft"] .verdict::before { background: var(--soft); box-shadow: 0 0 12px var(--soft); }
+[data-dir="nocturne"][data-state="wrong"] .verdict::before { background: var(--bad); box-shadow: 0 0 12px var(--bad); }
+[data-dir="nocturne"][data-state="check"] .verdict::before { background: var(--check); box-shadow: 0 0 12px var(--check); }
+[data-dir="nocturne"] .verdict h2 { font-weight: 400; font-size: 17px; }
+[data-dir="nocturne"] .bar .fill, [data-dir="nocturne"] .meter i.on { box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent); }
+[data-dir="nocturne"] .strip i.ok { box-shadow: 0 0 6px color-mix(in srgb, var(--ok) 60%, transparent); }
+[data-dir="nocturne"] .strip i.bad { box-shadow: 0 0 6px color-mix(in srgb, var(--bad) 60%, transparent); }
+[data-dir="nocturne"] .strip i.soft { box-shadow: 0 0 6px color-mix(in srgb, var(--soft) 60%, transparent); }
+[data-dir="nocturne"] .bar .track, [data-dir="nocturne"] .meter i, [data-dir="nocturne"] .strip i, [data-dir="nocturne"] .evalbar { box-shadow: none; background: var(--surface-2); }
+[data-dir="nocturne"] .stat .val { font-weight: 300; font-size: 24px; }
+[data-dir="nocturne"] .prof h3, [data-dir="nocturne"] .stat .lbl, [data-dir="nocturne"] .sessionrow .lbl { color: var(--text-3); }
+
+/* ─── sheet + small views ────────────────────────────────────────────────── */
+.sheet { display: none; padding: 40px; gap: 10px; grid-template-columns: repeat(6, 190px); justify-content: center; align-content: center; }
+.sheet .cell { width: 190px; height: 190px; display: grid; place-items: center; background: var(--sq-dark); }
+.sheet .cell.light { background: var(--sq-light); }
+.sheet .cell svg { width: 176px; height: 176px; overflow: visible; }
+[data-dir="material"] .sheet .cell svg { filter: drop-shadow(0 5px 4px rgba(0,0,0,.42)); }
+[data-dir="nocturne"] .sheet .cell svg { filter: drop-shadow(0 8px 12px rgba(0,0,0,.6)); }
+[data-view="sheet"] .app { display: none; } [data-view="sheet"] .sheet { display: grid; }
+[data-view="sheet"] body, [data-view="sheet"] .stage { display: block; }
+[data-view="small"] .app { grid-template-columns: 1fr; }
+[data-view="small"] .panel { display: none; }
+
+/* ─── prototype dock ─────────────────────────────────────────────────────── */
+.dock { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 16px; align-items: center; max-width: 900px; padding: 6px 12px; border-radius: 10px; background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--border); font-size: 12px; color: var(--text-2); font-family: 'Figtree', system-ui, sans-serif; }
+.dock .grp { display: flex; align-items: center; gap: 4px; }
+.dock .grp > span { margin-right: 4px; color: var(--text-3); }
+.dock button { border: 1px solid transparent; background: none; padding: 3px 8px; border-radius: 6px; cursor: pointer; color: var(--text-2); }
+.dock button:hover { color: var(--text); }
+.dock button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+[data-view="sheet"] .dock { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); }
+
+@media (prefers-reduced-motion: reduce) { .pc, .sq::before, .pc svg { transition: none !important; animation: none !important; } }
+[data-nomotion] *, [data-nomotion] *::before, [data-nomotion] *::after { transition: none !important; animation-play-state: paused !important; animation-delay: -.5s !important; }
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true"><defs id="defs">
+	<linearGradient id="ng-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient>
+	<linearGradient id="ng-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient>
+	<linearGradient id="mg-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient>
+	<linearGradient id="mg-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient>
+	<filter id="blur2" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="2.2"/></filter>
+	<filter id="beam" x="-20%" y="-20%" width="140%" height="140%">
+		<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="g"/>
+		<feComponentTransfer in="g" result="g2"><feFuncA type="linear" slope=".9"/></feComponentTransfer>
+		<feMerge><feMergeNode in="g2"/><feMergeNode in="SourceGraphic"/></feMerge>
+	</filter>
+	<!-- material: real light on the silhouette — diffuse form shading + specular rim, key light upper-left -->
+	<filter id="lit-w" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+		<feGaussianBlur in="SourceAlpha" stdDeviation="3.2" result="blur"/>
+		<feDiffuseLighting in="blur" surfaceScale="4.5" diffuseConstant="1.12" lighting-color="#fff" result="diff"><feDistantLight azimuth="230" elevation="58"/></feDiffuseLighting>
+		<feComposite in="diff" in2="SourceGraphic" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit"/>
+		<feSpecularLighting in="blur" surfaceScale="4.5" specularConstant=".22" specularExponent="30" lighting-color="#fff" result="spec"><feDistantLight azimuth="230" elevation="58"/></feSpecularLighting>
+		<feSpecularLighting in="blur" surfaceScale="4.5" specularConstant=".16" specularExponent="14" lighting-color="#ffe2b8" result="rim"><feDistantLight azimuth="40" elevation="26"/></feSpecularLighting>
+		<feComposite in="spec" in2="rim" operator="arithmetic" k2="1" k3="1" result="specs"/>
+		<feComposite in="specs" in2="SourceAlpha" operator="in" result="specIn"/>
+		<feComposite in="lit" in2="specIn" operator="arithmetic" k2="1" k3="1" result="out"/>
+		<feComposite in="out" in2="SourceAlpha" operator="in"/>
+	</filter>
+	<filter id="lit-b" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+		<feGaussianBlur in="SourceAlpha" stdDeviation="3.2" result="blur"/>
+		<feDiffuseLighting in="blur" surfaceScale="4.5" diffuseConstant="1.3" lighting-color="#fff" result="diff"><feDistantLight azimuth="230" elevation="58"/></feDiffuseLighting>
+		<feComposite in="diff" in2="SourceGraphic" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit"/>
+		<feSpecularLighting in="blur" surfaceScale="4.5" specularConstant=".34" specularExponent="26" lighting-color="#fff" result="spec"><feDistantLight azimuth="230" elevation="58"/></feSpecularLighting>
+		<feSpecularLighting in="blur" surfaceScale="4.5" specularConstant=".42" specularExponent="12" lighting-color="#e9d6b4" result="rim"><feDistantLight azimuth="40" elevation="24"/></feSpecularLighting>
+		<feComposite in="spec" in2="rim" operator="arithmetic" k2="1" k3="1" result="specs"/>
+		<feComposite in="specs" in2="SourceAlpha" operator="in" result="specIn"/>
+		<feComposite in="lit" in2="specIn" operator="arithmetic" k2="1" k3="1" result="out"/>
+		<feComposite in="out" in2="SourceAlpha" operator="in"/>
+	</filter>
+	<!-- nocturne: a band of light along every upward-facing edge, computed from the silhouette -->
+	<filter id="rim-w" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+		<feOffset in="SourceAlpha" dx="0" dy="2.4" result="off"/>
+		<feComposite in="SourceAlpha" in2="off" operator="out" result="band"/>
+		<feGaussianBlur in="band" stdDeviation=".55" result="bandb"/>
+		<feFlood flood-color="#ffffff" flood-opacity=".95" result="c"/>
+		<feComposite in="c" in2="bandb" operator="in" result="rim"/>
+		<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rim"/></feMerge>
+	</filter>
+	<filter id="rim-b" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+		<feOffset in="SourceAlpha" dx="0" dy="2.2" result="off"/>
+		<feComposite in="SourceAlpha" in2="off" operator="out" result="band"/>
+		<feGaussianBlur in="band" stdDeviation=".5" result="bandb"/>
+		<feFlood flood-color="#d6e8ff" flood-opacity=".95" result="c"/>
+		<feComposite in="c" in2="bandb" operator="in" result="rim"/>
+		<feOffset in="SourceAlpha" dx="0" dy="-1.4" result="off2"/>
+		<feComposite in="SourceAlpha" in2="off2" operator="out" result="band2"/>
+		<feFlood flood-color="#6f86ad" flood-opacity=".55" result="c2"/>
+		<feComposite in="c2" in2="band2" operator="in" result="rim2"/>
+		<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rim2"/><feMergeNode in="rim"/></feMerge>
+	</filter>
+</defs></svg>
+
+<header class="top">
+	<div class="wordmark">Lethal</div>
+	<div class="session"><span>English as White</span><span>position <b>12</b> of 20</span><span>streak <b>7</b></span></div>
+</header>
+
+<main class="app">
+	<section class="stage">
+		<div class="board-wrap">
+			<div class="board-area">
+				<div class="board" id="board"></div>
+				<div class="sheen"></div>
+				<svg class="coords" id="coords" viewBox="0 0 100 100"></svg>
+				<div class="pieces" id="pieces"></div>
+				<svg class="arrows" id="arrows" viewBox="0 0 800 800"></svg>
+				<div class="promo" id="promo"></div>
+			</div>
+		</div>
+		<div class="dock" id="dock"></div>
+	</section>
+
+	<aside class="panel">
+		<div class="track" id="track"></div>
+		<div class="moves" id="moves"></div>
+		<div class="verdict" id="verdict"></div>
+		<div class="position" id="position"></div>
+		<div class="sessionrow" id="sessionrow"></div>
+		<div class="prof" id="prof"></div>
+	</aside>
+</main>
+<section class="sheet" id="sheet"></section>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   PIECE GEOMETRY — 100×100 grid. sym() takes the RIGHT half of a profile,
+   starting on the axis at the top and ending on the axis at the bottom, and
+   mirrors it. Knights and slits are hand-drawn.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function sym(d) {
+	const t = d.match(/[MLCZ]|-?\d*\.?\d+/g); const segs = []; let i = 0, cmd = 'M';
+	while (i < t.length) {
+		if (/[MLC]/.test(t[i])) { cmd = t[i++]; continue; }
+		if (cmd === 'C') { segs.push({ c: 'C', p: [[+t[i], +t[i+1]], [+t[i+2], +t[i+3]], [+t[i+4], +t[i+5]]] }); i += 6; }
+		else { segs.push({ c: cmd === 'M' ? 'M' : 'L', p: [[+t[i], +t[i+1]]] }); i += 2; cmd = 'L'; }
+	}
+	const m = ([x, y]) => [(100 - x).toFixed(2), (+y).toFixed(2)];
+	let out = segs.map(s => s.c + s.p.map(p => p.join(' ')).join(' ')).join(' ');
+	const end = segs[segs.length - 1].p.at(-1);
+	if (Math.abs(end[0] - 50) > .01) out += ' L' + m(end).join(' ');
+	for (let k = segs.length - 1; k >= 1; k--) {
+		const s = segs[k], prev = segs[k - 1].p.at(-1);
+		if (s.c === 'C') out += ' C' + [m(s.p[1]), m(s.p[0]), m(prev)].map(p => p.join(' ')).join(' ');
+		else out += ' L' + m(prev).join(' ');
+	}
+	return out + ' Z';
+}
+const P = (d, extra = '') => `<path d="${d}"${extra}/>`;
+const rect = (x, y, w, h, rx = 0) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}"/>`;
+const circ = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+const ell = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`;
+
+/* ── MATERIAL: turned forms with heft. Wide plinths, round collars, a dome for the king. */
+const mBase = w => rect(50 - w + 4, 74, 2 * w - 8, 7, 3) + rect(50 - w, 80, 2 * w, 13, 4.5);
+const M = {
+	P: { s: circ(50, 30, 11.5) + rect(39, 43, 22, 6, 3) + P(sym('M50 46 L55 46 C56 56 59 66 62 76 L50 76')) + mBase(24), ao: 24 },
+	R: { s: rect(31, 17, 9, 13, 1.5) + rect(45.5, 17, 9, 13, 1.5) + rect(60, 17, 9, 13, 1.5) + rect(31, 27, 38, 12, 2) + P(sym('M50 38 L63 38 C63 52 64 64 66 76 L50 76')) + mBase(26), ao: 26 },
+	B: { s: circ(50, 11, 3.6) + P('M50 14 C64 24 67 44 52 57 L48 57 C33 44 36 24 50 14 Z M54.5 27 L62.5 39 L60 41 L52 29 Z', ' fill-rule="evenodd"') + rect(38, 55, 24, 6, 3) + P(sym('M50 59 L56 59 C56 66 58 71 60 76 L50 76')) + mBase(25), ao: 25 },
+	N: { s: P('M30 76 L30 66 C30 58 32 52 37 48 L27 46 C20 45 16 40 18 36 C19 33 23 32 27 33 L29 31 C31 28 34 25 38 23 L41 12 C44 14 46 17 47 20 L51 19 C53 15 55 12 58 10 L60 22 C67 28 71 40 70 56 L70 76 Z') + mBase(26), ao: 26,
+	     d: circ(41.5, 29.5, 2.1) + P('M61 28 C65 36 67 46 66 60', ' fill="none"') + P('M20 38 L24 37', ' fill="none"') },
+	Q: { s: [24, 37, 50, 63, 76].map((x, i) => circ(x, [21, 14, 11, 14, 21][i], 3.6)).join('') + P('M28 46 C27 38 25 30 24 23 L33 36 C34 29 36 21 37 16 L44 35 C46 27 48 19 50 13 C52 19 54 27 56 35 L63 16 C64 21 66 29 67 36 L76 23 C75 30 73 38 72 46 Z') + rect(29, 44, 42, 7, 3.5) + P(sym('M50 50 L60 50 C60 60 62 68 65 76 L50 76')) + mBase(29), ao: 29 },
+	K: { s: rect(47, 3, 6, 19, 1.5) + rect(41, 8.5, 18, 6, 1.5) + P('M31 48 C31 41 33 37 36 35 L36 30 C40 25 45 22 50 22 C55 22 60 25 64 30 L64 35 C67 37 69 41 69 48 Z') + rect(30, 46, 40, 7, 3.5) + P(sym('M50 52 L60 52 C60 61 62 69 65 76 L50 76')) + mBase(29), ao: 29,
+	     d: P('M37 36 L63 36', ' fill="none" stroke-width="1.4" opacity=".5"') },
+};
+
+/* ── INSTRUMENT: ruler-and-compass construction. Straight cuts, 45° chamfers, perfect circles. */
+const iBase = w => rect(50 - w + 4, 75, 2 * w - 8, 4) + P(`M${50 - w + 3} 79 H${50 + w - 3} L${50 + w} 82 V90 H${50 - w} V82 Z`);
+const I = {
+	P: { s: circ(50, 28, 10) + rect(46, 37, 8, 8) + rect(40, 45, 20, 4) + P('M43 49 H57 L61 76 H39 Z') + iBase(22), d: P('M43 49 H57', ' fill="none"') },
+	R: { s: rect(31, 16, 9, 12) + rect(45.5, 16, 9, 12) + rect(60, 16, 9, 12) + rect(31, 27, 38, 10) + P('M36 37 H64 L66 76 H34 Z') + iBase(24), d: P('M31 37 H69', ' fill="none"') },
+	B: { s: P('M50 4 L54 8 L50 12 L46 8 Z') + P('M50 13 L63 34 L60 56 H40 L37 34 Z M56 22 L62.5 35.5 L60 37 L53.5 23.5 Z', ' fill-rule="evenodd"') + rect(39, 56, 22, 4) + P('M44 60 H56 L59 76 H41 Z') + iBase(24) },
+	N: { s: P('M31 76 V62 L35 52 L27 49 L18 45 L17 39 L22 35 L28 34 L34 29 L39 22 L42 12 L47 19 L51 18 L57 11 L59 22 L65 29 L69 41 L70 58 V76 Z') + iBase(26),
+	     d: rect(40, 27.5, 3, 3) + P('M59 22 L57 40 L63 58 L60 76', ' fill="none"') + P('M34 29 L45 34', ' fill="none"') },
+	Q: { s: P('M27 46 L21 18 L31 34 L38 13 L44 33 L50 8 L56 33 L62 13 L69 34 L79 18 L73 46 Z') + rect(30, 46, 40, 4) + P('M39 50 H61 L65 76 H35 Z') + iBase(28), d: P('M27 40 H73', ' fill="none"') },
+	K: { s: rect(47, 3, 6, 19) + rect(40.5, 8, 19, 6) + P('M32 48 V27 L41 34 L50 22 L59 34 L68 27 V48 Z') + rect(30, 48, 40, 4) + P('M39 52 H61 L65 76 H35 Z') + iBase(28), d: P('M32 42 H68', ' fill="none"') },
+};
+
+/* ── NOCTURNE: elongated, waisted glass forms. Cushion bases, elliptical collars. */
+const nBase = w => P(sym(`M50 76 L${50 + w - 5} 76 C${50 + w - 1} 76 ${50 + w} 78 ${50 + w} 82 L${50 + w} 89 C${50 + w} 92 ${50 + w - 2} 93 ${50 + w - 5} 93 L50 93`));
+const N = {
+	P: { s: circ(50, 27, 10.5) + P(sym('M50 36 L53 36 L53.5 44 L50 44')) + ell(50, 46, 8.5, 3) + P(sym('M50 46 L54 46 C54 60 58 70 62 78 L50 78')) + nBase(20) },
+	R: { s: rect(34, 14, 9, 13, 1) + rect(45.5, 14, 9, 13, 1) + rect(57, 14, 9, 13, 1) + P(sym('M50 25 L65 25 C66.5 25 67 26 67 27.5 L67 32 C67 33.5 66 34 64.5 34 L50 34')) + P(sym('M50 33 L59 33 C59 48 61 62 65 77 L50 77')) + nBase(22) },
+	B: { s: circ(50, 9, 3.4) + P('M50 12 C61 22 65 42 52 58 L48 58 C35 42 39 22 50 12 Z M55 24 L62 37 L60 39 L53 26 Z', ' fill-rule="evenodd"') + ell(50, 59, 9.5, 3.2) + P(sym('M50 59 L55 59 C55 66 57 72 60 78 L50 78')) + nBase(21) },
+	N: { s: P('M33 77 L33 66 C33 58 35 52 39 47 L27 45 C21 44 18 39 20 35 C22 32 26 32 29 33 C31 29 34 25 38 22 L40 10 C44 12 46 16 47 19 L51 18 C53 13 56 10 59 8 L61 20 C68 27 71 40 70 56 L70 77 Z') + nBase(22),
+	     d: circ(42, 28.5, 1.9) + P('M62 26 C66 34 68 44 67 58', ' fill="none"') },
+	Q: { s: [23, 36, 50, 64, 77].map((x, i) => circ(x, [22, 14, 10, 14, 22][i], 2.8)).join('') + P('M28 50 C27 40 25 32 23 25 L32 38 C33 31 35 23 36 17 L44 36 C46 28 48 20 50 13 C52 20 54 28 56 36 L64 17 C65 23 67 31 68 38 L77 25 C75 32 73 40 72 50 Z') + ell(50, 52, 20, 4) + P(sym('M50 53 L58 53 C58 62 61 70 64 78 L50 78')) + nBase(27) },
+	K: { s: rect(47.5, 1, 5, 18, 2) + rect(42, 6.5, 16, 5, 2) + P('M33 50 C33 38 42 32 50 18 C58 32 67 38 67 50 Z') + ell(50, 52, 20, 4) + P(sym('M50 53 L58 53 C58 62 61 70 64 78 L50 78')) + nBase(27),
+	     d: P('M50 24 C50 34 50 40 50 46', ' fill="none" stroke-width="1.2" opacity=".55"') },
+};
+
+const SETS = { material: M, instrument: I, nocturne: N };
+function buildDefs() {
+	let html = '';
+	for (const [dir, set] of Object.entries(SETS)) for (const [t, g] of Object.entries(set)) {
+		const nss = x => dir === 'instrument' ? x.replace(/<(path|rect|circle|ellipse) /g, '<$1 vector-effect="non-scaling-stroke" ') : x;
+		html += `<g id="${dir}-${t}">${nss(g.s)}</g><g id="${dir}-${t}-d">${nss(g.d || '')}</g>`;
+		for (const c of ['w', 'b']) {
+			let inner = '';
+			if (dir === 'material') inner = `<ellipse class="ao" cx="50" cy="92" rx="${g.ao + 1}" ry="3.6"/><use href="#${dir}-${t}" class="o"/><g class="lit"><use href="#${dir}-${t}" class="f"/></g><use href="#${dir}-${t}-d" class="d"/>`;
+			else if (dir === 'nocturne') inner = `<use href="#${dir}-${t}" class="o"/><g class="rim"><use href="#${dir}-${t}" class="f"/></g><use href="#${dir}-${t}-d" class="d"/>`;
+			else inner = `<use href="#${dir}-${t}" class="o"/><use href="#${dir}-${t}" class="f"/><use href="#${dir}-${t}-d" class="d"/>`;
+			html += `<symbol id="${dir}-${c}${t}" viewBox="0 0 100 100"><g class="ps ${dir} ${c}">${inner}</g></symbol>`;
+		}
+	}
+	document.getElementById('defs').insertAdjacentHTML('beforeend', html);
+}
+buildDefs();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCENES
+   ═══════════════════════════════════════════════════════════════════════════ */
+const DIRS = ['material', 'instrument', 'nocturne'];
+const VARIANTS = ['dark', 'light'];
+const STATES = ['drill', 'correct', 'soft', 'wrong', 'check', 'promo', 'drag', 'focus'];
+const VIEWS = ['app', 'sheet', 'small'];
+const FILES = 'abcdefgh';
+const ENGLISH = { track: ['English · Reversed Dragon', 'Four Knights, fianchetto · you play White'], moves: ['c4','e5','Nc3','Nf6','Nf3','Nc6','g3','d5','cxd5','Nxd5'] };
+const RESULTS = ['ok','ok','soft','ok','ok','bad','ok','ok','ok','soft','ok'];
+const SCENES = {
+	drill:   { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3np3/8/2N2NP1/PP1PPP1P/R1BQKB1R w', last: ['f6','d5'], sel: 'c3', targets: ['a4','b5','b1','e4','d5'], arrow: ['f1','g2'], cur: 9, next: 'Bg2',
+	           verdict: ['Your move', '', 'Play your line. <kbd>H</kbd> shows the hint.'], eval: .3, prec: 3, precWord: 'Narrow' },
+	correct: { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3np3/8/2N2NP1/PP1PPPBP/R1BQK2R b', ok: ['f1','g2'], anim: ['f1','g2'], moves: [...ENGLISH.moves, 'Bg2'], cur: 10, curClass: 'ok', next: 'Nb6',
+	           verdict: ['Pass', '6.Bg2', 'Your line. The fianchetto bishop is the whole idea of the Reversed Dragon; Black usually answers 6…Nb6.'], eval: .3, prec: 3, precWord: 'Narrow' },
+	soft:    { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3np3/8/2NP1NP1/PP2PP1P/R1BQKB1R b', soft: ['d2','d3'], anim: ['d2','d3'], moves: [...ENGLISH.moves, 'd3'], cur: 10, curClass: 'soft',
+	           verdict: ['Sound, but not your line', '6.d3', 'Playable — the engine holds +0.2 — but your repertoire says 6.Bg2. Scored as a miss for retention; the position comes back tomorrow.'], eval: .2, prec: 3, precWord: 'Narrow' },
+	wrong:   { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3Np3/8/5NP1/PP1PPP1P/R1BQKB1R b', bad: ['c3','d5'], anim: ['c3','d5'], arrow: ['f1','g2'], moves: [...ENGLISH.moves, 'Nxd5'], cur: 10, curClass: 'bad',
+	           verdict: ['Fail', '6.Nxd5 costs 0.9', 'After 6…Qxd5 Black is comfortable and the fianchetto is gone. The bishop belongs on g2 first.'], eval: -.6, prec: 3, precWord: 'Narrow' },
+	check:   { track: ['Sicilian · Moscow Variation', '3.Bb5+ · you play Black'], fen: 'rnbqkbnr/pp2pppp/3p4/1Bp5/4P3/5N2/PPPP1PPP/RNBQK2R b', last: ['f1','b5'], check: 'e8', moves: ['e4','c5','Nf3','d6','Bb5+'], cur: 4, next: 'Bd7',
+	           verdict: ['Check — your move', '', 'Three ways to block. Your repertoire keeps the knight for c6: 3…Bd7.'], eval: .2, prec: 2, precWord: 'Forgiving' },
+	promo:   { ...ENGLISH, fen: 'r1bqkb2/ppp2pPp/2n5/3np3/8/2N2NP1/PP1PPP1P/R1BQKB1R w', last: ['f6','g7'], promoAt: 'g8', cur: 9,
+	           verdict: ['Promote', '', 'Pick the piece. Your line takes the queen.'], eval: 5.1, prec: 1, precWord: 'Won' },
+	drag:    { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3np3/8/2N2NP1/PP1PPP1P/R1BQKB1R w', last: ['f6','d5'], targets: ['a4','b5','b1','e4','d5'], drag: ['c3', 4.42, 3.62], hover: 'e4', cur: 9, next: 'Bg2',
+	           verdict: ['Your move', '', 'Play your line. <kbd>H</kbd> shows the hint.'], eval: .3, prec: 3, precWord: 'Narrow' },
+	focus:   { ...ENGLISH, fen: 'r1bqkb1r/ppp2ppp/2n5/3np3/8/2N2NP1/PP1PPP1P/R1BQKB1R w', last: ['f6','d5'], sel: 'c3', targets: ['a4','b5','b1','e4','d5'], focus: 'e4', cur: 9, next: 'Bg2',
+	           verdict: ['Your move', '', 'Keyboard: arrows move the cursor, <kbd>Enter</kbd> picks up and drops.'], eval: .3, prec: 3, precWord: 'Narrow' },
+};
+
+const root = document.documentElement;
+const board = document.getElementById('board');
+const piecesEl = document.getElementById('pieces');
+const arrowsEl = document.getElementById('arrows');
+const params = () => Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+const setParam = (k, v) => { const p = params(); p[k] = v; location.hash = new URLSearchParams(p).toString(); };
+const xy = sq => [FILES.indexOf(sq[0]), 8 - Number(sq[1])];
+
+for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+	const d = document.createElement('div');
+	d.className = 'sq ' + ((f + r) % 2 === 0 ? 'light' : 'dark'); d.dataset.sq = FILES[f] + (8 - r);
+	board.appendChild(d);
+}
+function parseFen(fen) {
+	const out = []; fen.split(' ')[0].split('/').forEach((row, r) => { let f = 0; for (const c of row) { if (/\d/.test(c)) { f += +c; continue; } out.push({ sq: FILES[f] + (8 - r), color: c === c.toUpperCase() ? 'w' : 'b', type: c.toUpperCase() }); f++; } }); return out;
+}
+const pieceSvg = (dir, color, type) => `<svg viewBox="0 0 100 100"><use href="#${dir}-${color}${type}"/></svg>`;
+const place = (el, f, r) => { el.style.transform = `translate(${f * 100}%, ${r * 100}%)`; };
+
+function arrow(from, to, dir) {
+	const [fx, fy] = xy(from).map(v => v * 100 + 50), [tx, ty] = xy(to).map(v => v * 100 + 50);
+	const dx = tx - fx, dy = ty - fy, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, px = -uy, py = ux;
+	const Pt = (x, y) => `${x.toFixed(1)},${y.toFixed(1)}`;
+	if (dir === 'instrument') {
+		const start = 30, end = 8, head = 20, hw = 11;
+		const sx = fx + ux * start, sy = fy + uy * start, ex = tx - ux * end, ey = ty - uy * end, bx = ex - ux * head, by = ey - uy * head;
+		return `<path class="hint" d="M${Pt(sx, sy)} L${Pt(ex, ey)} M${Pt(bx + px * hw, by + py * hw)} L${Pt(ex, ey)} L${Pt(bx - px * hw, by - py * hw)} M${Pt(sx + px * 7, sy + py * 7)} L${Pt(sx - px * 7, sy - py * 7)}"/>`;
+	}
+	const w = dir === 'nocturne' ? 7 : 9, head = 30, hw = dir === 'nocturne' ? 20 : 24, start = 26, end = 6;
+	const sx = fx + ux * start, sy = fy + uy * start, ex = tx - ux * end, ey = ty - uy * end, bx = ex - ux * head, by = ey - uy * head;
+	return `<polygon class="hint" points="${Pt(sx + px * w, sy + py * w)} ${Pt(bx + px * w, by + py * w)} ${Pt(bx + px * hw, by + py * hw)} ${Pt(ex, ey)} ${Pt(bx - px * hw, by - py * hw)} ${Pt(bx - px * w, by - py * w)} ${Pt(sx - px * w, sy - py * w)}"/>`;
+}
+
+function coords(dir) {
+	let s = '';
+	if (dir === 'instrument') {
+		// ruler: hairline rule offset from the board, major ticks at square edges, minor at halves, labels centred on squares
+		s += `<path class="bracket" d="M-4.5 -1.5 V-4.5 H-1.5 M101.5 -4.5 H104.5 V-1.5 M104.5 101.5 V104.5 H101.5 M-1.5 104.5 H-4.5 V101.5"/>`;
+		for (let i = 0; i <= 16; i++) { const p = i * 6.25, maj = i % 2 === 0, l = maj ? 2.2 : 1.1;
+			s += `<line x1="${p}" y1="101.8" x2="${p}" y2="${101.8 + l}"/><line x1="-1.8" y1="${p}" x2="${-1.8 - l}" y2="${p}"/>`; }
+		s += `<line x1="0" y1="101.8" x2="100" y2="101.8"/><line x1="-1.8" y1="0" x2="-1.8" y2="100"/>`;
+		for (let i = 0; i < 8; i++) { s += `<text x="${i * 12.5 + 6.25}" y="107.2">${FILES[i]}</text><text x="-6.2" y="${i * 12.5 + 6.25 + .9}">${8 - i}</text>`; }
+	} else if (dir === 'material') {
+		for (let i = 0; i < 8; i++) { s += `<text x="${i * 12.5 + 6.25}" y="103.6">${FILES[i]}</text><text x="-2.4" y="${i * 12.5 + 6.25 + .85}">${8 - i}</text>`; }
+	} else {
+		for (let i = 0; i < 8; i++) { s += `<text x="${i * 12.5 + 1.1}" y="99">${FILES[i]}</text><text x="1.1" y="${i * 12.5 + 3.1}">${8 - i}</text>`; }
+	}
+	document.getElementById('coords').innerHTML = s;
+}
+
+function render() {
+	const p = params();
+	const dir = DIRS.includes(p.direction) ? p.direction : 'material';
+	const variant = VARIANTS.includes(p.variant) ? p.variant : 'dark';
+	const state = STATES.includes(p.state) ? p.state : 'drill';
+	const view = VIEWS.includes(p.view) ? p.view : 'app';
+	root.dataset.dir = dir; root.dataset.variant = variant; root.dataset.state = state; root.dataset.view = view;
+	if (p.nomotion) root.setAttribute('data-nomotion', ''); else root.removeAttribute('data-nomotion');
+	const S = SCENES[state];
+	coords(dir);
+
+	for (const d of board.children) {
+		d.className = d.className.replace(/\b(last|sel|target|capture|check|ok|bad|soft|hover|focus)\b/g, '').replace(/\s+/g, ' ').trim();
+		const sq = d.dataset.sq;
+		for (const k of ['last', 'ok', 'bad', 'soft', 'targets']) if (S[k]?.includes(sq)) d.classList.add(k === 'targets' ? 'target' : k);
+		for (const k of ['sel', 'check', 'hover', 'focus']) if (S[k] === sq) d.classList.add(k);
+	}
+	const pieces = parseFen(S.fen);
+	for (const d of board.children) if (d.classList.contains('target') && pieces.some(x => x.sq === d.dataset.sq)) d.classList.add('capture');
+
+	piecesEl.innerHTML = '';
+	for (const pc of pieces) {
+		const el = document.createElement('div'); el.className = 'pc ' + pc.color;
+		el.innerHTML = pieceSvg(dir, pc.color, pc.type);
+		const [f, r] = xy(pc.sq);
+		if (S.drag && S.drag[0] === pc.sq) {
+			el.classList.add('lifted'); place(el, f, r); piecesEl.appendChild(el);
+			const g = el.cloneNode(true); g.className = 'pc drag ' + pc.color; place(g, S.drag[1], S.drag[2]); piecesEl.appendChild(g); continue;
+		}
+		const animate = S.anim && S.anim[1] === pc.sq && !p.nomotion;
+		if (animate) { const [f0, r0] = xy(S.anim[0]); place(el, f0, r0); } else place(el, f, r);
+		piecesEl.appendChild(el);
+		if (animate) { el.getBoundingClientRect(); el.classList.add('moved'); place(el, f, r); }
+	}
+	arrowsEl.innerHTML = S.arrow ? arrow(...S.arrow, dir) : '';
+
+	const promo = document.getElementById('promo');
+	if (S.promoAt) { const [f, r] = xy(S.promoAt); promo.style.left = f * 12.5 + '%'; promo.style.top = r * 12.5 + '%';
+		promo.innerHTML = ['Q', 'N', 'R', 'B'].map((t, i) => `<button type="button" aria-label="${t}" class="${i ? '' : 'first'}">${pieceSvg(dir, 'w', t)}</button>`).join(''); }
+
+	// panel
+	document.getElementById('track').innerHTML = `<h1>${S.track[0]}</h1><p>${S.track[1]}</p>`;
+	let html = '';
+	S.moves.forEach((m, i) => { if (i % 2 === 0) html += `<span class="n">${i / 2 + 1}.</span>`; html += `<span class="m${i === S.cur ? ' cur ' + (S.curClass || '') : ''}">${m}</span>`; });
+	if (S.next) { if (S.moves.length % 2 === 0) html += `<span class="n">${S.moves.length / 2 + 1}.</span>`; html += `<span class="m ghost">${S.next}?</span>`; }
+	document.getElementById('moves').innerHTML = html;
+	document.getElementById('verdict').innerHTML = `<h2>${S.verdict[0]}${S.verdict[1] ? `<span>${S.verdict[1]}</span>` : ''}</h2><p>${S.verdict[2]}</p>`;
+	const ev = S.eval, evPct = Math.max(6, Math.min(94, 50 + ev * 12));
+	document.getElementById('position').innerHTML =
+		`<div class="stat"><div class="lbl">Engine</div><div class="val">${ev > 0 ? '+' : ev < 0 ? '−' : ''}${Math.abs(ev).toFixed(1)}<small>depth 24</small></div><div class="evalbar"><i style="width:${evPct}%"></i></div></div>` +
+		`<div class="stat"><div class="lbl">Precision demanded</div><div class="val" style="font-family:var(--font-ui);font-weight:500;font-size:16px;line-height:20px">${S.precWord}</div><div class="meter" data-level="${S.prec}">${[1,2,3,4,5].map(i => `<i class="${i <= S.prec ? 'on' : ''}"></i>`).join('')}</div>${dir === 'instrument' ? '<div class="scale">' + '<i></i>'.repeat(6) + '</div>' : ''}</div>`;
+	document.getElementById('sessionrow').innerHTML = `<div class="lbl"><span>Session</span><b>12 / 20</b></div><div class="strip">${Array.from({ length: 20 }, (_, i) => `<i class="${RESULTS[i] || ''}${i === 11 ? ' now' : ''}"></i>`).join('')}</div>`;
+	document.getElementById('prof').innerHTML = `<h3>Reversed Dragon — proficiency</h3>` + [['Coverage', 71], ['Retention', 84], ['Precision', 62]].map(([l, v]) => `<div class="bar"><span class="lbl">${l}</span><span class="val">${v}%</span><span class="track"><span class="fill" style="width:${v}%"></span></span></div>`).join('');
+
+	// sheet
+	if (view === 'sheet') {
+		let sh = '';
+		for (const c of ['w', 'b']) for (const bgc of ['light', 'dark']) for (const t of ['K', 'Q', 'R', 'B', 'N', 'P']) sh += `<div class="cell ${bgc}">${pieceSvg(dir, c, t)}</div>`;
+		document.getElementById('sheet').innerHTML = sh;
+	}
+	renderDock(dir, variant, state, view);
+}
+function renderDock(dir, variant, state, view) {
+	const grp = (label, key, items, cur) => `<div class="grp"><span>${label}</span>${items.map(i => `<button type="button" data-k="${key}" data-v="${i}" aria-pressed="${i === cur}">${i}</button>`).join('')}</div>`;
+	document.getElementById('dock').innerHTML = grp('direction', 'direction', DIRS, dir) + grp('variant', 'variant', VARIANTS, variant) + grp('state', 'state', STATES, state) + grp('view', 'view', VIEWS, view);
+}
+document.getElementById('dock').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setParam(b.dataset.k, b.dataset.v); });
+addEventListener('hashchange', render);
+render();
+</script>
+</body>
+</html>

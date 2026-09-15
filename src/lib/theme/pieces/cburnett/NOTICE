@@ -1,0 +1,9 @@
+Cburnett chess piece set
+Copyright (C) Colin M. L. Burnett. Originally published on Wikimedia Commons
+(https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces) and shipped by
+Lichess as public/piece/cburnett (https://github.com/lichess-org/lila), whose
+COPYING.md lists it as GPLv2+. Used here under the GNU General Public License
+version 2 or (at your option) any later version; text in LICENSE.GPL-2.0.txt.
+
+Modifications by Lethal Chess: none to the files; colours are remapped to CSS
+custom properties at load time (src/lib/theme/pieces/imported.ts).

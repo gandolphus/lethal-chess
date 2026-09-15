@@ -1,0 +1,9 @@
+# stockfish's postinstall only symlinks the 113 MB full engine build. We copy the
+# 7 MB lite/single-threaded build ourselves in scripts/sync-engine.js, so its
+# install script is deliberately not run.
+# esbuild and workerd (both via wrangler) ship their binaries as optional
+# platform packages; their postinstalls only verify/relink them, so they stay off too.
+allowBuilds:
+  esbuild: false
+  stockfish: false
+  workerd: false

@@ -1,0 +1,25 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "lethal-chess",
+	// Written by @sveltejs/adapter-cloudflare on `pnpm build`.
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	// Newest date the pinned workerd runtime supports; bump together with wrangler.
+	"compatibility_date": "2026-09-11",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "lethal-chess",
+			// Local dev and tests need no real id. Replace with the id printed by
+			// `wrangler d1 create lethal-chess` before the first deploy.
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}

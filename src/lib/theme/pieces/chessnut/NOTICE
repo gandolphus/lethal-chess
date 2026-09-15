@@ -1,0 +1,7 @@
+Chessnut chess piece set
+Obtained from the Lichess repository (https://github.com/lichess-org/lila),
+public/piece/chessnut, which lists it under the Apache License, Version 2.0
+(see lila/COPYING.md). Licence text: LICENSE.Apache-2.0.txt in this directory.
+
+Modifications by Lethal Chess: none to the files; colours are remapped to CSS
+custom properties at load time (src/lib/theme/pieces/imported.ts).

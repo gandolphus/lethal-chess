@@ -157,6 +157,55 @@ export function pruneDanglingReplies(nodes: Record<string, BundleNode>, rootEpd:
 
 const epdAfter = (epd: string, uci: string) => toEpd(play(`${epd} 0 1`, uci).fen());
 
+/**
+ * Nodes for the moves that define the opening (e.g. 1.e4 e5 2.Nf3 Nc6 3.Bb5 for the Ruy Lopez), from
+ * the initial position to the tree's root. At the learner's turns the move is the defining move —
+ * even when the engine prefers another, since that move *is* the opening; an engine-preferred
+ * alternative still grades as sound-but-not-your-line. At the opponent's turns the defining move is
+ * the only reply.
+ */
+export function addPrelude(
+	spec: RepertoireSpec,
+	nodes: Record<string, BundleNode>,
+	evals: EvalSource,
+	catalog: CatalogIndex,
+	stats: { missingEvals: number }
+): void {
+	let fen = START_FEN;
+	spec.rootMoves.forEach((uci, ply) => {
+		const epd = toEpd(fen);
+		const after = play(fen, uci);
+		const san = after.history().at(-1)!;
+		const record = evals(epd);
+		if (!record) stats.missingEvals++;
+		const { candidates, line } = record ? candidatesAt(fen, record) : { candidates: [], line: [] };
+		const toMove = fen.split(' ')[1] as Side;
+
+		// The defining move's own score: from this position's candidates, or else the best score
+		// available in the position it leads to (which is that move's evaluation).
+		let chosen = candidates.find((c) => c.uci === uci);
+		if (!chosen) {
+			const next = evals(toEpd(after.fen()));
+			chosen = { uci, san, score: next?.pvs[0]?.score ?? { cp: 0 } };
+			candidates.push(chosen);
+			candidates.sort((a, b) => scoreFor(b.score, toMove) - scoreFor(a.score, toMove));
+		}
+
+		if (nodes[epd]) throw new Error(`${spec.id}: prelude position already in the tree: ${epd}`);
+		nodes[epd] = {
+			epd,
+			ply,
+			name: catalog.name(epd),
+			depth: record?.depth ?? 0,
+			candidates,
+			line,
+			sharpness: sharpness(candidates, toMove),
+			...(toMove === spec.side ? { move: chosen } : { replies: [{ uci, san, weight: 1 }] })
+		};
+		fen = after.fen();
+	});
+}
+
 export function buildRepertoire(
 	spec: RepertoireSpec,
 	evals: EvalSource,
@@ -216,6 +265,9 @@ export function buildRepertoire(
 	}
 
 	pruneDanglingReplies(nodes, rootEpd);
+	// Walks start from the initial position, not the opening's defining position, so the
+	// learner also practises the moves that lead into it.
+	addPrelude(spec, nodes, evals, catalog, stats);
 	const final = Object.values(nodes);
 	stats.learnerNodes = final.filter((n) => n.move).length;
 	stats.opponentNodes = final.filter((n) => n.replies).length;
@@ -225,8 +277,9 @@ export function buildRepertoire(
 		id: spec.id,
 		name: spec.name,
 		side: spec.side,
-		rootMoves: spec.rootMoves,
-		rootEpd,
+		rootMoves: [],
+		rootEpd: toEpd(START_FEN),
+		openingMoves: spec.rootMoves,
 		nodes,
 		tolerances: { soundCp: spec.soundCp, replyCp: spec.replyCp },
 		stats,

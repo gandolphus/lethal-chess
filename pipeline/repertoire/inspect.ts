@@ -15,7 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const bundle: Bundle = JSON.parse(readFileSync(join(root, 'static', 'openings', 'repertoires', `${id}.json`), 'utf8'));
 
 const chess = new Chess();
-for (const uci of bundle.rootMoves) chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4) });
+for (const uci of bundle.rootMoves ?? []) chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4) });
 
 const fmt = (score: { cp: number } | { mate: number }) =>
 	'mate' in score ? `#${score.mate}` : `${score.cp >= 0 ? '+' : ''}${(score.cp / 100).toFixed(2)}`;

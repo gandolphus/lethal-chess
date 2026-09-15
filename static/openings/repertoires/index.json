@@ -8,10 +8,10 @@
       "popular"
     ],
     "moves": "1.e4 e5 2.Nf3 Nc6 3.Bb5",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 48,
-    "bytes": 172481
+    "bytes": 174705
   },
   {
     "id": "italian-game",
@@ -22,10 +22,10 @@
       "popular"
     ],
     "moves": "1.e4 e5 2.Nf3 Nc6 3.Bc4",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 48,
-    "bytes": 168386
+    "bytes": 170610
   },
   {
     "id": "scotch-game",
@@ -36,10 +36,10 @@
       "popular"
     ],
     "moves": "1.e4 e5 2.Nf3 Nc6 3.d4",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 37,
-    "bytes": 165493
+    "bytes": 167716
   },
   {
     "id": "vienna-game",
@@ -50,10 +50,10 @@
       "aggressive"
     ],
     "moves": "1.e4 e5 2.Nc3",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 59,
-    "bytes": 168608
+    "bytes": 169792
   },
   {
     "id": "kings-gambit",
@@ -65,10 +65,10 @@
       "gambit"
     ],
     "moves": "1.e4 e5 2.f4",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 54,
-    "bytes": 169031
+    "bytes": 170263
   },
   {
     "id": "evans-gambit",
@@ -80,10 +80,10 @@
       "gambit"
     ],
     "moves": "1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4",
-    "learnerNodes": 180,
+    "learnerNodes": 184,
     "maxPly": 21,
-    "opponentSharpness": 60,
-    "bytes": 159865
+    "opponentSharpness": 59,
+    "bytes": 163236
   },
   {
     "id": "danish-gambit",
@@ -95,10 +95,10 @@
       "gambit"
     ],
     "moves": "1.e4 e5 2.d4 exd4 3.c3",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 33,
-    "bytes": 149725
+    "bytes": 152052
   },
   {
     "id": "smith-morra-gambit",
@@ -110,10 +110,10 @@
       "gambit"
     ],
     "moves": "1.e4 c5 2.d4 cxd4 3.c3",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 30,
-    "bytes": 166753
+    "bytes": 169204
   },
   {
     "id": "queens-gambit",
@@ -124,10 +124,10 @@
       "popular"
     ],
     "moves": "1.d4 d5 2.c4",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 21,
-    "opponentSharpness": 32,
-    "bytes": 175111
+    "opponentSharpness": 31,
+    "bytes": 176522
   },
   {
     "id": "london-system",
@@ -139,10 +139,10 @@
       "system"
     ],
     "moves": "1.d4 d5 2.Bf4",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 23,
-    "bytes": 149374
+    "bytes": 150783
   },
   {
     "id": "catalan",
@@ -153,10 +153,10 @@
       "solid"
     ],
     "moves": "1.d4 Nf6 2.c4 e6 3.g3",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 21,
     "opponentSharpness": 8,
-    "bytes": 171934
+    "bytes": 174409
   },
   {
     "id": "english",
@@ -167,10 +167,10 @@
       "popular"
     ],
     "moves": "1.c4",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 21,
     "opponentSharpness": 19,
-    "bytes": 173607
+    "bytes": 174082
   },
   {
     "id": "reti",
@@ -181,10 +181,10 @@
       "solid"
     ],
     "moves": "1.Nf3 d5 2.c4",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 21,
     "opponentSharpness": 27,
-    "bytes": 159871
+    "bytes": 161410
   },
   {
     "id": "sicilian",
@@ -195,10 +195,10 @@
       "popular"
     ],
     "moves": "1.e4 c5",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 18,
-    "bytes": 167968
+    "bytes": 168800
   },
   {
     "id": "sicilian-dragon",
@@ -209,10 +209,10 @@
       "aggressive"
     ],
     "moves": "1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 g6",
-    "learnerNodes": 180,
+    "learnerNodes": 185,
     "maxPly": 22,
-    "opponentSharpness": 37,
-    "bytes": 158804
+    "opponentSharpness": 35,
+    "bytes": 163849
   },
   {
     "id": "caro-kann",
@@ -224,10 +224,10 @@
       "solid"
     ],
     "moves": "1.e4 c6",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 27,
-    "bytes": 167467
+    "bytes": 168300
   },
   {
     "id": "french",
@@ -239,10 +239,10 @@
       "solid"
     ],
     "moves": "1.e4 e6",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 27,
-    "bytes": 173644
+    "bytes": 174477
   },
   {
     "id": "scandinavian",
@@ -253,10 +253,10 @@
       "popular"
     ],
     "moves": "1.e4 d5",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 25,
-    "bytes": 168324
+    "bytes": 169157
   },
   {
     "id": "pirc",
@@ -267,10 +267,10 @@
       "aggressive"
     ],
     "moves": "1.e4 d6 2.d4 Nf6 3.Nc3 g6",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 22,
-    "opponentSharpness": 30,
-    "bytes": 174240
+    "opponentSharpness": 29,
+    "bytes": 177015
   },
   {
     "id": "alekhine",
@@ -281,10 +281,10 @@
       "aggressive"
     ],
     "moves": "1.e4 Nf6",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 22,
     "opponentSharpness": 30,
-    "bytes": 167301
+    "bytes": 168136
   },
   {
     "id": "queens-gambit-declined",
@@ -296,10 +296,10 @@
       "solid"
     ],
     "moves": "1.d4 d5 2.c4 e6",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 22,
     "opponentSharpness": 15,
-    "bytes": 171336
+    "bytes": 173283
   },
   {
     "id": "slav",
@@ -311,10 +311,10 @@
       "solid"
     ],
     "moves": "1.d4 d5 2.c4 c6",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 22,
     "opponentSharpness": 21,
-    "bytes": 167511
+    "bytes": 169458
   },
   {
     "id": "kings-indian",
@@ -326,10 +326,10 @@
       "aggressive"
     ],
     "moves": "1.d4 Nf6 2.c4 g6 3.Nc3 Bg7 4.e4 d6",
-    "learnerNodes": 180,
+    "learnerNodes": 184,
     "maxPly": 22,
-    "opponentSharpness": 20,
-    "bytes": 172244
+    "opponentSharpness": 19,
+    "bytes": 176028
   },
   {
     "id": "nimzo-indian",
@@ -340,10 +340,10 @@
       "popular"
     ],
     "moves": "1.d4 Nf6 2.c4 e6 3.Nc3 Bb4",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 22,
-    "opponentSharpness": 34,
-    "bytes": 165164
+    "opponentSharpness": 33,
+    "bytes": 168072
   },
   {
     "id": "grunfeld",
@@ -354,10 +354,10 @@
       "aggressive"
     ],
     "moves": "1.d4 Nf6 2.c4 g6 3.Nc3 d5",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 22,
-    "opponentSharpness": 43,
-    "bytes": 164534
+    "opponentSharpness": 42,
+    "bytes": 167428
   },
   {
     "id": "dutch",
@@ -368,10 +368,10 @@
       "aggressive"
     ],
     "moves": "1.d4 f5",
-    "learnerNodes": 180,
+    "learnerNodes": 181,
     "maxPly": 18,
     "opponentSharpness": 8,
-    "bytes": 166521
+    "bytes": 167438
   },
   {
     "id": "benko-gambit",
@@ -383,10 +383,10 @@
       "gambit"
     ],
     "moves": "1.d4 Nf6 2.c4 c5 3.d5 b5",
-    "learnerNodes": 180,
+    "learnerNodes": 183,
     "maxPly": 22,
     "opponentSharpness": 37,
-    "bytes": 165933
+    "bytes": 168995
   },
   {
     "id": "budapest-gambit",
@@ -398,9 +398,9 @@
       "gambit"
     ],
     "moves": "1.d4 Nf6 2.c4 e5",
-    "learnerNodes": 180,
+    "learnerNodes": 182,
     "maxPly": 22,
-    "opponentSharpness": 22,
-    "bytes": 156820
+    "opponentSharpness": 21,
+    "bytes": 158823
   }
 ]

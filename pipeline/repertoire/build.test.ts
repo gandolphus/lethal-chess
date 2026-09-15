@@ -48,7 +48,7 @@ describe('buildRepertoire', () => {
 			source({ [epdAfter('e2e4', 'e7e5')]: [cp('b1c3', 40), cp('g1f3', 30)] }),
 			catalog
 		);
-		expect(bundle.nodes[bundle.rootEpd].move?.san).toBe('Nf3');
+		expect(bundle.nodes[epdAfter('e2e4', 'e7e5')].move?.san).toBe('Nf3');
 	});
 
 	it('falls back to the engine move when the theory move is not sound', () => {
@@ -58,7 +58,7 @@ describe('buildRepertoire', () => {
 			source({ [epdAfter('e2e4', 'e7e5')]: [cp('g1f3', 40), cp('d1h5', -30)] }),
 			catalog
 		);
-		expect(bundle.nodes[bundle.rootEpd].move?.san).toBe('Nf3');
+		expect(bundle.nodes[epdAfter('e2e4', 'e7e5')].move?.san).toBe('Nf3');
 	});
 
 	it('drills sound engine replies plus catalogued dubious ones, with weights summing to 1', () => {
@@ -94,7 +94,7 @@ describe('buildRepertoire', () => {
 			source({ [epdAfter(...castleReady)]: [cp('e1h1', 20)] }),
 			buildCatalogIndex([])
 		);
-		expect(bundle.nodes[bundle.rootEpd].move).toMatchObject({ uci: 'e1g1', san: 'O-O' });
+		expect(bundle.nodes[epdAfter(...castleReady)].move).toMatchObject({ uci: 'e1g1', san: 'O-O' });
 	});
 
 	it('counts missing evals and never drills a reply into a position it has no data for', () => {
@@ -104,7 +104,8 @@ describe('buildRepertoire', () => {
 			// Both replies lead to positions with no eval.
 		};
 		const bundle = buildRepertoire(spec, source(table), buildCatalogIndex([]));
-		expect(bundle.stats.missingEvals).toBe(2);
+		// 2 below the tree + 2 prelude positions (start, after 1.e4) the table doesn't cover.
+		expect(bundle.stats.missingEvals).toBe(4);
 		// The opponent node lost all its replies, so the learner's Nf3 ends the line.
 		expect(bundle.nodes[epdAfter('e2e4', 'e7e5', 'g1f3')].replies).toBeUndefined();
 	});
@@ -182,7 +183,7 @@ describe('buildRepertoire', () => {
 			source({ [epdAfter('e2e4', 'e7e5')]: [cp('g1f3', 30), cp('b1c3', 40), cp('b1c3', 40), cp('d2d4', 45)] }),
 			buildCatalogIndex([])
 		);
-		expect(bundle.nodes[bundle.rootEpd].candidates.map((c) => c.san)).toEqual(['Nf3', 'Nc3', 'd4']);
+		expect(bundle.nodes[epdAfter('e2e4', 'e7e5')].candidates.map((c) => c.san)).toEqual(['Nf3', 'Nc3', 'd4']);
 	});
 
 	it('respects the learner budget', () => {
@@ -193,6 +194,40 @@ describe('buildRepertoire', () => {
 			[epdAfter('e2e4', 'e7e5', 'g1f3')]: [cp('b8c6', 30)],
 			[epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6')]: [cp('f1b5', 30)]
 		}), buildCatalogIndex([]));
-		expect(bundle.stats.learnerNodes).toBe(1);
+		// The budget limits the tree; the prelude adds the learner's defining move 1.e4 on top.
+		expect(bundle.stats.learnerNodes).toBe(2);
+	});
+});
+
+describe('prelude', () => {
+	it('starts walks from the initial position, asking the learner the moves that lead into the opening', () => {
+		const table = {
+			[epdAfter()]: [cp('e2e4', 30), cp('d2d4', 25)],
+			[epdAfter('e2e4')]: [cp('c7c5', 30), cp('e7e5', 25)],
+			[epdAfter('e2e4', 'e7e5')]: [cp('g1f3', 30)],
+			[epdAfter('e2e4', 'e7e5', 'g1f3')]: [cp('b8c6', 30)],
+			[epdAfter('e2e4', 'e7e5', 'g1f3', 'b8c6')]: [cp('f1b5', 30)]
+		};
+		const bundle = buildRepertoire({ ...spec, maxPly: 6 }, source(table), buildCatalogIndex([]));
+		expect(bundle.rootMoves).toEqual([]);
+		expect(bundle.openingMoves).toEqual(['e2e4', 'e7e5']);
+		expect(bundle.rootEpd).toBe(epdAfter());
+		// Learner's move 1 is the defining e4; the opponent's only reply is the defining e5 — even though
+		// the engine preferred c5 there.
+		expect(bundle.nodes[epdAfter()].move?.san).toBe('e4');
+		expect(bundle.nodes[epdAfter('e2e4')].replies).toEqual([{ uci: 'e7e5', san: 'e5', weight: 1 }]);
+		// The tree continues from where the opening is defined.
+		expect(bundle.nodes[epdAfter('e2e4', 'e7e5')].move?.san).toBe('Nf3');
+	});
+
+	it('keeps a defining move the engine never listed, scored from the position it leads to', () => {
+		const table = {
+			[epdAfter()]: [cp('d2d4', 30)], // e4 not among the candidates
+			[epdAfter('e2e4')]: [cp('e7e5', 20)],
+			[epdAfter('e2e4', 'e7e5')]: [cp('g1f3', 30)]
+		};
+		const bundle = buildRepertoire(spec, source(table), buildCatalogIndex([]));
+		expect(bundle.nodes[epdAfter()].move).toMatchObject({ uci: 'e2e4', san: 'e4', score: { cp: 20 } });
+		expect(bundle.nodes[epdAfter()].candidates.map((c) => c.san)).toEqual(['d4', 'e4']);
 	});
 });

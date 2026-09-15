@@ -19,7 +19,7 @@
 	// The root position, rendered on the server and until the session starts, so the board never flashes empty.
 	const rootFen = $derived.by(() => {
 		const preview = new Game();
-		preview.load(bundle.rootMoves);
+		preview.load(bundle.openingMoves ?? bundle.rootMoves);
 		return preview.fen;
 	});
 

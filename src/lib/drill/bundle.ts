@@ -42,8 +42,10 @@ export type Bundle = {
 	id: string;
 	name: string;
 	side: Side;
-	/** UCI moves from the initial position to the repertoire's root. */
+	/** UCI moves from the initial position to where walks start (empty: walks start from move 1). */
 	rootMoves: string[];
+	/** The moves that define the opening, e.g. 1.e4 e5 2.Nf3 Nc6 3.Bb5 — for display. */
+	openingMoves?: string[];
 	rootEpd: string;
 	nodes: Record<string, BundleNode>;
 	/** Tolerances the bundle was built with, so grading uses the same numbers. */

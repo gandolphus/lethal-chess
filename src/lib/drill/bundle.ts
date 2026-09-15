@@ -100,6 +100,8 @@ export type OpeningIndexEntry = {
 	lines?: number;
 	/** Keys (end EPDs) of the dubious lines, so a line count can leave them out without the bundle. */
 	dubiousLines?: string[];
+	/** Sound lines per variation, largest first: the shape of the opening for a picker spine. */
+	variations?: number[];
 	bytes: number;
 };
 

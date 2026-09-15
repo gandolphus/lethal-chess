@@ -4,7 +4,6 @@
 	import { BrowserProgressStore } from '$lib/drill/progress';
 	import { stagesOf } from '$lib/explore/book';
 	import type { OpeningIndexEntry } from '$lib/drill/bundle';
-	import Meter from '$lib/ui/Meter.svelte';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 	import { fenAfter } from '$lib/ui/position';
 	import type { PageProps } from './$types';
@@ -37,8 +36,9 @@
 		return cp >= 60 ? 5 : cp >= 42 ? 4 : cp >= 30 ? 3 : cp >= 20 ? 2 : 1;
 	};
 
-	// Lines discovered per opening, from this browser's copy of the learner's progress (no network).
-	let found = $state<Record<string, number>>({});
+	// Lines discovered and entered per opening, from this browser's copy of the learner's progress (no network).
+	type Progress = { discovered: number; entered: number; last: string };
+	let found = $state<Record<string, Progress>>({});
 	onMount(() => {
 		let store: BrowserProgressStore;
 		try {
@@ -49,13 +49,44 @@
 		void Promise.all(
 			data.openings.map(async (o) => {
 				const dubious = new Set(o.dubiousLines ?? []);
-				const stages = stagesOf(await store.loadDiscoveries(o.id));
-				return [o.id, [...stages].filter(([line, stage]) => stage === 'discovered' && !dubious.has(line)).length] as const;
+				const discoveries = await store.loadDiscoveries(o.id);
+				const sound = [...stagesOf(discoveries)].filter(([line]) => !dubious.has(line));
+				const progress: Progress = {
+					discovered: sound.filter(([, stage]) => stage === 'discovered').length,
+					entered: sound.filter(([, stage]) => stage === 'entered').length,
+					last: discoveries.reduce((latest, d) => (d.at > latest ? d.at : latest), '')
+				};
+				return [o.id, progress] as const;
 			})
 		).then((counts) => (found = Object.fromEntries(counts)));
 	});
 
 	const featured = $derived(data.openings.find((o) => o.id === 'ruy-lopez') ?? data.openings[0]);
+
+	/** The opening explored most recently, once there is any progress. */
+	const resume = $derived.by(() => {
+		const recent = data.openings.filter((o) => found[o.id]?.last).sort((a, b) => found[b.id].last.localeCompare(found[a.id].last))[0];
+		return recent ? { opening: recent, progress: found[recent.id] } : null;
+	});
+
+	/**
+	 * An opening's shape: one segment per variation, as wide as its lines. The found and entered counts are
+	 * laid in from the largest variation, since the picker doesn't know which variation each line is in.
+	 */
+	function spine(sizes: number[], { discovered, entered }: Pick<Progress, 'discovered' | 'entered'>) {
+		let d = discovered;
+		let e = entered;
+		return sizes.map((n) => {
+			const lit = Math.min(n, d);
+			d -= lit;
+			const warm = Math.min(n - lit, e);
+			e -= warm;
+			return { n, lit: lit / n, warm: warm / n };
+		});
+	}
+
+	const tally = (openings: OpeningIndexEntry[]) =>
+		openings.reduce((t, o) => ({ found: t.found + (found[o.id]?.discovered ?? 0), lines: t.lines + (o.lines ?? 0) }), { found: 0, lines: 0 });
 </script>
 
 <svelte:head>
@@ -77,7 +108,21 @@
 				<li><b>Today</b> — replay what you found, just before you'd forget it</li>
 			</ol>
 		</div>
-		{#if featured}
+		{#if resume}
+			{@const { opening, progress } = resume}
+			<a class="resume" href="/openings/{opening.id}" aria-label="Continue exploring the {opening.name}">
+				<span class="diagram"><MiniBoard fen={fenAfter(opening.moves)} orientation={opening.side} /></span>
+				<span>
+					<span class="resume-kicker">Continue where you left off</span>
+					<span class="resume-title">{opening.name} <span class="num">{progress.discovered} of {opening.lines} lines</span></span>
+				</span>
+				{@render spineOf(opening, progress)}
+				<span class="resume-foot">
+					<span>{progress.entered ? `${progress.entered} entered, not finished` : 'Keep exploring'}</span>
+					<span class="btn small primary">Explore</span>
+				</span>
+			</a>
+		{:else if featured}
 			<a class="featured" href="/openings/{featured.id}" aria-label="Start with the {featured.name}">
 				<MiniBoard fen={fenAfter(featured.moves)} orientation={featured.side} />
 				<span class="featured-label">Start with the <b>{featured.name}</b></span>
@@ -87,7 +132,13 @@
 
 	{#each sections as section (section.side)}
 		<section class="side">
-			<h2><i class="stone" class:black={section.side === 'b'}></i>{section.title}</h2>
+			<h2>
+				<i class="stone" class:black={section.side === 'b'}></i>{section.title}
+				{#if tally(section.groups.flatMap((g) => g.openings)).found}
+					{@const sideTally = tally(section.groups.flatMap((g) => g.openings))}
+					<span class="tally num">{sideTally.found} of {sideTally.lines} lines found</span>
+				{/if}
+			</h2>
 			{#each section.groups as group (group.id)}
 				<h3 class="num">{group.label}</h3>
 				<ul class="openings">
@@ -99,22 +150,29 @@
 									<span class="name">{opening.name}</span>
 									<span class="moves num">{opening.moves}</span>
 									<span class="foot">
-										<span class="lethal" title="How much precision it demands of your opponent">
-											<span class="lethal-label">Lethality</span>
-											<Meter level={lethality(opening)} label="Lethality" />
+										<span class="lethal" title="Lethality: how much precision it demands of your opponent" role="img" aria-label="Lethality {lethality(opening)} of 5">
+											Lethality
+											{#each [1, 2, 3, 4, 5] as dot (dot)}<i class:on={dot <= lethality(opening)}></i>{/each}
 										</span>
 										{#each opening.tags as tag (tag)}
 											<span class="chip">{tag}</span>
 										{/each}
 									</span>
-									{#if opening.lines}
-										{@const count = found[opening.id] ?? 0}
-										<span class="found" title="Established lines you've discovered">
-											<span class="found-track"><span class="found-fill" style="width:{(count / opening.lines) * 100}%"></span></span>
-											<span class="found-label num">{count}/{opening.lines} lines</span>
-										</span>
-									{/if}
 								</span>
+								{#if opening.lines}
+									{@const progress = found[opening.id] ?? { discovered: 0, entered: 0, last: '' }}
+									<span class="progress">
+										{@render spineOf(opening, progress)}
+										<span class="progress-row">
+											<span class:untouched={!progress.discovered && !progress.entered}>
+												{progress.discovered || progress.entered
+													? `${progress.discovered} of ${opening.lines} lines found`
+													: `${opening.lines} lines, none found yet`}
+											</span>
+											<span class="num">{opening.variations?.length ?? 0} variations</span>
+										</span>
+									</span>
+								{/if}
 							</a>
 						</li>
 					{/each}
@@ -123,6 +181,14 @@
 		</section>
 	{/each}
 </main>
+
+{#snippet spineOf(opening: OpeningIndexEntry, progress: Pick<Progress, 'discovered' | 'entered'>)}
+	<span class="spine" aria-hidden="true">
+		{#each spine(opening.variations ?? [opening.lines ?? 1], progress) as segment, i (i)}
+			<i style="--n: {segment.n}; --lit: {segment.lit}; --warm: {segment.lit + segment.warm}"></i>
+		{/each}
+	</span>
+{/snippet}
 
 <style>
 	main {
@@ -133,7 +199,7 @@
 
 	.hero {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 220px;
+		grid-template-columns: minmax(0, 1fr) minmax(220px, 340px);
 		gap: 2.5rem;
 		align-items: center;
 		padding-bottom: 2rem;
@@ -307,43 +373,136 @@
 		padding-top: 0.5rem;
 	}
 
-	.found {
+	/* ── Spine: one segment per variation; found lit, entered warm, secret fogged ── */
+	.spine {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding-top: 0.45rem;
+		gap: 2px;
+		height: 7px;
 	}
 
-	.found-track {
-		flex: 1;
-		height: 3px;
+	.spine i {
+		position: relative;
+		flex: var(--n) 1 0;
+		min-width: 3px;
 		border-radius: 2px;
-		background: var(--surface-2);
 		overflow: hidden;
+		background: repeating-linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--text-3) 30%, transparent) 0 2px,
+			transparent 2px 4px
+		);
 	}
 
-	.found-fill {
-		display: block;
-		height: 100%;
-		background: var(--accent);
+	.spine i::before,
+	.spine i::after {
+		content: '';
+		position: absolute;
+		inset: 0 auto 0 0;
 	}
 
-	.found-label {
-		font-size: 0.7rem;
+	.spine i::before {
+		width: calc(var(--warm) * 100%);
+		background: color-mix(in srgb, var(--accent) 45%, transparent);
+	}
+
+	.spine i::after {
+		width: calc(var(--lit) * 100%);
+		background: var(--ok);
+	}
+
+	.progress {
+		grid-column: 1 / -1;
+		display: grid;
+		gap: 0.35rem;
+	}
+
+	.progress-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.76rem;
+		color: var(--text-2);
+	}
+
+	.progress-row .untouched,
+	.progress-row .num {
 		color: var(--text-3);
-		white-space: nowrap;
 	}
 
 	.lethal {
-		display: grid;
-		gap: 0.25rem;
-		width: 5.2rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
 		margin-right: 0.3rem;
+		font-size: 0.72rem;
+		color: var(--text-3);
 	}
 
-	.lethal-label {
-		font-size: 0.68rem;
-		color: var(--text-3);
+	.lethal i {
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--text-3) 35%, transparent);
+	}
+
+	.lethal i.on {
+		background: var(--text-2);
+	}
+
+	h2 .tally {
+		margin-left: auto;
+		font-family: var(--font-ui);
+		font-size: 0.85rem;
+		color: var(--text-2);
+	}
+
+	.resume {
+		display: grid;
+		grid-template-columns: 96px 1fr;
+		gap: 0.8rem 1rem;
+		align-items: center;
+		padding: 0.9rem;
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		background: var(--surface-1);
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.resume:hover {
+		border-color: var(--accent);
+	}
+
+	.resume-kicker {
+		display: block;
+		font-size: 0.8rem;
+		color: var(--text-2);
+	}
+
+	.resume-title {
+		display: block;
+		text-wrap: balance;
+		font-family: var(--font-display);
+		font-size: 1.45rem;
+		line-height: 1.15;
+	}
+
+	.resume-title .num {
+		font-family: var(--font-ui);
+		font-size: 0.95rem;
+		color: var(--text-2);
+	}
+
+	.resume .spine,
+	.resume-foot {
+		grid-column: 1 / -1;
+	}
+
+	.resume-foot {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.82rem;
+		color: var(--text-2);
 	}
 
 	@media (max-width: 700px) {

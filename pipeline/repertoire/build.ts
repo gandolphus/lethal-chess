@@ -471,6 +471,12 @@ export function indexEntry(spec: RepertoireSpec, bundle: Bundle, bytes: number):
 		opponentSharpness: sharpness.length ? Math.round(sharpness.reduce((a, b) => a + b, 0) / sharpness.length) : null,
 		lines: (bundle.lines ?? []).filter((l) => !l.dubious).length,
 		dubiousLines: (bundle.lines ?? []).filter((l) => l.dubious).map((l) => epdAfterMoves(l.moves)),
+		variations: [
+			...(bundle.lines ?? [])
+				.filter((l) => !l.dubious)
+				.reduce((sizes, l) => sizes.set(l.variation, (sizes.get(l.variation) ?? 0) + 1), new Map<string, number>())
+				.values()
+		].sort((a, b) => b - a),
 		bytes
 	};
 }

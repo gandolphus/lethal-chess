@@ -1,12 +1,13 @@
 import type { Discovery } from '$lib/explore/book';
+import type { LineReview } from '$lib/explore/mastery';
 import type { ProgressStore } from './progress';
 import type { CardState } from './scheduler';
 import type { Attempt } from './session.svelte';
 
 type Fetch = typeof fetch;
-type ProgressJson = { cards: Record<string, CardState>; attempts: Attempt[]; discoveries?: Discovery[] };
+type ProgressJson = { cards: Record<string, CardState>; attempts: Attempt[]; discoveries?: Discovery[]; reviews?: LineReview[] };
 export type CardUpload = { bundleId: string; epd: string; state: CardState };
-export type ProgressImport = { attempts: Attempt[]; cards: CardUpload[]; discoveries?: Discovery[] };
+export type ProgressImport = { attempts: Attempt[]; cards: CardUpload[]; discoveries?: Discovery[]; reviews?: LineReview[] };
 
 export class ProgressSyncError extends Error {
 	constructor(
@@ -89,6 +90,14 @@ export class ServerProgressStore implements ProgressStore {
 		await this.importProgress({ attempts: [], cards: [], discoveries: [discovery] });
 	}
 
+	async loadReviews(bundleId: string) {
+		return (await this.#progress(bundleId)).reviews ?? [];
+	}
+
+	async recordReview(review: LineReview) {
+		await this.importProgress({ attempts: [], cards: [], reviews: [review] });
+	}
+
 	/** Merges local (signed-out) progress into the account. Safe to call more than once. */
 	async importProgress(data: ProgressImport): Promise<{ importedAttempts: number; cards: number }> {
 		return this.#request('POST', '/api/progress/import', data);
@@ -97,10 +106,11 @@ export class ServerProgressStore implements ProgressStore {
 
 /** Gathers what another store (normally the BrowserProgressStore) holds for these openings, ready for import. */
 export async function collectProgress(store: ProgressStore, bundleIds: string[]): Promise<ProgressImport> {
-	const data: ProgressImport = { attempts: [], cards: [], discoveries: [] };
+	const data: ProgressImport = { attempts: [], cards: [], discoveries: [], reviews: [] };
 	for (const bundleId of bundleIds) {
 		data.attempts.push(...(await store.loadAttempts(bundleId)));
 		data.discoveries!.push(...(await store.loadDiscoveries(bundleId)));
+		data.reviews!.push(...(await store.loadReviews(bundleId)));
 		for (const [epd, state] of await store.loadCards(bundleId)) data.cards.push({ bundleId, epd, state });
 	}
 	return data;

@@ -4,12 +4,12 @@
 	import { Engine, ignoreDestroyed } from '$lib/chess/engine';
 	import { Game } from '$lib/chess/game.svelte';
 	import { FreePlay } from '$lib/coach/freeplay.svelte';
-	import type { Grade } from '$lib/drill/grade';
 	import { progressStore, sync } from '$lib/drill/account.svelte';
-	import { proficiency, type Proficiency, type ProgressStore } from '$lib/drill/progress';
-	import { DrillSession } from '$lib/drill/session.svelte';
+	import type { ProgressStore } from '$lib/drill/progress';
 	import { toEpd } from '$lib/drill/tree';
 	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine } from '$lib/explore/book';
+	import { lineCards, mastery, nextLine, reviewable, type Mastery } from '$lib/explore/mastery';
+	import { ReviewSession } from '$lib/explore/review.svelte';
 	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
@@ -32,8 +32,10 @@
 
 	let mode = $state<PageMode>('explore');
 	let explore = $state<ExploreSession | null>(null);
-	let session = $state<DrillSession | null>(null);
-	let stats = $state<Proficiency | null>(null);
+	let review = $state<ReviewSession | null>(null);
+	/** Practice found nothing due: how many lines could be replayed anyway. */
+	let caughtUp = $state<{ lines: number } | null>(null);
+	let memory = $state<Mastery | null>(null);
 	let summary = $state<DiscoverySummary | null>(null);
 	let store: ProgressStore | null = null;
 
@@ -41,14 +43,13 @@
 
 	async function refreshStats() {
 		const s = activeStore();
-		const [cards, attempts, discoveries] = await Promise.all([
-			s.loadCards(bundle.id),
-			s.loadAttempts(bundle.id),
-			s.loadDiscoveries(bundle.id)
-		]);
-		stats = proficiency(bundle, cards, attempts, new Date());
-		summary = summarize(book, stagesOf(discoveries));
+		const [discoveries, reviews] = await Promise.all([s.loadDiscoveries(bundle.id), s.loadReviews(bundle.id)]);
+		const stages = stagesOf(discoveries);
+		summary = summarize(book, stages);
+		memory = mastery(reviewable(book, stages, openingLength, bundle.side), lineCards(reviews), new Date());
 	}
+
+	const openingLength = $derived((bundle.openingMoves ?? []).length);
 
 	// The engine (a 7 MB download) loads only when first needed: past the book, or for free play.
 	let freeplay = $state<FreePlay | null>(null);
@@ -68,11 +69,11 @@
 	}
 
 	async function keepPlaying() {
-		if (!session || engineLoading) return;
+		if (!review || engineLoading) return;
 		engineLoading = true;
 		try {
 			const ready = await loadEngine();
-			const next = new FreePlay({ engine: ready, startMoves: session.game.uciHistory, side: bundle.side });
+			const next = new FreePlay({ engine: ready, startMoves: review.game.uciHistory, side: bundle.side });
 			freeplay = next;
 			await next.start();
 		} catch (error) {
@@ -85,7 +86,8 @@
 
 	async function startExplore() {
 		freeplay = null;
-		session = null;
+		review = null;
+		caughtUp = null;
 		mode = 'explore';
 		const s = activeStore();
 		const discoveries = await s.loadDiscoveries(bundle.id);
@@ -100,21 +102,38 @@
 		await next.start();
 	}
 
-	async function startPractice() {
+	/**
+	 * Practice replays discovered lines from memory: the most overdue first, then lines never replayed.
+	 * When nothing is due it says so; `anyway` replays a random discovered line regardless.
+	 */
+	async function startPractice(anyway = false) {
 		freeplay = null;
 		explore = null;
+		review = null;
 		mode = 'practice';
 		const s = activeStore();
-		const [cards, attempts] = await Promise.all([s.loadCards(bundle.id), s.loadAttempts(bundle.id)]);
-		const next = new DrillSession({
+		const [discoveries, reviews] = await Promise.all([s.loadDiscoveries(bundle.id), s.loadReviews(bundle.id)]);
+		// Oldest discovery first, so lines come back in the order they were found.
+		const foundAt = new Map(discoveries.filter((d) => d.stage === 'discovered').map((d) => [d.line, d.at]));
+		const lines = reviewable(book, stagesOf(discoveries), openingLength, bundle.side).sort((a, b) =>
+			(foundAt.get(a.key) ?? '').localeCompare(foundAt.get(b.key) ?? '')
+		);
+		const cards = lineCards(reviews);
+		const line = nextLine(lines, cards, new Date()) ?? (anyway && lines.length ? lines[Math.floor(Math.random() * lines.length)] : null);
+		if (!line) {
+			caughtUp = { lines: lines.length };
+			return;
+		}
+		caughtUp = null;
+		const next = new ReviewSession({
 			bundle,
-			mode: 'practice',
-			guided: attempts.length === 0,
-			cards,
-			onAttempt: (attempt) => void s.recordAttempt(attempt).then(refreshStats),
-			onReview: (epd, state) => void s.saveCard(bundle.id, epd, state)
+			book,
+			line,
+			card: cards.get(line.key),
+			onAttempt: (attempt) => void s.recordAttempt(attempt),
+			onReview: (lineReview) => void s.recordReview(lineReview).then(refreshStats)
 		});
-		session = next;
+		review = next;
 		await next.start();
 	}
 
@@ -126,29 +145,19 @@
 		return () => engine?.destroy();
 	});
 
-	const game = $derived(freeplay?.game ?? explore?.game ?? session?.game ?? null);
+	const game = $derived(freeplay?.game ?? explore?.game ?? review?.game ?? null);
 	const node = $derived(game ? bundle.nodes[toEpd(game.fen)] : undefined);
-	const learnerToMove = $derived(session && ['await', 'retry', 'reveal'].includes(session.phase));
 	const yourTurn = $derived(game ? game.turn === bundle.side : false);
-	const variationName = $derived(explore?.name ?? session?.name ?? null);
+	// A replayed line keeps its name hidden until it is done: recalling it is the exercise.
+	const variationName = $derived(explore?.name ?? (review?.phase === 'done' ? review.line.name : null));
 
-	/** Plain-language size of a mistake: a newcomer can't read "0.39". */
-	const howMuch = (cp: number) =>
-		cp < 50 ? 'a little' : cp < 120 ? 'about a pawn' : cp < 250 ? 'more than a pawn' : 'a lot';
-
-	function feedback(grade: Grade | null): { tone: 'pass' | 'soft' | 'fail'; text: string } | null {
-		if (!grade) return null;
-		const played = session?.lastPlayedSan ?? grade.played?.san ?? 'That move';
-		if (grade.kind === 'pass') return { tone: 'pass', text: `${grade.played.san} — that's your line.` };
-		if (grade.kind === 'soft') {
-			return { tone: 'soft', text: `${played} is playable, but your line is ${grade.expected.san}. Play ${grade.expected.san}.` };
-		}
-		const cost = grade.costCp ?? grade.atLeastCp;
-		const why = cost > 0 ? ` — it gives away ${howMuch(cost)}` : '';
-		// During the one unhinted retry the answer must stay hidden; it is revealed only after the second miss.
-		if (session?.phase === 'retry') return { tone: 'fail', text: `${played} isn't in your line${why}. One more try, no hints.` };
-		return { tone: 'fail', text: `Not ${played}${why}. Here you play ${grade.expected.san} — the arrow shows it.` };
+	/** "later today", "tomorrow", "in 6 days". */
+	function dueIn(due: Date, now = new Date()) {
+		const days = Math.round((due.getTime() - now.getTime()) / 86_400_000);
+		return days < 1 ? 'later today' : days === 1 ? 'tomorrow' : `in ${days} days`;
 	}
+
+	const REVIEW_WORDS = { good: 'Remembered', hard: 'Remembered, with effort', again: 'Not remembered yet' } as const;
 
 	const TONES = { best: 'pass', good: 'pass', warn: 'soft', bad: 'fail', info: 'accent' } as const;
 
@@ -217,19 +226,30 @@
 					return { tone, title: 'Game over', text: message?.text ?? '' };
 			}
 		}
-		if (!session) return { tone: 'wait', title: 'Loading…', text: '' };
-		const verdict = feedback(session.lastGrade);
-		switch (session.phase) {
+		if (caughtUp) {
+			return caughtUp.lines
+				? { tone: 'pass', title: 'All caught up', text: `No line is due for review${memory?.nextDue ? ` — the next comes back ${dueIn(memory.nextDue)}` : ''}. Replay one anyway, or explore to find more.` }
+				: { tone: 'accent', title: 'Nothing to practise yet', text: 'Practice replays the lines you have discovered. Explore first — every line you find comes back here to be remembered.' };
+		}
+		if (!review) return { tone: 'wait', title: 'Loading…', text: '' };
+		const message = review.message;
+		switch (review.phase) {
 			case 'opponent':
-				return { tone: 'wait', title: 'Opponent is moving…', text: verdict?.text ?? '' };
+				return { tone: 'wait', title: 'Opponent is moving…', text: message?.text ?? '' };
 			case 'await':
-				return { tone: 'accent', title: 'Your move', text: verdict?.text ?? 'From memory. What does your line play here?' };
+				return { tone: message?.tone === 'pass' ? 'pass' : 'accent', title: 'Your move — from memory', text: message?.text ?? 'Replay a line you discovered. How does it continue?' };
 			case 'retry':
-				return { tone: 'fail', title: 'Not that — one more try', text: verdict?.text ?? '' };
+				return { tone: message?.tone === 'soft' ? 'soft' : 'fail', title: 'One more try', text: message?.text ?? '' };
 			case 'reveal':
-				return { tone: verdict?.tone ?? 'accent', title: 'Play the highlighted move', text: verdict?.text ?? '' };
-			case 'done':
-				return { tone: 'pass', title: 'Line complete', text: 'Saved. Positions you missed will come back sooner. Next line?' };
+				return { tone: 'accent', title: 'Play the highlighted move', text: message?.text ?? '' };
+			case 'done': {
+				const result = review.result!;
+				return {
+					tone: result.rating === 'again' ? 'soft' : 'pass',
+					title: REVIEW_WORDS[result.rating],
+					text: `${review.line.name}. It comes back ${dueIn(result.due)}.`
+				};
+			}
 		}
 	});
 
@@ -243,18 +263,18 @@
 
 	const pairs = $derived(movePairs(game?.history ?? []));
 
-	const percent = (value: number | null | undefined) => (value === null || value === undefined ? '—' : `${Math.round(value * 100)}%`);
 	const share = (value: number | null | undefined) => `${Math.round((value ?? 0) * 100)}%`;
 
 	function onKey(event: KeyboardEvent) {
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 		if ((event.target as HTMLElement | null)?.closest('input, textarea, select')) return;
-		if (event.key === 'n' && (explore || session?.phase === 'done' || freeplay)) void restart();
+		if (event.key === 'n' && (explore || review?.phase === 'done' || caughtUp || freeplay)) void restart();
 		else if (event.key === 'h' && explore?.phase === 'your-move') explore.hint();
+		else if (event.key === 'h' && review && ['await', 'retry'].includes(review.phase)) review.hint();
 		else if (event.key === 't' && explore?.phase === 'decide') explore.tryAgain();
 		else if (event.key === 'w' && explore?.phase === 'decide') void explore.explain();
 		else if (event.key === 'b' && explore?.canTakeBack) void explore.takeBack();
-		else if (event.key === 'k' && session?.phase === 'done' && !freeplay) void keepPlaying();
+		else if (event.key === 'k' && review?.phase === 'done' && !freeplay) void keepPlaying();
 		else if (event.key === 'e' && mode !== 'explore') void startExplore();
 		else if (event.key === 'p' && mode !== 'practice') void startPractice();
 	}
@@ -292,16 +312,16 @@
 					arrows={explore.arrows}
 					onMove={(from, to, promotion) => void explore?.submit(from, to, promotion).catch(ignoreDestroyed)}
 				/>
-			{:else if session}
+			{:else if review}
 				<Board
-					fen={session.game.fen}
+					fen={review.game.fen}
 					orientation={bundle.side}
-					interactive={Boolean(learnerToMove)}
-					legalTargets={session.game.legalTargets}
-					needsPromotion={session.game.needsPromotion}
-					marks={session.marks}
-					arrows={session.arrows}
-					onMove={(from, to, promotion) => session?.submit(from, to, promotion)}
+					interactive={['await', 'retry', 'reveal'].includes(review.phase)}
+					legalTargets={review.game.legalTargets}
+					needsPromotion={review.game.needsPromotion}
+					marks={review.marks}
+					arrows={review.arrows}
+					onMove={(from, to, promotion) => void review?.submit(from, to, promotion)}
 				/>
 			{:else}
 				<Board fen={rootFen} orientation={bundle.side} interactive={false} onMove={() => {}} />
@@ -325,7 +345,7 @@
 					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => startPractice()}>Practice</button>
 				</div>
 				<p class="mode-hint">
-					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}From memory. One retry, then the answer.{/if}
+					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
 				</p>
 			</div>
 
@@ -365,6 +385,16 @@
 						</p>
 					</div>
 				{/key}
+			{:else if review && review.phase !== 'done'}
+				<div class="discovery" data-kind="entered" role="status">
+					<p class="kicker">Replaying a line</p>
+					<p class="name">Name hidden until the end</p>
+					<span class="pips" aria-hidden="true">
+						{#each { length: Math.min(review.progress.total, 24) } as _, i (i)}
+							<i class:on={i < review.progress.played}></i>
+						{/each}
+					</span>
+				</div>
 			{/if}
 
 			<div class="notice" data-tone={notice.tone === 'accent' ? undefined : notice.tone} aria-live="polite">
@@ -408,12 +438,25 @@
 					{#if explore.hintLevel === 2 && !explore.inOpening}
 						<p class="text small">Lines through a shown move need another game to count.</p>
 					{/if}
-				{:else if session?.phase === 'done'}
+				{:else if caughtUp}
 					<div class="actions">
-						<button type="button" class="btn primary" onclick={() => startPractice()}>Next line <kbd>N</kbd></button>
-						<button type="button" class="btn" onclick={keepPlaying} disabled={engineLoading}>
-							{engineLoading ? 'Loading engine…' : 'Keep playing'} <kbd>K</kbd>
-						</button>
+						{#if caughtUp.lines}
+							<button type="button" class="btn" onclick={() => startPractice(true)}>Replay a line anyway</button>
+						{/if}
+						<button type="button" class="btn primary" onclick={() => startExplore()}>Explore <kbd>E</kbd></button>
+					</div>
+				{:else if review}
+					<div class="actions">
+						{#if review.phase === 'done'}
+							<button type="button" class="btn primary" onclick={() => startPractice()}>Next line <kbd>N</kbd></button>
+							<button type="button" class="btn" onclick={keepPlaying} disabled={engineLoading}>
+								{engineLoading ? 'Loading engine…' : 'Keep playing'} <kbd>K</kbd>
+							</button>
+						{:else if review.phase === 'await' || review.phase === 'retry'}
+							<button type="button" class="btn" onclick={() => review?.hint()}>
+								{review.hintLevel === 0 ? 'Hint' : 'Show the move'} <kbd>H</kbd>
+							</button>
+						{/if}
 					</div>
 					{#if engineError}
 						<p class="text error">{engineError}</p>
@@ -429,9 +472,6 @@
 							<p class="value">{SHARPNESS_WORDS[sharpnessLevel(node.sharpness)]}</p>
 							<Meter level={sharpnessLevel(node.sharpness)} label="How exact you must be" />
 						</div>
-					{/if}
-					{#if session?.phase === 'reveal' || session?.phase === 'done'}
-						<p class="line num"><span class="label">Engine line</span> {node.line.slice(0, 8).join(' ')}</p>
 					{/if}
 				</div>
 			{/if}
@@ -500,17 +540,22 @@
 					{/if}
 					{@render saveStatus()}
 				</div>
-			{:else if stats}
+			{:else if mode === 'practice' && memory}
 				<div class="prof">
-					<p class="label">{bundle.name} — your proficiency</p>
-					{#each [['Played from memory', stats.coverage], ['Remembered right now', stats.retention], ['Right first time', stats.precision]] as const as [label, value] (label)}
-						<div class="bar">
-							<span>{label}</span>
-							<span class="num">{percent(value)}</span>
-							<span class="track"><span class="fill" style="width:{share(value)}"></span></span>
-						</div>
-					{/each}
-					<p class="label small">{stats.cards} positions to learn in this opening.</p>
+					<p class="label">{bundle.name} — lines you remember</p>
+					<div class="tally">
+						<p class="count num"><strong>{memory.remembered}</strong> <span>/ {memory.discovered} discovered</span></p>
+						<p class="label small">
+							{#if memory.due}{memory.due} due now.{:else if memory.nextDue}Next review {dueIn(memory.nextDue)}.{:else}Discover lines in Explore to review them here.{/if}
+						</p>
+					</div>
+					<span class="track split" aria-hidden="true">
+						<span class="fill" style="width:{share(memory.discovered ? memory.mastered / memory.discovered : 0)}"></span>
+						<span class="fill entered" style="width:{share(memory.discovered ? (memory.remembered - memory.mastered) / memory.discovered : 0)}"></span>
+					</span>
+					<p class="label small">
+						{memory.mastered} mastered — remembered and stable for three weeks or more.
+					</p>
 					{@render saveStatus()}
 				</div>
 			{/if}
@@ -668,16 +713,7 @@
 		line-height: 1;
 	}
 
-	.line {
-		grid-column: 1 / -1;
-		margin: 0;
-		font-size: 0.9rem;
-	}
 
-	.line .label {
-		display: block;
-		margin-bottom: 0.2rem;
-	}
 
 	.moves {
 		display: grid;
@@ -717,32 +753,9 @@
 		border-top: 1px solid var(--border);
 	}
 
-	.bar {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		row-gap: 5px;
-		font-size: 0.9rem;
-	}
 
-	.bar > span:first-child {
-		color: var(--text-2);
-	}
 
-	.bar .track {
-		grid-column: 1 / -1;
-		height: 4px;
-		border-radius: 2px;
-		background: var(--surface-2);
-		box-shadow: 0 0 0 1px var(--border) inset;
-		overflow: hidden;
-	}
 
-	.bar .fill {
-		display: block;
-		height: 100%;
-		border-radius: 2px;
-		background: var(--accent);
-	}
 
 	.small {
 		font-size: 0.78rem;

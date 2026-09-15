@@ -1,5 +1,6 @@
 import type { Attempt } from '$lib/drill/session.svelte';
 import type { Discovery } from '$lib/explore/book';
+import type { LineReview } from '$lib/explore/mastery';
 import type { Database, Statement } from './db';
 import type { CardEntry, CardJson } from './validate';
 
@@ -50,6 +51,17 @@ function discoveryStatements(db: Database, userId: string, discoveries: Discover
 	);
 }
 
+const INSERT_REVIEWS = `
+	INSERT INTO line_reviews (user_id, bundle_id, line, rating, at, created_at)
+	SELECT ?1, json_extract(value, '$.bundleId'), json_extract(value, '$.line'), json_extract(value, '$.rating'),
+		json_extract(value, '$.at'), ?2
+	FROM json_each(?3) WHERE true
+	ON CONFLICT DO NOTHING`;
+
+function reviewStatements(db: Database, userId: string, reviews: LineReview[], now: Date): Statement[] {
+	return chunks(reviews).map((chunk) => db.prepare(INSERT_REVIEWS).bind(userId, now.getTime(), JSON.stringify(chunk)));
+}
+
 function attemptStatements(db: Database, userId: string, attempts: Attempt[], now: Date): Statement[] {
 	return chunks(attempts).map((chunk) =>
 		db.prepare(INSERT_ATTEMPTS).bind(userId, now.getTime(), JSON.stringify(chunk))
@@ -82,14 +94,15 @@ export async function saveCards(db: Database, userId: string, cards: CardEntry[]
 export async function importProgress(
 	db: Database,
 	userId: string,
-	data: { attempts: Attempt[]; cards: CardEntry[]; discoveries?: Discovery[] },
+	data: { attempts: Attempt[]; cards: CardEntry[]; discoveries?: Discovery[]; reviews?: LineReview[] },
 	now: Date
 ): Promise<{ attempts: number }> {
 	const attempts = attemptStatements(db, userId, data.attempts, now);
 	const statements = [
 		...attempts,
 		...cardStatements(db, userId, data.cards, now, true),
-		...discoveryStatements(db, userId, data.discoveries ?? [], now)
+		...discoveryStatements(db, userId, data.discoveries ?? [], now),
+		...reviewStatements(db, userId, data.reviews ?? [], now)
 	];
 	if (!statements.length) return { attempts: 0 };
 	const results = await db.batch(statements);
@@ -113,8 +126,8 @@ export async function loadProgress(
 	db: Database,
 	userId: string,
 	bundleId: string
-): Promise<{ cards: Record<string, CardJson>; attempts: Attempt[]; discoveries: Discovery[] }> {
-	const [cards, attempts, discoveries] = await db.batch([
+): Promise<{ cards: Record<string, CardJson>; attempts: Attempt[]; discoveries: Discovery[]; reviews: LineReview[] }> {
+	const [cards, attempts, discoveries, reviews] = await db.batch([
 		db.prepare('SELECT epd, state FROM cards WHERE user_id = ? AND bundle_id = ?').bind(userId, bundleId),
 		db
 			.prepare(
@@ -124,8 +137,12 @@ export async function loadProgress(
 			.bind(userId, bundleId),
 		db
 			.prepare('SELECT bundle_id, line, stage, at FROM discoveries WHERE user_id = ? AND bundle_id = ? ORDER BY at, stage')
+			.bind(userId, bundleId),
+		db
+			.prepare('SELECT bundle_id, line, rating, at FROM line_reviews WHERE user_id = ? AND bundle_id = ? ORDER BY at, line')
 			.bind(userId, bundleId)
 	]);
+	const reviewRows = (reviews as { results: { bundle_id: string; line: string; rating: LineReview['rating']; at: string }[] }).results;
 	const discoveryRows = (discoveries as { results: { bundle_id: string; line: string; stage: Discovery['stage']; at: string }[] }).results;
 	const cardRows = (cards as { results: { epd: string; state: string }[] }).results;
 	const attemptRows = (attempts as { results: AttemptRow[] }).results;
@@ -143,6 +160,7 @@ export async function loadProgress(
 			responseMs: r.response_ms,
 			at: r.at
 		})),
-		discoveries: discoveryRows.map((r) => ({ bundleId: r.bundle_id, line: r.line, stage: r.stage, at: r.at }))
+		discoveries: discoveryRows.map((r) => ({ bundleId: r.bundle_id, line: r.line, stage: r.stage, at: r.at })),
+		reviews: reviewRows.map((r) => ({ bundleId: r.bundle_id, line: r.line, rating: r.rating, at: r.at }))
 	};
 }

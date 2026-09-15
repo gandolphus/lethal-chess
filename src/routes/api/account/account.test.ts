@@ -41,7 +41,7 @@ beforeEach(async () => {
 		await recordAttempts(db, user.id, [attempt('2026-09-15T10:00:00.000Z'), attempt('2026-09-15T10:01:00.000Z')], now);
 		const state = JSON.parse(JSON.stringify(review(undefined, Rating.Good, now))) as CardJson;
 		await saveCards(db, user.id, [{ bundleId: 'ruy-lopez', epd: EPD, state }], now);
-		await importProgress(db, user.id, { attempts: [], cards: [], discoveries: [{ bundleId: 'ruy-lopez', line: EPD, stage: 'entered', at: '2026-09-15T10:00:00.000Z' }] }, now);
+		await importProgress(db, user.id, { attempts: [], cards: [], discoveries: [{ bundleId: 'ruy-lopez', line: EPD, stage: 'entered', at: '2026-09-15T10:00:00.000Z' }], reviews: [{ bundleId: 'ruy-lopez', line: EPD, rating: 'good', at: '2026-09-15T10:00:00.000Z' }] }, now);
 		await createSession(db, `token-${user.id}`, user.id, now);
 	}
 });
@@ -57,6 +57,7 @@ describe('account export', () => {
 		expect(data.attempts).toHaveLength(2);
 		expect(data.cards).toHaveLength(1);
 		expect(data.discoveries).toHaveLength(1);
+		expect(data.lineReviews).toHaveLength(1);
 		expect(JSON.stringify(data)).not.toContain('bob@example.com');
 		expect(JSON.stringify(data)).not.toMatch(/session/i);
 	});
@@ -72,7 +73,7 @@ describe('account deletion', () => {
 		const response = await postDelete(event as never);
 		expect(response.status).toBe(200);
 
-		for (const [table, column] of [['attempts', 'user_id'], ['cards', 'user_id'], ['discoveries', 'user_id'], ['sessions', 'user_id'], ['users', 'id']]) {
+		for (const [table, column] of [['attempts', 'user_id'], ['cards', 'user_id'], ['discoveries', 'user_id'], ['line_reviews', 'user_id'], ['sessions', 'user_id'], ['users', 'id']]) {
 			expect(count(table, column, ann.id)).toBe(0);
 			expect(count(table, column, bob.id)).toBeGreaterThan(0);
 		}

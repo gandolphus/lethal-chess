@@ -1,4 +1,5 @@
 import type { Discovery } from '$lib/explore/book';
+import type { LineReview } from '$lib/explore/mastery';
 import type { ProgressStore } from './progress';
 import { BrowserProgressStore } from './progress';
 import type { CardState } from './scheduler';
@@ -10,6 +11,7 @@ export type ProgressServer = {
 	loadCards(bundleId: string): Promise<Map<string, CardState>>;
 	loadAttempts(bundleId: string): Promise<Attempt[]>;
 	loadDiscoveries(bundleId: string): Promise<Discovery[]>;
+	loadReviews(bundleId: string): Promise<LineReview[]>;
 	importProgress(data: ProgressImport): Promise<unknown>;
 };
 
@@ -30,14 +32,15 @@ export type SyncOptions = {
 
 const attemptKey = (a: Attempt) => `${a.bundleId}|${a.epd}|${a.at}|${a.attemptNo}`;
 const discoveryKey = (d: Discovery) => `${d.bundleId}|${d.line}|${d.stage}`;
+const reviewKey = (r: LineReview) => `${r.bundleId}|${r.line}|${r.at}`;
 
 // Rows per list per upload: keeps any request well inside the server's limits.
 const BATCH = 500;
 
 type Outbox = Required<ProgressImport>;
 
-const emptyOutbox = (): Outbox => ({ attempts: [], cards: [], discoveries: [] });
-const outboxSize = (o: Outbox) => o.attempts.length + o.cards.length + o.discoveries.length;
+const emptyOutbox = (): Outbox => ({ attempts: [], cards: [], discoveries: [], reviews: [] });
+const outboxSize = (o: Outbox) => o.attempts.length + o.cards.length + o.discoveries.length + o.reviews.length;
 const cardKey = (c: CardUpload) => `${c.bundleId}|${c.epd}|${c.state.reps}`;
 
 /** The server will never accept this upload as it is: retrying the same rows cannot help. */
@@ -87,7 +90,8 @@ export class SyncedProgressStore implements ProgressStore {
 			return {
 				attempts: parsed.attempts ?? [],
 				cards: (parsed.cards ?? []).map((c) => ({ ...c, state: revive(c.state) })),
-				discoveries: parsed.discoveries ?? []
+				discoveries: parsed.discoveries ?? [],
+				reviews: parsed.reviews ?? []
 			};
 		} catch {
 			return emptyOutbox();
@@ -112,6 +116,7 @@ export class SyncedProgressStore implements ProgressStore {
 		const outbox = this.#readOutbox();
 		outbox.attempts.push(...(add.attempts ?? []));
 		outbox.discoveries.push(...(add.discoveries ?? []));
+		outbox.reviews.push(...(add.reviews ?? []));
 		for (const card of add.cards ?? []) {
 			// Only the latest state of a card needs uploading.
 			const i = outbox.cards.findIndex((c) => c.bundleId === card.bundleId && c.epd === card.epd);
@@ -138,7 +143,8 @@ export class SyncedProgressStore implements ProgressStore {
 		const batch: Outbox = {
 			attempts: pending.attempts.slice(0, this.#limit),
 			cards: pending.cards.slice(0, this.#limit),
-			discoveries: pending.discoveries.slice(0, this.#limit)
+			discoveries: pending.discoveries.slice(0, this.#limit),
+			reviews: pending.reviews.slice(0, this.#limit)
 		};
 		try {
 			await this.#server.importProgress(batch);
@@ -168,10 +174,12 @@ export class SyncedProgressStore implements ProgressStore {
 		const attempts = new Set((remove.attempts ?? []).map(attemptKey));
 		const cards = new Set((remove.cards ?? []).map(cardKey));
 		const discoveries = new Set((remove.discoveries ?? []).map(discoveryKey));
+		const reviews = new Set((remove.reviews ?? []).map(reviewKey));
 		return {
 			attempts: outbox.attempts.filter((a) => !attempts.has(attemptKey(a))),
 			cards: outbox.cards.filter((c) => !cards.has(cardKey(c))),
-			discoveries: outbox.discoveries.filter((d) => !discoveries.has(discoveryKey(d)))
+			discoveries: outbox.discoveries.filter((d) => !discoveries.has(discoveryKey(d))),
+			reviews: outbox.reviews.filter((r) => !reviews.has(reviewKey(r)))
 		};
 	}
 
@@ -181,7 +189,7 @@ export class SyncedProgressStore implements ProgressStore {
 	 * large), the batch is halved until the offending row is alone, then dropped.
 	 */
 	#reject(batch: Outbox, error: ProgressSyncError) {
-		const named = /^(attempts|cards|discoveries)\[(\d+)\]/.exec(error.message);
+		const named = /^(attempts|cards|discoveries|reviews)\[(\d+)\]/.exec(error.message);
 		let drop: Partial<Outbox> | null = null;
 		if (named) {
 			const list = named[1] as keyof Outbox;
@@ -190,10 +198,10 @@ export class SyncedProgressStore implements ProgressStore {
 		} else if (outboxSize(batch) === 1) {
 			drop = batch;
 		} else {
-			this.#limit = Math.max(1, Math.floor(Math.max(batch.attempts.length, batch.cards.length, batch.discoveries.length) / 2));
+			this.#limit = Math.max(1, Math.floor(Math.max(batch.attempts.length, batch.cards.length, batch.discoveries.length, batch.reviews.length) / 2));
 			return;
 		}
-		if (!drop) drop = { attempts: batch.attempts.slice(0, 1), cards: batch.cards.slice(0, 1), discoveries: batch.discoveries.slice(0, 1) };
+		if (!drop) drop = { attempts: batch.attempts.slice(0, 1), cards: batch.cards.slice(0, 1), discoveries: batch.discoveries.slice(0, 1), reviews: batch.reviews.slice(0, 1) };
 		console.warn('Progress rows rejected by the server and dropped:', error.message, drop);
 		this.#writeOutbox(this.#without(this.#readOutbox(), drop));
 		this.#limit = BATCH;
@@ -230,15 +238,17 @@ export class SyncedProgressStore implements ProgressStore {
 	}
 
 	async #merge(bundleId: string) {
-		const [remoteCards, remoteAttempts, remoteDiscoveries] = await Promise.all([
+		const [remoteCards, remoteAttempts, remoteDiscoveries, remoteReviews] = await Promise.all([
 			this.#server.loadCards(bundleId),
 			this.#server.loadAttempts(bundleId),
-			this.#server.loadDiscoveries(bundleId)
+			this.#server.loadDiscoveries(bundleId),
+			this.#server.loadReviews(bundleId)
 		]);
-		const [localCards, localAttempts, localDiscoveries] = await Promise.all([
+		const [localCards, localAttempts, localDiscoveries, localReviews] = await Promise.all([
 			this.#local.loadCards(bundleId),
 			this.#local.loadAttempts(bundleId),
-			this.#local.loadDiscoveries(bundleId)
+			this.#local.loadDiscoveries(bundleId),
+			this.#local.loadReviews(bundleId)
 		]);
 
 		const seen = new Set(localAttempts.map(attemptKey));
@@ -254,6 +264,8 @@ export class SyncedProgressStore implements ProgressStore {
 		await this.#local.setAttempts(bundleId, attempts);
 		await this.#local.setCards(bundleId, cards);
 		await this.#local.setDiscoveries(bundleId, discoveries);
+		const reviewed = new Set(localReviews.map(reviewKey));
+		await this.#local.setReviews(bundleId, [...localReviews, ...remoteReviews.filter((r) => !reviewed.has(reviewKey(r)))]);
 	}
 
 	// ── ProgressStore ─────────────────────────────────────────────────────────
@@ -277,6 +289,16 @@ export class SyncedProgressStore implements ProgressStore {
 		if (await this.#local.recordDiscovery(discovery)) this.#enqueue({ discoveries: [discovery] });
 	}
 
+	async loadReviews(bundleId: string) {
+		await this.#pull(bundleId);
+		return this.#local.loadReviews(bundleId);
+	}
+
+	async recordReview(review: LineReview) {
+		await this.#local.recordReview(review);
+		this.#enqueue({ reviews: [review] });
+	}
+
 	async saveCard(bundleId: string, epd: string, state: CardState) {
 		await this.#local.saveCard(bundleId, epd, state);
 		this.#enqueue({ cards: [{ bundleId, epd, state }] });
@@ -297,11 +319,13 @@ export class SyncedProgressStore implements ProgressStore {
 		const attempts: Attempt[] = [];
 		const cards: CardUpload[] = [];
 		const discoveries: Discovery[] = [];
+		const reviews: LineReview[] = [];
 		for (const bundleId of bundleIds) {
 			const a = await anonymous.loadAttempts(bundleId);
 			const c = await anonymous.loadCards(bundleId);
 			const d = await anonymous.loadDiscoveries(bundleId);
-			if (!a.length && !c.size && !d.length) continue;
+			const r = await anonymous.loadReviews(bundleId);
+			if (!a.length && !c.size && !d.length && !r.length) continue;
 			// Merge the account's copy first: a merge finishing later would overwrite what adoption writes.
 			await this.#pull(bundleId);
 			// Another tab may be adopting the same history at the same moment.
@@ -309,6 +333,9 @@ export class SyncedProgressStore implements ProgressStore {
 			for (const attempt of a) if (!known.has(attemptKey(attempt))) await this.#local.recordAttempt(attempt);
 			for (const discovery of d) await this.#local.recordDiscovery(discovery);
 			discoveries.push(...d);
+			const reviewed = new Set((await this.#local.loadReviews(bundleId)).map(reviewKey));
+			for (const review of r) if (!reviewed.has(reviewKey(review))) await this.#local.recordReview(review);
+			reviews.push(...r);
 			for (const [epd, state] of c) {
 				const current = (await this.#local.loadCards(bundleId)).get(epd);
 				if (newer(current, state)) await this.#local.saveCard(bundleId, epd, state);
@@ -317,8 +344,8 @@ export class SyncedProgressStore implements ProgressStore {
 			attempts.push(...a);
 			await anonymous.clear(bundleId);
 		}
-		if (attempts.length || cards.length || discoveries.length) this.#enqueue({ attempts, cards, discoveries });
-		return { attempts: attempts.length, cards: cards.length, discoveries: discoveries.length };
+		if (attempts.length || cards.length || discoveries.length || reviews.length) this.#enqueue({ attempts, cards, discoveries, reviews });
+		return { attempts: attempts.length, cards: cards.length, discoveries: discoveries.length, reviews: reviews.length };
 	}
 }
 

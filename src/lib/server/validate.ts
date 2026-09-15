@@ -1,5 +1,6 @@
 import type { Attempt } from '$lib/drill/session.svelte';
 import type { Discovery } from '$lib/explore/book';
+import type { LineReview } from '$lib/explore/mastery';
 
 /** Client input that fails validation. Endpoints turn it into a 400. */
 export class InvalidInput extends Error {}
@@ -117,6 +118,17 @@ export function parseDiscovery(value: unknown): Discovery {
 		bundleId: parseBundleId(value.bundleId),
 		line: parseEpd(value.line),
 		stage: value.stage as Discovery['stage'],
+		at: parseIso(value.at, 'at')
+	};
+}
+
+export function parseLineReview(value: unknown): LineReview {
+	if (!isRecord(value)) return fail('review must be an object');
+	if (value.rating !== 'again' && value.rating !== 'hard' && value.rating !== 'good') fail('invalid rating');
+	return {
+		bundleId: parseBundleId(value.bundleId),
+		line: parseEpd(value.line),
+		rating: value.rating as LineReview['rating'],
 		at: parseIso(value.at, 'at')
 	};
 }

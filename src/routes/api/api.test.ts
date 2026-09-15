@@ -222,7 +222,7 @@ describe('POST /api/progress/import', () => {
 
 	it('keeps each user’s import to themselves', async () => {
 		await importLocal(local, bob);
-		expect((await progress(ann)).body).toEqual({ cards: {}, attempts: [], discoveries: [] });
+		expect((await progress(ann)).body).toEqual({ cards: {}, attempts: [], discoveries: [], reviews: [] });
 		expect((await progress(bob)).body.attempts).toHaveLength(2);
 	});
 
@@ -240,6 +240,14 @@ describe('POST /api/progress/import', () => {
 		expect((await progress()).body.discoveries).toEqual([found, { ...found, stage: 'entered' }]);
 		expect((await progress(bob)).body.discoveries).toEqual([]);
 		expect((await importLocal({ discoveries: [{ ...found, stage: 'mastered' }] })).status).toBe(400);
+	});
+
+	it('imports line reviews idempotently and rejects unknown ratings', async () => {
+		const reviewed = { bundleId: 'ruy-lopez', line: EPD2, rating: 'good', at: '2026-09-15T10:00:00.000Z' };
+		await importLocal({ reviews: [reviewed, { ...reviewed, rating: 'again', at: '2026-09-16T10:00:00.000Z' }] });
+		await importLocal({ reviews: [reviewed] });
+		expect((await progress()).body.reviews).toEqual([reviewed, { ...reviewed, rating: 'again', at: '2026-09-16T10:00:00.000Z' }]);
+		expect((await importLocal({ reviews: [{ ...reviewed, rating: 'easy' }] })).status).toBe(400);
 	});
 
 	it('accepts an empty import', async () => {

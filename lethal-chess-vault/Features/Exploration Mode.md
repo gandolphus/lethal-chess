@@ -82,6 +82,27 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
   - By variation: discovered names, entered lines (…), and how many are still secret.
   - Dubious lines listed apart.
 
+## Practice: line review (built 2026-09-16)
+
+Practice replays **discovered lines from memory**, following [[Learning science for opening training]]
+(P1: discovery without revisiting is forgetting with a celebration).
+- **What gets reviewed.** Discovered, sound lines with at least one learner move past the defining moves,
+  most overdue first, then lines never replayed, oldest discovery first. When nothing is due the page
+  says "All caught up", with *Replay a line anyway* and *Explore*.
+- **The walk.** It starts at a random point between the defining moves and the line's entrance, with the
+  name hidden and progress pips only. The computer plays the other side's moves of the line.
+- **Grading.** A sound move from another line is "good too, but this line goes another way": try again,
+  rated Hard. A wrong move gets one unhinted retry, then the move is shown, rated Again. A piece hint is
+  Hard, the arrow Again. The line is rated by its worst decision.
+- **Schedule.** FSRS per line, *derived by replaying the review log* (`lineCards`). The log is the D1
+  table `line_reviews` (migration 0003) plus localStorage and the outbox, like discoveries. Attempts are
+  still recorded per decision (mode `practice`).
+- **Panel.** Remembered / discovered (Review state and recall ≥ 0.9), mastered (also stability ≥ 21
+  days), due now or the next review date.
+- **Replaced:** the old engine-best single-move tree Practice (`DrillSession`) is no longer used by the
+  page. The research called this "two truths". Its code and the bundles' practice trees remain, to be
+  pruned.
+
 ## Persistence
 
 - Progress is stored as discoveries in [[Progress Tracking]]: `{ bundleId, line, stage, at }`.
@@ -91,8 +112,7 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
 
 ## Open / next
 
-- **Practice over discovered lines.** Spaced repetition of what the learner has found (planned line
-  mastery). Practice still drills the single-move repertoire tree.
+- ~~**Practice over discovered lines.**~~ Built 2026-09-16; see "Practice: line review" below.
 - **Lines ending on the computer's move** (e.g. "Retreat Variation" 3...Nb8) are discovered by the
   computer's choice. Should the learner also have to answer them well?
 - **Thin openings.** London (2 lines), Danish and Budapest (6 each) have little to explore.

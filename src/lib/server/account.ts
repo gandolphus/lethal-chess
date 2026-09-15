@@ -29,6 +29,11 @@ export async function exportAccount(db: Database, userId: string, now: Date) {
 		.bind(userId)
 		.all();
 
+	const reviews = await db
+		.prepare('SELECT bundle_id, line, rating, at FROM line_reviews WHERE user_id = ? ORDER BY at')
+		.bind(userId)
+		.all();
+
 	return {
 		exportedAt: now.toISOString(),
 		account: {
@@ -46,7 +51,8 @@ export async function exportAccount(db: Database, userId: string, now: Date) {
 			state: JSON.parse(c.state),
 			updated_at: new Date(c.updated_at).toISOString()
 		})),
-		discoveries: discoveries.results
+		discoveries: discoveries.results,
+		lineReviews: reviews.results
 	};
 }
 
@@ -60,6 +66,7 @@ export async function deleteAccount(db: Database, userId: string): Promise<void>
 		db.prepare('DELETE FROM attempts WHERE user_id = ?').bind(userId),
 		db.prepare('DELETE FROM cards WHERE user_id = ?').bind(userId),
 		db.prepare('DELETE FROM discoveries WHERE user_id = ?').bind(userId),
+		db.prepare('DELETE FROM line_reviews WHERE user_id = ?').bind(userId),
 		db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
 		db.prepare('DELETE FROM users WHERE id = ?').bind(userId)
 	]);

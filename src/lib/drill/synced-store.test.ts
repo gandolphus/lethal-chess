@@ -46,6 +46,7 @@ function fakeServer(
 		loadCards: async () => options.cards ?? new Map(),
 		loadAttempts: async () => options.attempts ?? [],
 		loadDiscoveries: async () => options.discoveries ?? [],
+		loadReviews: async () => [],
 		importProgress: async (data) => {
 			if (failures > 0) {
 				failures--;
@@ -187,7 +188,7 @@ describe('SyncedProgressStore', () => {
 		};
 		const store = new SyncedProgressStore({ userId: 'u1', server, storage, schedule: () => {} });
 		const many = Array.from({ length: 1200 }, (_, i) => attempt(i === 700 ? 'bad' : `e${i}`, new Date(Date.UTC(2026, 8, 1) + i * 1000).toISOString()));
-		storage.setItem('lethal:user:u1:outbox', JSON.stringify({ attempts: many, cards: [], discoveries: [] }));
+		storage.setItem('lethal:user:u1:outbox', JSON.stringify({ attempts: many, cards: [], discoveries: [], reviews: [] }));
 		for (let i = 0; i < 200 && store.pendingCount(); i++) {
 			await store.flush();
 			await settle();
@@ -220,6 +221,7 @@ describe('SyncedProgressStore', () => {
 			loadCards: async () => Promise.reject(new Error('offline')),
 			loadAttempts: async () => Promise.reject(new Error('offline')),
 			loadDiscoveries: async () => Promise.reject(new Error('offline')),
+			loadReviews: async () => Promise.reject(new Error('offline')),
 			importProgress: async () => ({})
 		};
 		const store = new SyncedProgressStore({ userId: 'u1', server, storage });
@@ -235,7 +237,7 @@ describe('SyncedProgressStore', () => {
 
 		const server = fakeServer();
 		const store = new SyncedProgressStore({ userId: 'u1', server, storage });
-		expect(await store.adoptSignedOutProgress(['ruy-lopez', 'sicilian'])).toEqual({ attempts: 1, cards: 1, discoveries: 1 });
+		expect(await store.adoptSignedOutProgress(['ruy-lopez', 'sicilian'])).toEqual({ attempts: 1, cards: 1, discoveries: 1, reviews: 0 });
 		await store.flush();
 		await settle();
 
@@ -243,6 +245,6 @@ describe('SyncedProgressStore', () => {
 		expect(server.received.flatMap((r) => r.discoveries ?? [])).toHaveLength(1);
 		expect(await anonymous.loadAttempts('ruy-lopez')).toEqual([]);
 		expect(await anonymous.loadDiscoveries('ruy-lopez')).toEqual([]);
-		expect(await store.adoptSignedOutProgress(['ruy-lopez'])).toEqual({ attempts: 0, cards: 0, discoveries: 0 });
+		expect(await store.adoptSignedOutProgress(['ruy-lopez'])).toEqual({ attempts: 0, cards: 0, discoveries: 0, reviews: 0 });
 	});
 });

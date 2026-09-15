@@ -1,4 +1,5 @@
 import type { Discovery } from '$lib/explore/book';
+import type { LineReview } from '$lib/explore/mastery';
 import type { Bundle } from './bundle';
 import { recall, State, type CardState } from './scheduler';
 import type { Attempt } from './session.svelte';
@@ -17,6 +18,9 @@ export interface ProgressStore {
 	/** Lines entered and discovered while exploring. Append-only; a stage is reached once. */
 	loadDiscoveries(bundleId: string): Promise<Discovery[]>;
 	recordDiscovery(discovery: Discovery): Promise<boolean | void>;
+	/** Reviews of discovered lines. Append-only; line schedules are derived from them. */
+	loadReviews(bundleId: string): Promise<LineReview[]>;
+	recordReview(review: LineReview): Promise<void>;
 }
 
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -37,7 +41,7 @@ export class BrowserProgressStore implements ProgressStore {
 		this.#ns = namespace ? `${namespace}:` : '';
 	}
 
-	#key(kind: 'cards' | 'attempts' | 'discoveries', bundleId: string) {
+	#key(kind: 'cards' | 'attempts' | 'discoveries' | 'reviews', bundleId: string) {
 		return `lethal:${this.#ns}${kind}:${bundleId}`;
 	}
 
@@ -56,11 +60,17 @@ export class BrowserProgressStore implements ProgressStore {
 		this.#write(this.#key('discoveries', bundleId), discoveries);
 	}
 
+	/** Replaces a bundle's line reviews wholesale (used when merging with the server). */
+	async setReviews(bundleId: string, reviews: LineReview[]) {
+		this.#write(this.#key('reviews', bundleId), reviews);
+	}
+
 	async clear(bundleId: string) {
 		try {
 			this.#storage.removeItem(this.#key('attempts', bundleId));
 			this.#storage.removeItem(this.#key('cards', bundleId));
 			this.#storage.removeItem(this.#key('discoveries', bundleId));
+			this.#storage.removeItem(this.#key('reviews', bundleId));
 		} catch {
 			// Nothing to clear if storage is unavailable.
 		}
@@ -113,6 +123,15 @@ export class BrowserProgressStore implements ProgressStore {
 		if (known.some((d) => d.line === discovery.line && d.stage === discovery.stage)) return false;
 		this.#write(key, [...known, discovery]);
 		return true;
+	}
+
+	async loadReviews(bundleId: string) {
+		return this.#read<LineReview[]>(this.#key('reviews', bundleId), []);
+	}
+
+	async recordReview(review: LineReview) {
+		const key = this.#key('reviews', review.bundleId);
+		this.#write(key, [...this.#read<LineReview[]>(key, []), review]);
 	}
 }
 

@@ -25,8 +25,16 @@ export async function siteStats(db: Database, now: Date): Promise<SiteStats> {
 	const count = async (query: string, ...values: number[]) =>
 		(await db.prepare(query).bind(...values).first<{ n: number }>())?.n ?? 0;
 
+	// Exploring records discoveries and reviewing records line reviews, not attempts: all three count as activity.
 	const activeSince = (since: number) =>
-		count('SELECT COUNT(DISTINCT user_id) AS n FROM attempts WHERE created_at >= ?', since);
+		count(
+			`SELECT COUNT(DISTINCT user_id) AS n FROM (
+				SELECT user_id, created_at FROM attempts
+				UNION ALL SELECT user_id, created_at FROM discoveries
+				UNION ALL SELECT user_id, created_at FROM line_reviews
+			) WHERE created_at >= ?`,
+			since
+		);
 
 	const startOfToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 

@@ -35,7 +35,8 @@ src/
     coach/                    judge.ts (win-chance verdicts), opponent.ts (natural replies + planted
                               mistakes), freeplay.svelte.ts (coached play from any position)
     explore/                  book.ts (established lines by position, discovery summary),
-                              session.svelte.ts (ExploreSession) — see [[Exploration Mode]]
+                              session.svelte.ts (ExploreSession), mastery.ts (FSRS per line from the review log),
+                              review.svelte.ts (ReviewSession: Practice) — see [[Exploration Mode]]
     drill/                    bundle.ts (bundle format, shared with the pipeline), session.svelte.ts
                               (Practice walks), grade.ts, tree.ts, scheduler.ts (FSRS),
                               progress.ts / synced-store.ts / server-store.ts / account.svelte.ts (progress storage)
@@ -53,7 +54,7 @@ pipeline/
   eval-cache/                 Lichess eval db (CC0) → 8.27 GB lookup cache (build artefact, not shipped)
   repertoire/                 spec.ts (28 openings), build.ts (practice tree + book lines),
                               bundles.test.ts (checks the shipped bundles), inspect.ts
-migrations/                   0001 users/sessions/attempts/cards, 0002 discoveries
+migrations/                   0001 users/sessions/attempts/cards, 0002 discoveries, 0003 line_reviews
 static/openings/              catalog.json (3,810 named lines), repertoires/*.json (one bundle per opening)
 lethal-chess-vault/           This vault
 ```
@@ -71,7 +72,8 @@ bundle per opening. A bundle holds:
 - **[[Exploration Mode]]** (`ExploreSession`) grades moves from the bundle while in book, answers with
   book replies steered toward undiscovered lines, and falls back to Stockfish past the book. It reports
   lines entered and discovered.
-- **Practice** (`DrillSession`) walks the tree and schedules cards with FSRS.
+- **Practice** (`ReviewSession`) replays discovered lines from memory, scheduled per line with FSRS derived
+  from the review log. The old tree walk (`DrillSession`) is retired from the UI.
 - **[[Coached Free Play]]** (`FreePlay`) continues from any position with the engine.
 
 **Progress.** Local-first. Every write lands in localStorage at once:
@@ -88,6 +90,7 @@ and `Board.svelte` knows nothing about the engine or the drill. Sessions are pol
 - `users`, `sessions` (id = SHA-256 of the cookie token)
 - `attempts` — append-only Practice moves; natural key `(user, bundle, at, epd, attempt_no)`
 - `cards` — FSRS state per practice position, derived from attempts
+- `line_reviews` — `(user, bundle, line, at)`, rating again / hard / good; line FSRS state is replayed from it
 - `discoveries` — `(user, bundle, line, stage)`, with `stage` either `entered` or `discovered` and `line` the
   EPD of the line's end; first time kept
 

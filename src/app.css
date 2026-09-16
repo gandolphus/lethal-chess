@@ -704,6 +704,25 @@ html {
 	scrollbar-gutter: stable;
 }
 
+/* A piece slides to its new square. The curve is an S — slow away, quick across, slow into place — which
+   is what a moved piece feels like rather than a slid one. `data-motion` on the document sets the pace. */
+:root {
+	--piece-ms: 190ms;
+	--piece-ease: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+[data-motion='off'] {
+	--piece-ms: 0ms;
+}
+
+[data-motion='fast'] {
+	--piece-ms: 110ms;
+}
+
+[data-motion='slow'] {
+	--piece-ms: 320ms;
+}
+
 /* Scrollbars belong to the app, not to the browser: a hairline in the theme's own text colour, over
    nothing. Derived from tokens, so all sixteen palettes get one without defining anything. */
 :root {

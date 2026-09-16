@@ -4,6 +4,7 @@
 	import { appearance } from '$lib/theme/settings.svelte';
 	import Piece from './Piece.svelte';
 	import type { Arrow, SquareMarks } from './board';
+	import { movedPieces } from './motion';
 
 	type PieceInfo = { type: string; color: 'w' | 'b' };
 
@@ -59,6 +60,38 @@
 		selected = null;
 		drag = null;
 		pendingPromotion = null;
+	});
+
+	/**
+	 * A piece that moves slides there. The effect runs after the DOM has the new position, so the piece is
+	 * already on its destination square: it is offered its old place and animated back, which the
+	 * compositor does on the transform alone. Anything bigger than one move is a new position, not a move.
+	 */
+	let placed: Record<string, PieceInfo> = {};
+	$effect(() => {
+		const arrived = position;
+		const moves = movedPieces(placed, arrived);
+		placed = arrived;
+		if (!boardEl || !moves.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const style = getComputedStyle(boardEl);
+		const duration = parseFloat(style.getPropertyValue('--piece-ms')) || 0;
+		if (!duration) return;
+		const easing = style.getPropertyValue('--piece-ease').trim() || 'ease';
+		for (const { from, to } of moves) {
+			const origin = boardEl.querySelector(`[data-square="${from}"]`);
+			const target = boardEl.querySelector(`[data-square="${to}"]`);
+			const slot = target?.querySelector<HTMLElement>('.piece-slot');
+			if (!origin || !target || !slot) continue;
+			const a = origin.getBoundingClientRect();
+			const b = target.getBoundingClientRect();
+			// Over the pieces it passes, and over the square it lands on.
+			slot.style.zIndex = '3';
+			const run = slot.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'none' }], {
+				duration,
+				easing
+			});
+			run.finished.then(() => (slot.style.zIndex = ''), () => (slot.style.zIndex = ''));
+		}
 	});
 
 	function parseFen(input: string): Record<string, PieceInfo> {

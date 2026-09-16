@@ -310,8 +310,6 @@ export class ExploreSession {
 			node.quality = verdict;
 			this.revision++;
 		}
-		const better = sanOf(before.fen, best.move);
-
 		const serious = verdict === 'mistake' || verdict === 'blunder';
 		const wrong = !book && (serious || (this.opportunity && !isSound(verdict)));
 
@@ -329,7 +327,7 @@ export class ExploreSession {
 		}
 
 		this.flash = { from, to, kind: isSound(verdict) ? 'correct' : wrong ? 'wrong' : 'soft' };
-		this.message = wrong ? this.#playOnMessage(verdict, better) : this.#describe(verdict, { book, wasInBook, better });
+		this.message = wrong ? this.#playOnMessage(verdict) : this.#describe(verdict, { book, wasInBook });
 		// The position right after a mistake, so "Why?" can show what it allowed once play has moved on.
 		this.#mistake = wrong ? this.game.fen : null;
 		this.explanation = null;
@@ -646,8 +644,12 @@ export class ExploreSession {
 		return score;
 	}
 
-	/** Past the book a mistake is played out rather than stopped: say what it was, and how to undo it. */
-	#playOnMessage(verdict: Verdict, better: string): Message {
+	/**
+	 * Past the book a mistake is played out rather than stopped: say what it was, and how to undo it.
+	 * Never what to play instead — the whole exercise is finding that. Hint gives it away, in two presses,
+	 * and only because it was asked twice.
+	 */
+	#playOnMessage(verdict: Verdict): Message {
 		if (this.opportunity) {
 			return {
 				tone: 'bad',
@@ -655,10 +657,10 @@ export class ExploreSession {
 			};
 		}
 		const what = verdict === 'blunder' ? 'A blunder — that can lose the game' : 'A mistake — it gives your opponent real chances';
-		return { tone: 'bad', text: `${what}. ${better} was better. See what it allows, or take it back.` };
+		return { tone: 'bad', text: `${what}. See what it allows, or take it back — Hint is there if you want it.` };
 	}
 
-	#describe(verdict: Verdict, { book, wasInBook, better }: { book: boolean; wasInBook: boolean; better: string }): Message {
+	#describe(verdict: Verdict, { book, wasInBook }: { book: boolean; wasInBook: boolean }): Message {
 		const opportunity = this.opportunity;
 		if (book) {
 			if (isSound(verdict)) {
@@ -666,7 +668,7 @@ export class ExploreSession {
 					? { tone: 'best', text: `Punished! ${opportunity.san} was a mistake — and that's the established answer.` }
 					: { tone: 'best', text: 'An established move.' };
 			}
-			return { tone: 'warn', text: `An established move, but a dubious one — ${better} was better.` };
+			return { tone: 'warn', text: 'An established move, but a dubious one — there is better here.' };
 		}
 		const leaving = wasInBook ? ' It leaves the established lines, though.' : '';
 		switch (verdict) {
@@ -675,7 +677,7 @@ export class ExploreSession {
 			case 'good':
 				return { tone: 'good', text: `${opportunity ? `Good — you took advantage of ${opportunity.san}.` : 'Good move.'}${leaving}` };
 			default:
-				return { tone: 'warn', text: `Slightly inaccurate — ${better} was better.${leaving}` };
+				return { tone: 'warn', text: `Slightly inaccurate — there was better.${leaving}` };
 		}
 	}
 

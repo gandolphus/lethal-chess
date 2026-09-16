@@ -8,6 +8,7 @@ import type { Arrow, SquareMarks } from '$lib/components/board';
 import type { Bundle, BundleNode } from '$lib/drill/bundle';
 import { toEpd } from '$lib/drill/tree';
 import type { Book, Discovery, IndexedLine, LineStage } from './book';
+import { entranceOf } from './linemap';
 import { addMove, createRoot, pathTo, type MoveNode, type MoveQuality } from './movetree';
 
 export type ExplorePhase =
@@ -535,7 +536,12 @@ export class ExploreSession {
 	 */
 	async resume(line: IndexedLine, upTo = line.moves.length): Promise<void> {
 		const generation = ++this.#generation;
-		const end = Math.max(0, Math.min(upTo, line.moves.length));
+		// The last word on how far a line may be replayed, whoever asked and however they asked — the map,
+		// a `?line=` in the URL, anything later. A discovered line replays whole, an entered one to its
+		// entrance, and one the learner has never reached replays not at all.
+		const stage = this.#stages.get(line.key);
+		const earned = stage === 'discovered' ? line.moves.length : stage === 'entered' ? entranceOf(line) : 0;
+		const end = Math.max(0, Math.min(upTo, earned));
 		// The route is drawn first and the move that was clicked lands at the end of it, so picking a
 		// position off the chart shows how it was reached rather than cutting to it.
 		const route = line.moves.slice(0, end);
@@ -563,6 +569,9 @@ export class ExploreSession {
 		walk(before);
 		if (route.length) {
 			this.replay = { id: ++this.#replayId, path: route };
+			// The board is not the learner's while the route is drawn: a move played into the trace would
+			// start a second game inside the first, and the moves still to land would fall on top of it.
+			this.phase = 'thinking';
 			await this.#wait(traceMs(before.length));
 			if (generation !== this.#generation) return;
 			walk(route.slice(before.length));

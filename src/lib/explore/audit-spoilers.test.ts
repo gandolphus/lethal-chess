@@ -1,7 +1,8 @@
 /**
- * Correctness audit, 2026-09-16: the spoiler rule on the map and the playing page. Every test here fails
- * against the code as audited and is marked `.fails`, so the suite stays green until the defect is fixed —
- * at which point the test starts failing the other way and should be turned into a plain `it`.
+ * Correctness audit, 2026-09-16: the spoiler rule on the map and the playing page. Tests written against
+ * defects the audit found. Ones still marked `.fails` are still defects; the rest have been fixed and now
+ * guard the fix — they assert the *display* name the component reads, which is the only name that may
+ * reach a reader, never the line object's own.
  */
 import { Chess } from 'chess.js';
 import { describe, expect, it } from 'vitest';
@@ -38,7 +39,7 @@ const stagesOf = (entries: [typeof rio, LineStage][]) => new Map(entries.map(([l
 const secretNames = (stages: Map<string, LineStage>) => book.lines.filter((l) => stages.get(l.key) !== 'discovered').map((l) => l.name);
 
 describe('the map keeps an entered line’s end secret (Exploration Mode: "a hollow end and *no* name")', () => {
-	it.fails('does not name an entered line on the tooltip of its warm beads', () => {
+	it('does not name an entered line on the tooltip of its warm beads', () => {
 		const stages = stagesOf([[rio, 'entered']]);
 		const chart = layout(book.lines, stages, { zoom: 'detail', width: 1200, opening: OPENING.length });
 		// LineMap.svelte shows `move.name` in the hover tooltip for every bead with a `line`.
@@ -47,32 +48,35 @@ describe('the map keeps an entered line’s end secret (Exploration Mode: "a hol
 		for (const name of named) expect(secretNames(stages)).not.toContain(name);
 	});
 
-	it.fails('does not hand the page a name for an entered line’s end (the aria-label and the tap dialog use `node.line.name`)', () => {
+	it('calls an entered line’s end after its entrance, which is what the label and the dialog read', () => {
 		const stages = stagesOf([[exchange, 'entered']]);
 		const chart = layout(book.lines, stages, { zoom: 'detail', width: 1200, opening: OPENING.length });
 		const ends = chart.nodes.filter((n) => n.line);
 		expect(ends.length).toBe(1);
-		// The end is clickable, which is right: it should resume to the entrance. But `line` is the whole
-		// IndexedLine, and the component reads `line.name` off it for the button's label and the confirm dialog.
+		// Still clickable, and still only as far as the entrance — but named after the entrance, not the end.
 		expect(ends[0].resumeTo).toBe(exchange.entry);
-		expect(secretNames(stages)).not.toContain(ends[0].line!.name);
+		expect(ends[0].name).toBe(exchange.entryName);
+		expect(secretNames(stages)).not.toContain(ends[0].name);
 	});
 });
 
 describe('the band root', () => {
-	it.fails('carries the bundle’s first line, which the tap-to-confirm dialog names', () => {
-		// Nothing found. The root bead's `line` is `band.lines[0]` so a click can replay the opening; on a
-		// phone `LineMap.svelte` confirms with `${asked.line.name} — …`, which is that undiscovered line's name.
+	it('is named after its band, never after a line running through it', () => {
+		// The root keeps a `line` so a click can replay the opening and the tooltip can draw the position;
+		// what the dialog and the label read is `name`, and that is the band's.
 		const stages = new Map<string, LineStage>();
 		const chart = layout(book.lines, stages, { zoom: 'detail', width: 1200, opening: OPENING.length });
 		const roots = chart.moves.filter((m) => m.ply === OPENING.length);
 		expect(roots.length).toBe(2);
-		for (const root of roots) expect(secretNames(stages)).not.toContain(root.line?.name);
+		for (const root of roots) {
+			expect(secretNames(stages)).not.toContain(root.name);
+			expect(chart.bands.some((b) => b.label === root.name || b.name === root.name)).toBe(true);
+		}
 	});
 });
 
 describe('the map treats "here" as an entered line', () => {
-	it.fails('a line the game is merely on, before its entrance, gets no clickable end', () => {
+	it('a line the game is merely on, before its entrance, gets no clickable end', () => {
 		// The page's `here` falls back to *any* line through the position: right after the defining moves that
 		// is the bundle's first line, at index = the opening's length, entrance not yet reached.
 		const stages = new Map<string, LineStage>();
@@ -158,30 +162,27 @@ function session(opts: { wait?: (ms: number) => Promise<void>; stages?: Map<stri
 }
 
 describe('resume() off the map', () => {
-	it.fails('picking up the line the map calls "here" credits an entrance the learner never reached', async () => {
-		// Nothing found. After the defining moves the page's `here` is { line: lines[0], index: 2 } and the
-		// map offers that line's end with resumeTo = its entrance (3). Resuming replays 3.Nf3 — a move the
-		// learner has not played — and records "entered" for both Knight lines.
+	it('offers nothing for the line the map calls "here", and refuses it if asked anyway', async () => {
 		const { s, discoveries, book } = session();
 		await s.start();
 		await s.submit('e2', 'e4');
 		expect(s.game.uciHistory).toEqual(SHORT_OPENING);
+		// Nothing found, so the map offers nothing — being *on* a line before its entrance earns none of it.
 		const chart = layout(book.lines, new Map(), { zoom: 'detail', width: 1200, opening: 2, here: { line: book.lines[0], index: 2 } });
-		const offered = chart.nodes.find((n) => n.line);
-		expect(offered).toBeDefined();
-		await s.resume(offered!.line!, offered!.resumeTo);
-		expect(discoveries).toEqual([]);
+		expect(chart.nodes.filter((n) => n.line)).toEqual([]);
+		// And the session refuses it even when asked directly, which is what a hand-written ?line= would do.
+		await s.resume(book.lines[0], book.lines[0].moves.length);
+		expect(s.game.uciHistory).toEqual([]);
+		expect(discoveries.filter((d) => d.stage === 'discovered')).toEqual([]);
 	});
 
-	it.fails('a move during the trace does not race the replay', async () => {
-		// `resume` resets the board but leaves the phase at 'your-move', so the board stays interactive while
-		// the route is traced (220 ms a move). A learner who plays 1.e4 during the trace starts a second
-		// game inside the first: the trace's remaining moves land on top of theirs, and the computer's
-		// delayed reply is then illegal and throws out of `submit`.
+	it('does not let a move race the replay, because the board is not the learner’s while it draws', async () => {
 		const holds: (() => void)[] = [];
 		const wait = () => new Promise<void>((resolve) => holds.push(resolve));
 		const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-		const { s, book } = session({ wait });
+		// A line already found, so there is a real route to draw and a real chance to race it.
+		const found = new Book(fixture()).lines[0];
+		const { s, book } = session({ wait, stages: new Map([[found.key, 'discovered']]) });
 		await s.start();
 		void s.submit('e2', 'e4');
 		await flush();
@@ -190,36 +191,27 @@ describe('resume() off the map', () => {
 		expect(s.game.uciHistory).toEqual(SHORT_OPENING);
 		expect(s.phase).toBe('your-move');
 
-		// The map's band-root bead calls resume(lines[0], opening.length): the trace shows the defining moves
-		// but the last, and the learner is to move inside the opening while it runs (the Ruy Lopez: four plies
-		// shown, White to move). This fixture's opening is two plies, so the same shape is resume(line, 1).
 		const spanish = book.lines[0];
 		let error: unknown = null;
-		const resumed = s.resume(spanish, 1).catch((e: unknown) => (error = e));
+		const resumed = s.resume(spanish, 2).catch((e: unknown) => (error = e));
 		await flush();
 		expect(holds.length).toBe(1); // the trace
-		expect(s.game.uciHistory).toEqual([]);
-		expect(s.canMove).toBe(true);
-		// The learner plays the defining move during the trace — the board takes it — and the computer's delay starts.
-		const played = s.submit('e2', 'e4').catch((e: unknown) => (error = e));
-		await flush();
-		expect(s.game.uciHistory).toEqual(['e2e4']);
-		expect(holds.length).toBe(2);
-		holds.shift()!(); // the trace ends: the route's last move is walked onto the learner's game
-		await flush();
-		holds.shift()!(); // the computer's reply, computed for the position before the trace landed
+		expect(s.game.uciHistory).toEqual(spanish.moves.slice(0, 1));
+		// The board is the route's while it is drawn, so there is no race to lose.
+		expect(s.canMove).toBe(false);
+		expect(await s.submit('e2', 'e4')).toBeNull();
+		expect(s.game.uciHistory).toEqual(spanish.moves.slice(0, 1));
+
+		holds.shift()!(); // the trace ends and the route's last move lands
 		await flush();
 		for (let i = 0; i < 10 && holds.length; i++) {
 			holds.shift()!();
 			await flush();
 		}
-		await Promise.allSettled([resumed, played]);
-		// The trace's own continuation queued a second computer reply for the same position. `Game.move`
-		// refuses the second one (it is Black's move on White's turn) — but `#played` records it in the move
-		// tree regardless, so the tree carries a move the board never saw, and `current` points at it.
+		await resumed;
 		expect(error).toBeNull();
 		expect(s.phase).not.toBe('thinking');
-		expect(s.game.uciHistory).toEqual(SHORT_OPENING);
+		// The tree and the board agree: nothing was recorded that the board refused.
 		expect(pathTo(s.current).map((m) => m.uci)).toEqual(s.game.uciHistory);
 	});
 });

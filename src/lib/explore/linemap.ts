@@ -120,6 +120,20 @@ export function place(node: TrieNode, row: number, top: number): number {
 
 const isHere = (line: IndexedLine, here: Here | null) => here !== null && here.line.key === line.key;
 
+/**
+ * What a position on a line may be *called*. A discovered line may be named; a line only entered is
+ * called after its entrance, because its end is still secret; anything else has no name at all.
+ *
+ * The chart already draws this rule — an entered line ends in a hollow, unnamed ring. The text around it
+ * has to obey the same rule, or a tooltip, a screen reader or a tap dialog gives away what the ring was
+ * hiding. Nothing outside this file should read `.name` off a line.
+ */
+function displayName(line: IndexedLine, stage: LineStage | undefined): string {
+	if (stage === 'discovered') return line.name;
+	if (stage === 'entered') return line.entryName ?? line.variation;
+	return '';
+}
+
 /** The state of the edge into `node`: lit > ember > ember-dim > fog over the lines through it. */
 export function edgeState(node: TrieNode, stages: Map<string, LineStage>, here: Here | null): EdgeState {
 	let state: EdgeState = 'fog';
@@ -208,6 +222,8 @@ export type LayoutNode = {
 	 * it would hand over the moves the learner came here to find.
 	 */
 	resumeTo?: number;
+	/** What this end may be called — never the raw line name. See `displayName`. */
+	name: string;
 };
 
 export type Layout = {
@@ -300,33 +316,47 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 					state === 'lit' || state === 'ember'
 						? (node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here)) ?? null)
 						: null;
-				out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known, name: known?.name ?? '', bead: node.ends.length === 0 });
+				out.moves.push({
+					x: x2,
+					y: node.y,
+					ply: node.ply,
+					state,
+					line: known,
+					name: known ? displayName(known, stages.get(known.key)) : '',
+					bead: node.ends.length === 0
+				});
 			}
 			for (const child of node.children) draw(child, node);
 			if (node.ends.length) {
-				const stage = node.ends.some((l) => stages.get(l.key) === 'discovered')
+				// Warm because the game is passing through is not the same as warm because the line was
+				// entered. Only what the stages record can be picked up: before its entrance, a line the game
+				// merely runs through has been earned no part of, and offering it would play its moves.
+				const earned = node.ends.find((l) => stages.get(l.key) === 'discovered')
 					? 'discovered'
-					: node.ends.some((l) => stages.get(l.key) === 'entered' || isHere(l, here))
+					: node.ends.find((l) => stages.get(l.key) === 'entered')
 						? 'entered'
 						: null;
+				const stage = earned ?? (node.ends.some((l) => isHere(l, here)) ? 'entered' : null);
 				const kind = stage === 'discovered' ? 'lit' : stage === 'entered' ? 'ember' : 'secret';
-				// Only an end the learner has reached can be picked up again; the fog stays unclickable,
-				// because offering to play a secret line would be handing it over.
-				const line =
-					stage === 'discovered'
-						? node.ends.find((l) => stages.get(l.key) === 'discovered')
-						: stage === 'entered'
-							? node.ends.find((l) => stages.get(l.key) === 'entered' || isHere(l, here))
-							: undefined;
+				const line = earned ? node.ends.find((l) => stages.get(l.key) === earned) : undefined;
 				let label: string | null = null;
 				if (detail && stage === 'discovered' && line) {
 					label = band.kind === 'variation' ? shortLine(line) : shortVariation(line.name);
 				}
-				const resumeTo = line ? (stage === 'discovered' ? line.moves.length : entranceOf(line)) : undefined;
-				out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label, line, resumeTo });
+				const resumeTo = line ? (earned === 'discovered' ? line.moves.length : entranceOf(line)) : undefined;
+				out.nodes.push({
+					x: x(node.ply),
+					y: node.y,
+					r: stage ? 3.5 : 2.5,
+					kind,
+					label,
+					line,
+					resumeTo,
+					name: line ? displayName(line, earned ?? undefined) : ''
+				});
 			} else if (detail && node.children.length > 1) {
 				// Branch points are the only structure the fog reveals.
-				out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null });
+				out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null, name: '' });
 			}
 		};
 		draw(root, null);

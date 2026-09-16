@@ -51,7 +51,7 @@
 	// mouse on a touchscreen is precise enough to act on directly.
 	let tapped = $state(false);
 	// Raw: a proxied line would not compare equal to the one the layout holds.
-	let asked = $state.raw<{ line: IndexedLine; resumeTo: number } | null>(null);
+	let asked = $state.raw<{ line: IndexedLine; resumeTo: number; name: string } | null>(null);
 
 	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
 
@@ -63,18 +63,18 @@
 	 */
 	function onClick(event: MouseEvent) {
 		if ((event.target as Element | null)?.closest?.('.pick')) return;
-		if (hover?.move.line) pick(hover.move.line, hover.move.ply);
+		if (hover?.move.line) pick(hover.move.line, hover.move.ply, hover.move.name);
 	}
 
 	/** On a cursor a click plays. On a thumb it asks first, naming the line, so a mis-tap costs nothing. */
-	function pick(line: IndexedLine, resumeTo: number) {
+	function pick(line: IndexedLine, resumeTo: number, name: string) {
 		if (!onplay) return;
-		if (tapped) asked = { line, resumeTo };
+		if (tapped) asked = { line, resumeTo, name };
 		else onplay(line, resumeTo);
 	}
 
 	// The move it would replay *to*, never the line's last move, which may still be secret.
-	const asks = $derived(asked ? `${asked.line.name} — ${sanOf(asked.line)[asked.resumeTo - 1]}` : '');
+	const asks = $derived(asked ? `${asked.name} — ${sanOf(asked.line)[asked.resumeTo - 1]}` : '');
 
 	/**
 	 * The move under the pointer. Matched by proximity rather than by giving every bead its own element:
@@ -291,14 +291,14 @@
 						role="button"
 						tabindex="0"
 						aria-label={node.resumeTo === node.line.moves.length
-							? `Play from ${node.line.name}`
-							: `Pick up ${node.line.name} where you left off`}
-						onclick={() => pick(node.line!, node.resumeTo!)}
+							? `Play from ${node.name}`
+							: `Pick up ${node.name} where you left off`}
+						onclick={() => pick(node.line!, node.resumeTo!, node.name)}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault();
 								tapped = false;
-								pick(node.line!, node.resumeTo!);
+								pick(node.line!, node.resumeTo!, node.name);
 							}
 						}}
 					>

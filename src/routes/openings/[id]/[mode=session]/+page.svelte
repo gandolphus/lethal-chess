@@ -410,11 +410,15 @@
 	/** Moves the learner can click back to: the game plus anything taken off while browsing. */
 	const browsedPly = $derived(explore ? explore.game.uciHistory.length : (game?.uciHistory.length ?? 0));
 
-	/** Where the game is on the map: the line being followed, else any line through the position. */
+	/**
+	 * Where the game is on the map: the line being followed, else another line it is *inside* — past that
+	 * line's entrance. Never simply "a line running through this position": right after the defining
+	 * moves every line does, and calling one of them "here" made the map treat it as entered.
+	 */
 	const here = $derived.by(() => {
 		if (!explore || explore.inOpening) return null;
 		const at = book.at(toEpd(explore.game.fen));
-		return at.find((p) => p.line === explore?.following) ?? at[0] ?? null;
+		return at.find((p) => p.line === explore?.following) ?? at.find((p) => p.index >= p.line.entry) ?? null;
 	});
 
 

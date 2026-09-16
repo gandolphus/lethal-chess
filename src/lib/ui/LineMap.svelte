@@ -75,8 +75,63 @@
 	let svg = $state<SVGSVGElement | null>(null);
 	let panel = $state<HTMLElement | null>(null);
 
+	/**
+	 * Wheel over the chart. Shift scrolls sideways, as it does everywhere — but when only one axis can
+	 * move, every wheel goes that way, because a wheel that does nothing is worse than a convention.
+	 */
+	function onWheel(event: WheelEvent) {
+		if (!scroller) return;
+		const canX = scroller.scrollWidth - scroller.clientWidth > 1;
+		const canY = scroller.scrollHeight - scroller.clientHeight > 1;
+		if (!canX && !canY) return;
+		// A trackpad's sideways swipe already arrives as deltaX; take whichever axis the gesture meant.
+		const amount = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+		if (canX && (!canY || event.shiftKey)) {
+			scroller.scrollLeft += amount;
+			event.preventDefault();
+		} else if (canY && !canX) {
+			scroller.scrollTop += amount;
+			event.preventDefault();
+		}
+	}
+
+	/** Dragging the chart moves it, the way a map is moved. Touch already does this natively. */
+	let panning = $state(false);
+	let pan: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
+
+	function panStart(event: PointerEvent) {
+		if (event.pointerType === 'touch' || event.button !== 0 || !scroller) return;
+		pan = { x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop, moved: false };
+	}
+
+	function panMove(event: PointerEvent) {
+		if (!pan || !scroller) return;
+		const dx = event.clientX - pan.x;
+		const dy = event.clientY - pan.y;
+		// A few pixels of slack, so a click on a line's end is still a click and not a one-pixel drag.
+		if (!pan.moved && Math.hypot(dx, dy) < 4) return;
+		if (!pan.moved) {
+			pan.moved = true;
+			panning = true;
+			hover = null;
+			scroller.setPointerCapture(event.pointerId);
+		}
+		scroller.scrollLeft = pan.left - dx;
+		scroller.scrollTop = pan.top - dy;
+	}
+
+	function panEnd(event: PointerEvent) {
+		if (pan?.moved) {
+			scroller?.releasePointerCapture?.(event.pointerId);
+			// Swallow the click a drag ends with, so panning off a node never plays its line.
+			scroller?.addEventListener('click', (click) => click.stopPropagation(), { capture: true, once: true });
+		}
+		pan = null;
+		panning = false;
+	}
+
 	function track(event: PointerEvent) {
-		if (event.pointerType === 'touch' || !svg || !panel) return;
+		if (pan?.moved || event.pointerType === 'touch' || !svg || !panel) return;
 		const box = svg.getBoundingClientRect();
 		const frame = panel.getBoundingClientRect();
 		const px = ((event.clientX - box.left) / box.width) * chart.width;
@@ -149,7 +204,24 @@
 		{/if}
 	</header>
 
-	<div class="scroll" bind:this={scroller} bind:clientWidth={width}>
+	<!-- A scrollable region, and focusable so it can be scrolled from the keyboard as well as dragged.
+	     The lint objects to a tabindex on a non-interactive role; a region that scrolls has to be
+	     reachable without a mouse (WCAG 2.1.1), which is the stronger rule. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<div
+		class="scroll"
+		class:panning
+		role="region"
+		aria-label="Chart"
+		tabindex="0"
+		bind:this={scroller}
+		bind:clientWidth={width}
+		onwheel={onWheel}
+		onpointerdown={panStart}
+		onpointermove={panMove}
+		onpointerup={panEnd}
+		onpointercancel={panEnd}
+	>
 		<svg
 			class="map"
 			bind:this={svg}
@@ -337,6 +409,24 @@
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
+		/* The chart is a map: the background offers to be dragged. */
+		cursor: grab;
+	}
+
+	.scroll:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
+
+	.scroll.panning {
+		cursor: grabbing;
+		user-select: none;
+	}
+
+	/* While dragging, nothing under the pointer should answer to it. */
+	.scroll.panning :global(*) {
+		cursor: grabbing;
+		pointer-events: none;
 	}
 
 	svg.map {
@@ -447,21 +537,17 @@
 		stroke-dasharray: 1.5 3.5;
 	}
 
-	/* An entered line is one route at two brightnesses: the moves played, then the secret continuation.
-	   Both are dashed, so the played part reads as the start of that route. Solid belongs to found lines
-	   alone — drawn solid, a one-move prefix became a bright bar floating clear of the dashes around it,
-	   and read as a stray two-node tree of its own. */
+	/* Solid to the entrance: the moves actually played on this line. */
 	.edge.ember {
 		stroke: var(--ember);
-		stroke-width: 1.8;
-		stroke-dasharray: 5 3;
+		stroke-width: 2;
 	}
 
 	.edge.ember-dim {
 		stroke: var(--ember);
 		stroke-width: 1.4;
 		stroke-dasharray: 3 4;
-		opacity: 0.5;
+		opacity: 0.55;
 	}
 
 	.edge.lit {

@@ -21,8 +21,9 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Lethal" />
-		<!-- Blocking, and before %sveltekit.head%: it dresses <html> in the stored theme so the first paint
-		     is already the right one. Without it the default palette flashes past on every load. -->
+		<!-- Blocking, and first: it puts the stored theme on the document before the first paint. Without
+		     it the default palette flashes past on every load. Never name a placeholder in a comment here
+		     — the template substitutes the first occurrence, so it would land inside the comment. -->
 		<script src="/theme.js"></script>
 		%sveltekit.head%
 	</head>

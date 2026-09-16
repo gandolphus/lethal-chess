@@ -668,10 +668,24 @@ html {
 	}
 }
 
+/* Moving between screens is a cross-fade rather than a cut. Browsers without view transitions simply cut,
+   which is what they do today. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: calc(var(--move-ms) * 0.6);
+	animation-timing-function: var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
 	*::after {
 		transition: none !important;
+	}
+
+	::view-transition-group(*),
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none !important;
 	}
 }

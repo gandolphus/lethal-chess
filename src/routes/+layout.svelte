@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { page, updated } from '$app/state';
+	import { onNavigate } from '$app/navigation';
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { progressStore } from '$lib/drill/account.svelte';
 	import { loadOpeningIndex } from '$lib/drill/openings';
@@ -61,6 +62,20 @@
 			.catch(() => {
 				// The index failed to load; adoption is retried on the next page load.
 			});
+	});
+
+	/**
+	 * Moving between screens cross-fades instead of cutting. `startViewTransition` is missing in some
+	 * browsers, and the navigation must still happen there, so the whole thing is behind the check.
+	 */
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
 	});
 
 	const links = [

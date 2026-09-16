@@ -454,6 +454,9 @@
 		aspect-ratio: 1;
 		container-type: inline-size;
 		user-select: none;
+		/* The board changes size when something appears beside it — the evaluation bar, a panel. It should
+		   grow or shrink into the new size rather than jump to it. */
+		transition: width var(--move-ms) var(--ease);
 	}
 
 	.frame {

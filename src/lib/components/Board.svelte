@@ -98,50 +98,86 @@
 		return { x: (index % 8) * 100 + 50, y: Math.floor(index / 8) * 100 + 50 };
 	}
 
+	type Point = { x: number; y: number };
+
+	/**
+	 * Where a knight's move turns the corner: it travels the long leg first, then the short one, the way
+	 * the move is taught. Every other move is a straight line, so there is no corner.
+	 */
+	function elbow(from: Point, to: Point): Point | null {
+		const dx = Math.abs(to.x - from.x);
+		const dy = Math.abs(to.y - from.y);
+		if (Math.min(dx, dy) !== 100 || Math.max(dx, dy) !== 200) return null;
+		return dx > dy ? { x: to.x, y: from.y } : { x: from.x, y: to.y };
+	}
+
+	/** Unit vector from `a` to `b`, or null if they coincide. */
+	function unit(a: Point, b: Point): Point | null {
+		const len = Math.hypot(b.x - a.x, b.y - a.y);
+		return len ? { x: (b.x - a.x) / len, y: (b.y - a.y) / len } : null;
+	}
+
+	const perp = (u: Point): Point => ({ x: -u.y, y: u.x });
+
 	/**
 	 * One shape per arrow, no markers. The shaft starts outside the origin piece
-	 * and stops short of the target centre so the head lands on the square.
-	 * Instrument draws a hairline with an open head and a start tick instead.
+	 * and stops short of the target centre so the head lands on the square. A knight's move bends at the
+	 * corner rather than cutting across it. Instrument draws a hairline with an open head and a start tick.
 	 */
 	function arrowShape(arrow: Arrow): { points?: string; d?: string } | null {
 		const from = squareCenter(arrow.from);
 		const to = squareCenter(arrow.to);
-		const dx = to.x - from.x;
-		const dy = to.y - from.y;
-		const len = Math.hypot(dx, dy);
-		if (!len) return null;
-		const ux = dx / len;
-		const uy = dy / len;
-		const px = -uy;
-		const py = ux;
-		const pt = (x: number, y: number) => `${x.toFixed(1)},${y.toFixed(1)}`;
+		const corner = elbow(from, to);
+		// Two legs, or one repeated: the shaft leaves along `u1` and arrives along `u2`.
+		const u1 = unit(from, corner ?? to);
+		const u2 = corner ? unit(corner, to) : u1;
+		if (!u1 || !u2) return null;
+		const n1 = perp(u1);
+		const n2 = perp(u2);
+		const pt = (p: Point) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+		const along = (p: Point, u: Point, d: number): Point => ({ x: p.x + u.x * d, y: p.y + u.y * d });
+		const off = (p: Point, n: Point, d: number): Point => ({ x: p.x + n.x * d, y: p.y + n.y * d });
+		// A right-angle join: the mitre sits exactly one width out along both normals.
+		const bend = (d: number): Point[] =>
+			corner ? [{ x: corner.x + (n1.x + n2.x) * d, y: corner.y + (n1.y + n2.y) * d }] : [];
 
 		if (boardStyle === 'instrument') {
 			const start = 30, end = 8, head = 20, hw = 11;
-			const sx = from.x + ux * start, sy = from.y + uy * start;
-			const ex = to.x - ux * end, ey = to.y - uy * end;
-			const bx = ex - ux * head, by = ey - uy * head;
+			const s = along(from, u1, start);
+			const e = along(to, u2, -end);
+			const b = along(e, u2, -head);
+			const shaft = corner ? `M${pt(s)} L${pt(corner)} L${pt(e)}` : `M${pt(s)} L${pt(e)}`;
 			return {
-				d: `M${pt(sx, sy)} L${pt(ex, ey)} M${pt(bx + px * hw, by + py * hw)} L${pt(ex, ey)} L${pt(bx - px * hw, by - py * hw)} M${pt(sx + px * 7, sy + py * 7)} L${pt(sx - px * 7, sy - py * 7)}`
+				d: `${shaft} M${pt(off(b, n2, hw))} L${pt(e)} L${pt(off(b, n2, -hw))} M${pt(off(s, n1, 7))} L${pt(off(s, n1, -7))}`
 			};
 		}
 
 		const nocturne = boardStyle === 'nocturne';
 		const w = nocturne ? 7 : 9, head = 30, hw = nocturne ? 20 : 24, start = 26, end = 6;
-		const sx = from.x + ux * start, sy = from.y + uy * start;
-		const ex = to.x - ux * end, ey = to.y - uy * end;
-		const bx = ex - ux * head, by = ey - uy * head;
+		const s = along(from, u1, start);
+		const e = along(to, u2, -end);
+		const b = along(e, u2, -head);
 		return {
 			points: [
-				pt(sx + px * w, sy + py * w),
-				pt(bx + px * w, by + py * w),
-				pt(bx + px * hw, by + py * hw),
-				pt(ex, ey),
-				pt(bx - px * hw, by - py * hw),
-				pt(bx - px * w, by - py * w),
-				pt(sx - px * w, sy - py * w)
-			].join(' ')
+				off(s, n1, w),
+				...bend(w),
+				off(b, n2, w),
+				off(b, n2, hw),
+				e,
+				off(b, n2, -hw),
+				off(b, n2, -w),
+				...bend(-w),
+				off(s, n1, -w)
+			]
+				.map(pt)
+				.join(' ')
 		};
+	}
+
+	/** The route of one move, for the discovery trace: the same corner a knight's arrow turns. */
+	function movePath(a: Point, b: Point): string {
+		const corner = elbow(a, b);
+		return corner ? `M${a.x} ${a.y} L${corner.x} ${corner.y} L${b.x} ${b.y}` : `M${a.x} ${a.y} L${b.x} ${b.y}`;
 	}
 
 	type Label = { text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; light: boolean };
@@ -153,9 +189,11 @@
 		const at = (i: number) => i * 12.5;
 		switch (boardStyle) {
 			case 'material':
+				// Inside the chamfer, not across it: the labels sit centred in the band between the board's
+				// edge and the frame's bevel, which keeps the bevel intact at every board size.
 				return [
-					...files.map((f, i) => ({ ...f, x: at(i) + 6.25, y: 103.6, anchor: 'middle' as const })),
-					...ranks.map((r, i) => ({ ...r, x: -2.4, y: at(i) + 7.1, anchor: 'middle' as const }))
+					...files.map((f, i) => ({ ...f, x: at(i) + 6.25, y: 102.05, anchor: 'middle' as const })),
+					...ranks.map((r, i) => ({ ...r, x: -1.5, y: at(i) + 6.9, anchor: 'middle' as const }))
 				];
 			case 'instrument':
 				return [
@@ -363,7 +401,7 @@
 						{#each celebration.path as step, i (i)}
 							{@const a = squareCenter(step.from)}
 							{@const b = squareCenter(step.to)}
-							<path d="M{a.x} {a.y} L{b.x} {b.y}" pathLength="1" style="--i: {i}" />
+							<path d={movePath(a, b)} pathLength="1" style="--i: {i}" />
 							<circle cx={b.x} cy={b.y} r="8" style="--i: {i}" />
 						{/each}
 						<circle class="end" cx={end.x} cy={end.y} r="30" style="--i: {celebration.path.length}" />
@@ -652,8 +690,9 @@
 	[data-board='material'] .frame::before {
 		content: '';
 		position: absolute;
-		inset: 6px;
-		border-radius: calc(var(--radius) + 6px);
+		/* Proportional, so the chamfer keeps its distance from the coordinates on a phone as on a desktop. */
+		inset: 0.9cqi;
+		border-radius: calc(var(--radius) + 0.9cqi);
 		box-shadow: var(--bevel);
 		pointer-events: none;
 	}

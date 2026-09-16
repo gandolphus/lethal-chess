@@ -95,32 +95,6 @@
 	</section>
 
 	<section>
-		<h2>Typeface</h2>
-		<p class="collection">Chosen apart from the theme</p>
-		<div class="options">
-			{#each FONTS as font (font.id)}
-				<button
-					type="button"
-					class="font-option"
-					class:active={appearance.font === font.id}
-					aria-pressed={appearance.font === font.id}
-					onclick={() => appearance.set({ font: font.id })}
-				>
-					<span
-						class="type-sample"
-						data-font={font.id === 'theme' ? undefined : font.id}
-						data-theme={font.id === 'theme' ? appearance.theme : undefined}
-					>
-						<b>Ruy Lopez</b>
-						<i>Closed, Breyer Defense · 1.e4 e5 2.Nf3</i>
-					</span>
-					<span class="label"><span>{font.name}</span><small>{font.note}</small></span>
-				</button>
-			{/each}
-		</div>
-	</section>
-
-	<section>
 		<h2>Pieces</h2>
 		{#each group(AVAILABLE_PIECE_SETS) as { collection, items } (collection)}
 			<p class="collection">{collection}</p>
@@ -147,6 +121,32 @@
 				{/each}
 			</div>
 		{/each}
+	</section>
+
+	<section>
+		<h2>Typeface</h2>
+		<p class="collection">Chosen apart from the theme</p>
+		<div class="options">
+			{#each FONTS as font (font.id)}
+				<button
+					type="button"
+					class="font-option"
+					class:active={appearance.font === font.id}
+					aria-pressed={appearance.font === font.id}
+					onclick={() => appearance.set({ font: font.id })}
+				>
+					<span
+						class="type-sample"
+						data-font={font.id === 'theme' ? undefined : font.id}
+						data-theme={font.id === 'theme' ? appearance.theme : undefined}
+					>
+						<b>Ruy Lopez</b>
+						<i>Closed, Breyer Defense · 1.e4 e5 2.Nf3</i>
+					</span>
+					<span class="label"><span>{font.name}</span><small>{font.note}</small></span>
+				</button>
+			{/each}
+		</div>
 	</section>
 
 	<p class="note">Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page.</p>

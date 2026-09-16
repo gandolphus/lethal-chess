@@ -5,6 +5,13 @@ aliases: [Visual Design, Themes, Aesthetics]
 
 # Visual Design
 
+> **Typeface is its own setting (2026-09-16).** A theme used to decide the type as well as the colours, so
+> choosing a board look changed the reading experience. Settings has a **Typeface** section, kept last
+> because pieces matter more — Match the theme, Editorial, Grotesque, Technical, Geometric, Fabulous,
+> System — stored alongside theme and piece set and applied as `data-font` on `<html>`. The `[data-font]`
+> blocks sit after every `[data-theme]` block in `app.css`: same specificity, later wins. "Match the
+> theme" sets no attribute. `?font=…` previews one, like `?theme=` and `?pieces=`.
+
 > **Geometry is fixed across themes (2026-09-16).** A theme changes colour, board treatment *and*
 > typeface, and different faces have different metrics. Switching a theme used to reflow the settings page
 > by a few pixels — the option under the cursor moved. Now the site nav has a fixed height, the footer a

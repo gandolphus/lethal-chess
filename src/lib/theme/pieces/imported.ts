@@ -11,62 +11,61 @@ const files = import.meta.glob('./{chessnut,cburnett}/[wb][KQRBNP].svg', {
 export const IMPORTED_SETS = ['chessnut', 'cburnett'] as const;
 export type ImportedSet = (typeof IMPORTED_SETS)[number];
 
-// Body colour is the flat equivalent of the custom sets' gradient bottom, so a
-// black piece reads as one dark shape; strokes take the stroke token; the light
-// detail lines on black pieces take the highlight token.
-
 /**
- * The light line-work of a black piece, per set. Cburnett's is detail inside a black-outlined shape, so
- * it takes the highlight as is. Chessnut's black pieces have no outline at all: a filled silhouette with
- * the drawing traced just inside its edge. On a very dark square the silhouette's own edge disappears
- * and a near-white highlight (Night, Graphite) became the visible outline, ringed by a dim dark halo —
- * two outlines of one shape. Its line-work is held at a mid-tone between highlight and body instead, so
- * it reads as engraving on a black piece whose edge is the body against the square, as drawn.
+ * A piece is **two colours and no more**: the body it is cut from, and the one line drawn on it. Both
+ * sets are black-and-white line art, so every `#000` in the file — fill or stroke — is the body, and
+ * every near-white is the line. There is no third value to blend into, which is the point: a black
+ * piece whose outline, interior detail and silhouette edge are three different tones reads as a mess,
+ * and it only shows up on the pieces that happen to carry detail.
+ *
+ * Chessnut's line is held short of the highlight because its black pieces have no outline at all — a
+ * filled silhouette with the drawing traced just inside the edge — so at full `--pbh` the drawing
+ * became the visible outline on very dark squares. Cburnett's heavy outlines are part of its
+ * silhouette, so they belong to the body, not to the line.
  */
-const BLACK_LINE: Record<ImportedSet, string> = {
-	chessnut: 'color-mix(in srgb, var(--pbh) 70%, var(--pb2))',
-	cburnett: 'var(--pbh)'
-};
-
-const TINT: Record<'w' | 'b', { body: string; fill: Record<string, string>; stroke: Record<string, string> }> = {
-	w: {
-		// `body` stands in for SVG's default fill, which is black. In a white piece, shapes with no
-		// fill attribute are its dark details (eyes, bands, slits), so the default must be the dark
-		// detail colour — using the light body colour here erased every interior feature.
-		body: 'var(--pws)',
-		fill: { '#fff': 'var(--pw1)', '#ffffff': 'var(--pw1)', '#000': 'var(--pws)', '#000000': 'var(--pws)' },
-		stroke: { '#000': 'var(--pws)', '#000000': 'var(--pws)', '#fff': 'var(--pw1)', '#ffffff': 'var(--pw1)' }
+const PALETTE: Record<ImportedSet, Record<'w' | 'b', { body: string; line: string }>> = {
+	chessnut: {
+		w: { body: 'var(--pw1)', line: 'var(--pws)' },
+		b: { body: 'var(--pb2)', line: 'color-mix(in srgb, var(--pbh) 70%, var(--pb2))' }
 	},
-	b: {
-		body: 'var(--pb2)',
-		fill: { '#000': 'var(--pb2)', '#000000': 'var(--pb2)' },
-		// Cburnett draws black pieces with heavy black outlines that are part of the silhouette.
-		// Instrument and Nocturne themes set --pbs to a *light* edge for their own hairline sets;
-		// used here it turned the whole piece white. Keep the outline dark, nudged slightly toward
-		// the theme's edge colour so it still separates from very dark squares.
-		stroke: {
-			'#000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))',
-			'#000000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))'
-		}
+	cburnett: {
+		w: { body: 'var(--pw1)', line: 'var(--pws)' },
+		b: { body: 'var(--pb2)', line: 'var(--pbh)' }
 	}
 };
 
+const DARK = ['#000', '#000000'];
 const LIGHT = ['#ececec', '#f2f2f2', '#fff', '#ffffff'];
 
+/**
+ * The file's own palette mapped onto the piece's two colours. On a white piece the roles swap: the
+ * near-whites are its body and the blacks are its detail, and `body` doubles as the default fill,
+ * since a shape with no `fill` attribute falls back to SVG's black.
+ */
+function paletteOf(color: 'w' | 'b', set: ImportedSet): { fallback: string; map: Record<string, string> } {
+	const { body, line } = PALETTE[set][color];
+	const dark = color === 'b' ? body : line;
+	const light = color === 'b' ? line : body;
+	return {
+		fallback: dark,
+		map: Object.fromEntries([...DARK.map((hex) => [hex, dark]), ...LIGHT.map((hex) => [hex, light])])
+	};
+}
+
 function tint(svg: string, color: 'w' | 'b', set: ImportedSet): string {
-	const { fill, stroke } = TINT[color];
-	// The light drawing on a black piece is the same colour whether it is stroked or filled (the knight's mane).
-	const line = color === 'b' ? Object.fromEntries(LIGHT.map((hex) => [hex, BLACK_LINE[set]])) : {};
+	const { map } = paletteOf(color, set);
 	return svg.replace(/<(path|g|circle|ellipse|rect|polygon|line)\b([^>]*?)(\/?)>/g, (_m, tag, attrs: string, close) => {
 		const style: string[] = [];
 		attrs = attrs.replace(/\s(fill|stroke)="([^"]*)"/g, (_a, prop: 'fill' | 'stroke', val: string) => {
-			const map = prop === 'fill' ? { ...fill, ...line } : { ...stroke, ...line };
 			style.push(`${prop}:${map[val.toLowerCase()] ?? val}`);
 			return '';
 		});
 		return `<${tag}${attrs}${style.length ? ` style="${style.join(';')}"` : ''}${close}>`;
 	});
 }
+
+/** The two colours a piece of this set and colour may be painted in. Nothing else is allowed. */
+export const paletteFor = (set: ImportedSet, color: 'w' | 'b') => PALETTE[set][color];
 
 export async function importedSprite(set: ImportedSet): Promise<string> {
 	let defs = '';
@@ -76,7 +75,7 @@ export async function importedSprite(set: ImportedSet): Promise<string> {
 			const viewBox = raw.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 100 100';
 			const inner = raw.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
 			// Paths with no fill attribute would otherwise fall back to SVG's default black.
-			defs += `<symbol id="lp-${set}-${color}${type}" viewBox="${viewBox}"><g style="fill:${TINT[color].body}">${tint(inner, color, set)}</g></symbol>`;
+			defs += `<symbol id="lp-${set}-${color}${type}" viewBox="${viewBox}"><g style="fill:${paletteOf(color, set).fallback}">${tint(inner, color, set)}</g></symbol>`;
 		}
 	}
 	return `<defs>${defs}</defs>`;

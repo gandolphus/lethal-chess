@@ -178,6 +178,34 @@ one-second celebration: edge sweep, move replay, a mote into the counter) and **
   which is why the letters moved and not the chamfer. Round 2 hit the same complaint on Fabulous and
   answered it by deleting the frame; this is the other answer.
 
+## Motion (2026-09-16)
+
+Each theme family already owned its motion — `--ease` and `--move-ms` are theme tokens, from Instrument's
+crisp 170ms to Nocturne's 300ms. Two things now use them beyond square feedback:
+
+- **A board that changes size moves into the new size.** `.board-wrap` transitions its width, so the
+  evaluation bar arriving beside it no longer makes the board snap. Measured 728 → 520px over one curve.
+- **Screens cross-fade.** `onNavigate` in the root layout runs navigation through `startViewTransition`;
+  `::view-transition-old/new(root)` take 60 % of the theme's duration. Browsers without the API cut, as
+  they did before, and `prefers-reduced-motion` turns both off along with every other transition.
+
+The rule behind both: **nothing that changes size should appear at its new size.** A resize the eye can
+follow reads as the interface responding; a jump reads as a glitch.
+
+## The window holds the screen (2026-09-16)
+
+A chess interface is an app, not a document. The shell is a flex column of `100dvh` with the footer at its
+foot, and a board is sized from what the chrome leaves — `min(calc(100dvh - var(--chrome)), 100%)` — rather
+than a flat `78vh` that took no account of the nav above it and the footer below. `--chrome` is 9.5rem by
+default and 12.5rem on the opening screen, which hangs navigation buttons and the variation shelf under its
+board. Measured at 1280×720, 1440×780, 1512×850, 1400×1000 and 390×844: Openings, Today and Play come to
+zero overflow at every one, where they ran 21–247px past the bottom before.
+
+The footer is half its old height and hidden on phones and in the installed app, where its links live in
+Settings. It was *supposed* to be hidden when installed already — but a scoped
+`.site-footer.svelte-x { display: flex }` outranked the global rule that tried, so that rule had never once
+applied. Component-scoped styles win: a global override of a scoped property has to live in the component.
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

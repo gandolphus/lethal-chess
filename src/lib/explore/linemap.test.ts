@@ -124,12 +124,6 @@ describe('layout', () => {
 		expect(l.here).toEqual({ x: 180 + 46, y: morphy.y + 16 });
 	});
 
-	it('collapses a band to its header and drops its structure', () => {
-		const l = layout(book.lines, new Map(), { ...options, collapsed: new Set(['Test: Berlin']) });
-		expect(l.bands[0]).toMatchObject({ collapsed: true, height: 34 });
-		expect(l.edges).toHaveLength(6);
-	});
-
 	it('fits Overview to the width', () => {
 		const l = layout(book.lines, new Map(), { ...options, zoom: 'overview', width: 600 });
 		expect(l.width).toBe(600);

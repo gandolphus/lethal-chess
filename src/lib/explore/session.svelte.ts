@@ -156,15 +156,21 @@ export class ExploreSession {
 	/** Anticipation: set from a line's entrance until its end is reached. */
 	readonly progress = $derived.by<LineProgress | null>(() => {
 		void this.#stageVersion;
-		const open = this.#book.at(toEpd(this.game.fen)).filter(({ line, index }) => index >= line.entry && index < line.moves.length);
-		if (!open.length) return null;
-		const unfound = open.filter(({ line }) => this.#stages.get(line.key) !== 'discovered');
-		const pool = unfound.length ? unfound : open;
+		// Everything still running through this position, whether or not its entrance has been passed. The
+		// card itself only appears once a line has been entered, but the count is of what is *reachable*:
+		// gating it on the entrance made the number rise as the game went deeper, because more entrances
+		// had been passed, when what a learner reads is "how much is left down here".
+		const through = this.#book.at(toEpd(this.game.fen)).filter(({ line, index }) => index < line.moves.length);
+		const inside = through.filter(({ line, index }) => index >= line.entry);
+		if (!inside.length) return null;
+		const unfound = inside.filter(({ line }) => this.#stages.get(line.key) !== 'discovered');
+		const pool = unfound.length ? unfound : inside;
 		const nearest = pool.reduce((a, b) => (b.line.moves.length - b.index < a.line.moves.length - a.index ? b : a));
+		const reachable = through.filter(({ line }) => this.#stages.get(line.key) !== 'discovered');
 		return {
 			name: nearest.line.entryName ?? nearest.line.variation,
-			lines: pool.length,
-			allKnown: !unfound.length,
+			lines: (reachable.length ? reachable : through).length,
+			allKnown: !reachable.length,
 			total: nearest.line.moves.length - nearest.line.entry,
 			played: nearest.index - nearest.line.entry
 		};
@@ -394,6 +400,32 @@ export class ExploreSession {
 	goTo(node: MoveNode) {
 		if (this.phase === 'thinking') return;
 		this.#goTo(node);
+	}
+
+	/**
+	 * Picks up a line the learner has already been down: replays it from the start and hands play back at
+	 * its end, so a line found once can be practised from. Only lines they have reached are offered —
+	 * replaying a secret one would be giving it away.
+	 */
+	async resume(line: IndexedLine): Promise<void> {
+		const generation = ++this.#generation;
+		this.game.load([]);
+		this.root = createRoot();
+		let node = this.root;
+		for (const uci of line.moves) {
+			const legal = this.game.find(parseUci(uci));
+			if (!legal) break;
+			this.game.move(legal);
+			node = addMove(node, uci, legal.san, 'book');
+		}
+		this.current = node;
+		this.revision++;
+		this.#live = null;
+		this.#reset();
+		this.events = [];
+		this.evaluation = null;
+		this.#visit();
+		await this.#continue(generation);
 	}
 
 	/** Carries on from the move on the board; the moves after it stay as a branch. */

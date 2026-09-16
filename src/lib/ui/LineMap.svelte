@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { SvelteSet } from 'svelte/reactivity';
 	import type { IndexedLine, LineStage } from '$lib/explore/book';
-	import { layout, type Here, type Zoom } from '$lib/explore/linemap';
+	import { layout, sanOf, type Here, type Zoom } from '$lib/explore/linemap';
 
 	let {
 		lines,
@@ -12,7 +11,8 @@
 		openingLabel,
 		title,
 		band = null,
-		onclose
+		onclose,
+		onplay
 	}: {
 		lines: IndexedLine[];
 		stages: Map<string, LineStage>;
@@ -27,6 +27,8 @@
 		/** A variation to scroll to when the map opens. */
 		band?: string | null;
 		onclose?: () => void;
+		/** Picks up a found line: the map hands back the line, the page replays it. */
+		onplay?: (line: IndexedLine) => void;
 	} = $props();
 
 	/**
@@ -40,13 +42,27 @@
 		chosenZoom ?? initialZoom ?? 'overview'
 	);
 	let width = $state(0);
-	const collapsed = new SvelteSet<string>();
 	let scroller = $state<HTMLElement | null>(null);
 	let closeButton = $state<HTMLButtonElement | null>(null);
 
-	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, openingLabel, here, collapsed }));
+	// A thumb needs a bigger target than a cursor: coarse pointers get taller rows.
+	const touch = typeof matchMedia === 'function' && matchMedia('(hover: none) and (pointer: coarse)').matches;
+	// Whether *this* interaction was a tap, which is what decides if it needs confirming — a stylus or a
+	// mouse on a touchscreen is precise enough to act on directly.
+	let tapped = $state(false);
+	// Raw: a proxied line would not compare equal to the one the layout holds.
+	let asked = $state.raw<IndexedLine | null>(null);
 
-	const toggle = (name: string) => (collapsed.has(name) ? collapsed.delete(name) : collapsed.add(name));
+	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, openingLabel, here, touch }));
+
+	/** On a cursor a click plays. On a thumb it asks first, naming the line, so a mis-tap costs nothing. */
+	function pick(line: IndexedLine) {
+		if (!onplay) return;
+		if (tapped) asked = line;
+		else onplay(line);
+	}
+
+	const asks = $derived(asked ? `${asked.name} — ${sanOf(asked).slice(-1)[0]}` : '');
 
 	// On open: focus the close button, and scroll to the band asked for.
 	$effect(() => {
@@ -71,7 +87,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<section class="linemap" aria-label="Line map">
+<section class="linemap" aria-label="Line map" onpointerdown={(e) => (tapped = e.pointerType === 'touch')}>
 	<header class="head">
 		<h2>{title}</h2>
 		<span class="legend" aria-hidden="true">
@@ -98,26 +114,11 @@
 			{#each chart.bands as b (b.name)}
 				<g class="band" class:here={b.here}>
 					<line class="band-line" x1="8" x2={chart.width - 8} y1={b.y - 4} y2={b.y - 4} />
-					<text
-						class="band-name"
-						x="12"
-						y={b.y + 13}
-						role="button"
-						tabindex="0"
-						aria-expanded={!b.collapsed}
-						onclick={() => toggle(b.name)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggle(b.name);
-							}
-						}}
-					>
-						<tspan class="chevron">{b.collapsed ? '▸' : '▾'}</tspan>
-						<tspan dx="3">{b.label}</tspan>
-						{#if zoom === 'overview' || b.collapsed}<tspan class="band-count" dx="8">{b.count}</tspan>{/if}
+					<text class="band-name" x="12" y={b.y + 13}>
+						{b.label}
+						{#if zoom === 'overview'}<tspan class="band-count" dx="8">{b.count}</tspan>{/if}
 					</text>
-					{#if zoom === 'detail' && !b.collapsed}
+					{#if zoom === 'detail'}
 						<text class="band-count" x="12" y={b.y + 27}>{b.count}</text>
 					{/if}
 				</g>
@@ -131,7 +132,28 @@
 			{/each}
 
 			{#each chart.nodes as node}
-				<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
+				{#if node.line && onplay}
+					<g
+						class="pick"
+						class:asked={asked === node.line}
+						role="button"
+						tabindex="0"
+						aria-label="Play from {node.line.name}"
+						onclick={() => pick(node.line!)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								tapped = false;
+								pick(node.line!);
+							}
+						}}
+					>
+						<circle class="hit" cx={node.x} cy={node.y} r={touch ? 18 : 11} />
+						<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
+					</g>
+				{:else}
+					<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
+				{/if}
 				{#if node.label}
 					<text class="end-name" x={node.x + 8} y={node.y + 4}>{node.label}</text>
 				{/if}
@@ -143,6 +165,16 @@
 			{/if}
 		</svg>
 	</div>
+
+	{#if asked}
+		<div class="ask" role="dialog" aria-label="Play from this line">
+			<p>Play from <strong>{asks}</strong>?</p>
+			<div class="ask-buttons">
+				<button type="button" class="btn small" onclick={() => (asked = null)}>Cancel</button>
+				<button type="button" class="btn small go" onclick={() => { const line = asked!; asked = null; onplay?.(line); }}>Play</button>
+			</div>
+		</div>
+	{/if}
 </section>
 
 <style>
@@ -237,23 +269,11 @@
 		font-size: 12.5px;
 		font-weight: 500;
 		fill: var(--text);
-		cursor: pointer;
 		user-select: none;
-	}
-
-	.band-name:hover,
-	.band-name:focus-visible {
-		fill: var(--ember);
-		outline: none;
 	}
 
 	.band.here .band-name {
 		fill: var(--ember);
-	}
-
-	.chevron {
-		fill: var(--text-3);
-		font-size: 10px;
 	}
 
 	.band-count {
@@ -292,6 +312,26 @@
 		stroke-width: 2;
 	}
 
+	/* A found line's end is a button: the dot is the mark, the invisible disc around it is the target. */
+	.pick {
+		cursor: pointer;
+	}
+
+	.hit {
+		fill: transparent;
+	}
+
+	.pick:hover .node,
+	.pick:focus-visible .node,
+	.pick.asked .node {
+		stroke: var(--text);
+		stroke-width: 2;
+	}
+
+	.pick:focus-visible {
+		outline: none;
+	}
+
 	.node {
 		fill: var(--surface-1);
 		stroke: var(--fog);
@@ -321,6 +361,39 @@
 
 	.move.lit {
 		fill: var(--text);
+	}
+
+	/* The mis-tap guard: names the line before it replays anything. */
+	.ask {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+		padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
+		border-top: 1px solid var(--border);
+		background: var(--surface-2);
+	}
+
+	.ask p {
+		margin: 0;
+		flex: 1 1 12rem;
+		font-size: 0.92rem;
+		color: var(--text-2);
+	}
+
+	.ask strong {
+		color: var(--text);
+		font-weight: 600;
+	}
+
+	.ask-buttons {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.ask .go {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.end-name {

@@ -172,6 +172,38 @@ describe('ExploreSession', () => {
 		expect(s.events.at(-1)).toMatchObject({ kind: 'discovered', known: false, ply: 6 });
 	});
 
+	it('counts every line still reachable, not just the ones already entered', async () => {
+		// The report: "2 lines left from here" and then "5" a move later. The count was gated on the
+		// entrance being passed, so it climbed as the game went deeper. It is the lines running through
+		// this position now, which can only shrink.
+		const bundle = fixture();
+		bundle.lines = [
+			...lines,
+			// A line under the same variation whose entrance is two moves deeper than the Spanish's.
+			{ name: 'Test: Knight, Deep', variation: 'Test: Knight', moves: [...OPENING, 'g1f3', 'b8c6', 'f1b5', 'g8f6'], entry: 5, entryName: 'Test: Knight, Deep', dubious: false }
+		];
+		const s = new ExploreSession({
+			bundle,
+			book: new Book(bundle),
+			stages: new Map(),
+			engine: async () => fakeEngine(),
+			onDiscovery: () => {},
+			random: () => 0,
+			wait: async () => {},
+			mistakeRate: 0
+		});
+		await s.start();
+		await s.submit('e2', 'e4');
+		const counts: number[] = [];
+		await s.submit('g1', 'f3');
+		counts.push(s.progress!.lines);
+		await s.submit('f1', 'b5');
+		if (s.progress) counts.push(s.progress.lines);
+		// Both the Spanish and the Deep line run through the position after 3.Nf3 Nc6.
+		expect(counts[0]).toBe(2);
+		expect(counts).toEqual([...counts].sort((a, b) => b - a));
+	});
+
 	it('celebrates completing an already discovered line again, without recording it', async () => {
 		const bishop = new Book(fixture()).lines[2].key;
 		const { s, discoveries } = await started({ stages: new Map([[bishop, 'discovered']]) });

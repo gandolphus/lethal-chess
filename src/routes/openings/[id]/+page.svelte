@@ -630,6 +630,10 @@
 			title="{bundle.name} — the lines"
 			band={map.band}
 			onclose={() => (map = null)}
+			onplay={(line) => {
+				map = null;
+				void explore?.resume(line);
+			}}
 		/>
 	</div>
 {/if}

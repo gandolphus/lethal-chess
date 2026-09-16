@@ -162,7 +162,8 @@ export type LayoutOptions = {
 	/** Label for the root column, e.g. "3.Bb5". */
 	openingLabel?: string;
 	here?: Here | null;
-	collapsed?: ReadonlySet<string>;
+	/** Coarse pointers get taller rows, so a line's end is something a thumb can actually hit. */
+	touch?: boolean;
 };
 
 export type LayoutBand = {
@@ -172,7 +173,6 @@ export type LayoutBand = {
 	y: number;
 	height: number;
 	count: string;
-	collapsed: boolean;
 	here: boolean;
 };
 
@@ -184,6 +184,8 @@ export type LayoutNode = {
 	r: number;
 	kind: 'lit' | 'ember' | 'secret' | 'branch';
 	label: string | null;
+	/** The line this end completes, when it is one the learner has been down and may pick up again. */
+	line?: IndexedLine;
 };
 
 export type Layout = {
@@ -197,6 +199,7 @@ export type Layout = {
 };
 
 const ROW: Record<Zoom, number> = { detail: 16, overview: 7 };
+const TOUCH_ROW: Record<Zoom, number> = { detail: 28, overview: 12 };
 const HEAD: Record<Zoom, number> = { detail: 34, overview: 14 };
 const GAP: Record<Zoom, number> = { detail: 20, overview: 10 };
 const TOP = 28;
@@ -207,11 +210,10 @@ const plyLabel = (ply: number) => (ply % 2 === 1 ? `${(ply + 1) / 2}.` : `${ply 
 export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, options: LayoutOptions): Layout {
 	const { zoom, opening } = options;
 	const here = options.here ?? null;
-	const collapsed = options.collapsed ?? new Set<string>();
 	const detail = zoom === 'detail';
 	const bands = bandsOf(lines, stages);
 	const maxPly = Math.max(opening + 1, ...lines.map((l) => l.moves.length));
-	const row = ROW[zoom];
+	const row = options.touch ? TOUCH_ROW[zoom] : ROW[zoom];
 	const gutter = detail ? 180 : Math.min(150, Math.round(options.width * 0.36));
 	const nameSpace = detail ? 230 : 8;
 	const plyW = detail ? 46 : Math.max(6, (options.width - gutter - nameSpace - 16) / (maxPly - opening));
@@ -229,10 +231,9 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 	let y = TOP;
 
 	for (const band of bands) {
-		const isCollapsed = collapsed.has(band.name);
 		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
 		const root = trie(band.lines, opening);
-		const leaves = isCollapsed ? 0 : place(root, row, y);
+		const leaves = place(root, row, y);
 		const height = Math.max(leaves * row, HEAD[zoom]);
 		out.bands.push({
 			name: band.name,
@@ -241,58 +242,62 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 			y,
 			height,
 			count: `${band.discovered} of ${band.lines.length}`,
-			collapsed: isCollapsed,
 			here: bandHere
 		});
 
-		if (!isCollapsed) {
-			const draw = (node: TrieNode, parent: TrieNode | null) => {
-				if (parent) {
-					const state = edgeState(node, stages, here);
-					const x1 = x(parent.ply);
-					const x2 = x(node.ply);
-					const d =
-						parent.y === node.y
-							? `M${x1} ${parent.y} H${x2}`
-							: `M${x1} ${parent.y} C${x1 + plyW * 0.55} ${parent.y} ${x2 - plyW * 0.55} ${node.y} ${x2} ${node.y}`;
-					let label: LayoutEdge['label'] = null;
-					// The move is written only where the learner has been: fog and the secret continuation stay unlabelled.
-					if (detail && (state === 'lit' || state === 'ember')) {
-						const shown = node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here));
-						// At the landing end, where a curved edge has flattened out, so the move reads as "what lands here".
-						if (shown) label = { x: x2 - 3, y: node.y - 5, text: sanOf(shown)[node.ply - 1] };
-					}
-					out.edges.push({ d, state, label });
+		const draw = (node: TrieNode, parent: TrieNode | null) => {
+			if (parent) {
+				const state = edgeState(node, stages, here);
+				const x1 = x(parent.ply);
+				const x2 = x(node.ply);
+				const d =
+					parent.y === node.y
+						? `M${x1} ${parent.y} H${x2}`
+						: `M${x1} ${parent.y} C${x1 + plyW * 0.55} ${parent.y} ${x2 - plyW * 0.55} ${node.y} ${x2} ${node.y}`;
+				let label: LayoutEdge['label'] = null;
+				// The move is written only where the learner has been: fog and the secret continuation stay unlabelled.
+				if (detail && (state === 'lit' || state === 'ember')) {
+					const shown = node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here));
+					// At the landing end, where a curved edge has flattened out, so the move reads as "what lands here".
+					if (shown) label = { x: x2 - 3, y: node.y - 5, text: sanOf(shown)[node.ply - 1] };
 				}
-				for (const child of node.children) draw(child, node);
-				if (node.ends.length) {
-					const stage = node.ends.some((l) => stages.get(l.key) === 'discovered')
-						? 'discovered'
-						: node.ends.some((l) => stages.get(l.key) === 'entered' || isHere(l, here))
-							? 'entered'
-							: null;
-					const kind = stage === 'discovered' ? 'lit' : stage === 'entered' ? 'ember' : 'secret';
-					let label: string | null = null;
-					if (detail && stage === 'discovered') {
-						const found = node.ends.find((l) => stages.get(l.key) === 'discovered')!;
-						label = band.kind === 'variation' ? shortLine(found) : shortVariation(found.name);
-					}
-					out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label });
-				} else if (detail && node.children.length > 1) {
-					// Branch points are the only structure the fog reveals.
-					out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null });
-				}
-			};
-			draw(root, null);
-
-			if (bandHere && here!.index >= opening) {
-				let at: TrieNode | undefined = root;
-				for (let ply = opening; ply < here!.index && at; ply++) {
-					const uci: string = here!.line.moves[ply];
-					at = at.children.find((c) => c.uci === uci);
-				}
-				if (at) out.here = { x: x(at.ply), y: at.y };
+				out.edges.push({ d, state, label });
 			}
+			for (const child of node.children) draw(child, node);
+			if (node.ends.length) {
+				const stage = node.ends.some((l) => stages.get(l.key) === 'discovered')
+					? 'discovered'
+					: node.ends.some((l) => stages.get(l.key) === 'entered' || isHere(l, here))
+						? 'entered'
+						: null;
+				const kind = stage === 'discovered' ? 'lit' : stage === 'entered' ? 'ember' : 'secret';
+				// Only an end the learner has reached can be picked up again; the fog stays unclickable,
+				// because offering to play a secret line would be handing it over.
+				const line =
+					stage === 'discovered'
+						? node.ends.find((l) => stages.get(l.key) === 'discovered')
+						: stage === 'entered'
+							? node.ends.find((l) => stages.get(l.key) === 'entered' || isHere(l, here))
+							: undefined;
+				let label: string | null = null;
+				if (detail && stage === 'discovered' && line) {
+					label = band.kind === 'variation' ? shortLine(line) : shortVariation(line.name);
+				}
+				out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label, line });
+			} else if (detail && node.children.length > 1) {
+				// Branch points are the only structure the fog reveals.
+				out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null });
+			}
+		};
+		draw(root, null);
+
+		if (bandHere && here!.index >= opening) {
+			let at: TrieNode | undefined = root;
+			for (let ply = opening; ply < here!.index && at; ply++) {
+				const uci: string = here!.line.moves[ply];
+				at = at.children.find((c) => c.uci === uci);
+			}
+			if (at) out.here = { x: x(at.ply), y: at.y };
 		}
 
 		y += height + GAP[zoom];

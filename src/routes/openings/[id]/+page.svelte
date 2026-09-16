@@ -14,6 +14,7 @@
 	import LineMap from '$lib/ui/LineMap.svelte';
 	import LineShelf from '$lib/ui/LineShelf.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
+	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
 	import type { PageProps } from './$types';
 
@@ -228,6 +229,14 @@
 							: 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.';
 					return { tone, title: 'Your move', text: message?.text ?? prompt };
 				}
+				case 'browse':
+					return {
+						tone: 'wait',
+						title: explore.atTip ? 'Latest position' : 'Looking back',
+						text: explore.atTip
+							? 'Play on, or step back through the game.'
+							: 'Step through the game with ← and →, or play on from this position.'
+					};
 				case 'decide':
 					return { tone: 'fail', title: 'Try again?', text: message?.text ?? '' };
 				case 'over':
@@ -321,6 +330,17 @@
 
 	const pairs = $derived(movePairs(game?.history ?? []));
 
+	/**
+	 * Past the established lines the page becomes an analysis board: the evaluation is shown, and the game
+	 * can be walked back and forward. Inside the book it stays hidden — it would give the lines away.
+	 */
+	const analysing = $derived(
+		Boolean(freeplay) || Boolean(explore && !explore.inOpening && !explore.inBook)
+	);
+	const evaluation = $derived(freeplay ? freeplay.evaluation : (explore?.evaluation ?? null));
+	/** Moves the learner can click back to: the game plus anything taken off while browsing. */
+	const browsedPly = $derived(explore ? explore.game.uciHistory.length : (game?.uciHistory.length ?? 0));
+
 	/** Where the game is on the map: the line being followed, else any line through the position. */
 	const here = $derived.by(() => {
 		if (!explore || explore.inOpening) return null;
@@ -346,6 +366,9 @@
 		else if (event.key === 't' && explore?.phase === 'decide') explore.tryAgain();
 		else if (event.key === 'w' && explore?.phase === 'decide') void explore.explain();
 		else if (event.key === 'b' && explore?.canTakeBack) void explore.takeBack();
+		else if (event.key === 'ArrowLeft' && explore) explore.back();
+		else if (event.key === 'ArrowRight' && explore) void explore.forward();
+		else if (event.key === 'Enter' && explore?.phase === 'browse') void explore.playFromHere();
 		else if (event.key === 'k' && review?.phase === 'done' && !freeplay) void keepPlaying();
 		else if (event.key === 'e' && mode !== 'explore') void startExplore();
 		else if (event.key === 'p' && mode !== 'practice') void startPractice();
@@ -362,6 +385,9 @@
 <main>
 	<div class="layout">
 		<div class="board-column" bind:this={boardColumn}>
+			{#if analysing}
+				<div class="eval"><EvalBar score={evaluation} side={bundle.side} stale={!evaluation} /></div>
+			{/if}
 			<div class="board-slot">
 			{#if freeplay}
 				<Board
@@ -573,11 +599,34 @@
 				{#each pairs as pair, i (pair.number)}
 					<li>
 						<span class="n">{pair.number}.</span>
-						<span class="m" class:cur={i === pairs.length - 1 && !pair.black}>{pair.white}</span>
-						<span class="m" class:cur={i === pairs.length - 1 && pair.black}>{pair.black}</span>
+						{#each [pair.white, pair.black] as san, half (half)}
+							{@const ply = i * 2 + half + 1}
+							{#if san && explore}
+								<button
+									type="button"
+									class="m"
+									class:cur={ply === browsedPly}
+									onclick={() => explore?.jumpTo(ply)}
+									title="Go back to this move"
+								>{san}</button>
+							{:else}
+								<span class="m" class:cur={ply === browsedPly}>{san}</span>
+							{/if}
+						{/each}
 					</li>
 				{/each}
 			</ol>
+
+			{#if explore && (analysing || explore.phase === 'browse')}
+				<div class="browse">
+					<button type="button" class="btn small" onclick={() => explore?.back()} disabled={!explore.canBack} aria-label="One move back">◀</button>
+					<button type="button" class="btn small" onclick={() => explore?.forward()} disabled={!explore.canForward} aria-label="One move forward">▶</button>
+					{#if explore.phase === 'browse' && !explore.atTip}
+						<button type="button" class="btn small primary" onclick={() => explore?.playFromHere()}>Play from here <kbd>↵</kbd></button>
+					{/if}
+					<span class="browse-note">{explore.atTip ? 'Latest position' : 'Looking back — play from here to continue'}</span>
+				</div>
+			{/if}
 
 			{#if mode === 'explore' && summary}
 				<div class="prof discoveries">
@@ -818,6 +867,23 @@
 
 
 
+	.eval {
+		display: flex;
+		flex: none;
+	}
+
+	.browse {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding-top: 0.5rem;
+	}
+
+	.browse-note {
+		font-size: 0.78rem;
+		color: var(--text-3);
+	}
+
 	.moves {
 		display: grid;
 		grid-template-columns: 2.4em 1fr 1fr;
@@ -840,7 +906,20 @@
 
 	.moves .m {
 		padding: 2px 8px;
+		border: 0;
 		border-radius: 4px;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+	}
+
+	.moves button.m {
+		cursor: pointer;
+	}
+
+	.moves button.m:hover {
+		background: var(--surface-2);
 	}
 
 	.moves .m.cur {

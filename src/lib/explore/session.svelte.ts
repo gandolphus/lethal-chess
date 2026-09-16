@@ -13,6 +13,7 @@ export type ExplorePhase =
 	| 'thinking' // analysing, or the computer is about to move
 	| 'your-move'
 	| 'decide' // the learner's move was a mistake: try again or play on
+	| 'browse' // looking back through the game; play resumes from wherever the learner stops
 	| 'over'; // checkmate, stalemate, draw — or the engine could not load
 
 /** Something the learner just found, for a celebration. Assisted discoveries are shown but not counted. */
@@ -218,6 +219,8 @@ export class ExploreSession {
 	#generation = 0;
 	#eventId = 0;
 	#thinkingSince = 0;
+	/** Moves taken off the board while browsing, newest last, so they can be put back. */
+	#future = $state<string[]>([]);
 
 	constructor(options: ExploreOptions) {
 		this.#options = options;
@@ -248,6 +251,7 @@ export class ExploreSession {
 	async start(): Promise<void> {
 		const generation = ++this.#generation;
 		this.game.load([]);
+		this.#future = [];
 		this.#reset();
 		this.#shown.clear();
 		this.events = [];
@@ -430,6 +434,78 @@ export class ExploreSession {
 		return ['your-move', 'decide', 'over'].includes(this.phase) && this.#takeBackPlies() > 0;
 	}
 
+	// ── browsing: past the book this is an analysis board, not a one-way street ──────────────────
+
+	readonly canBack = $derived(this.game.uciHistory.length > 0 && this.phase !== 'thinking');
+	readonly canForward = $derived(this.#future.length > 0);
+	/** Looking at the latest position, rather than back down the game. */
+	readonly atTip = $derived(this.#future.length === 0);
+
+	/** One move back. The game is not changed until the learner plays on from here. */
+	back() {
+		if (!this.canBack) return;
+		this.#generation++;
+		const move = this.game.uciHistory.at(-1)!;
+		this.game.undo();
+		this.#future = [move, ...this.#future];
+		this.#browse();
+	}
+
+	/** One move forward again; arriving back at the latest position hands play back to the game. */
+	async forward() {
+		if (!this.canForward) return;
+		this.#generation++;
+		const [move, ...rest] = this.#future;
+		this.game.move(parseUci(move));
+		this.#future = rest;
+		this.#browse();
+		if (!this.#future.length) await this.playFromHere();
+	}
+
+	/** Jump to the position after `ply` moves; 0 is the starting position. */
+	jumpTo(ply: number) {
+		const all = [...this.game.uciHistory, ...this.#future];
+		if (ply < 0 || ply > all.length) return;
+		this.#generation++;
+		this.game.load(all.slice(0, ply));
+		this.#future = all.slice(ply);
+		this.#browse();
+	}
+
+	/** Carries on from the position on the board, dropping whatever came after it. */
+	async playFromHere() {
+		if (this.phase !== 'browse') return;
+		const generation = ++this.#generation;
+		this.#future = [];
+		this.#reset();
+		await this.#continue(generation);
+	}
+
+	/** Browsing shows the position and, past the book, what the engine makes of it. */
+	#browse() {
+		this.#reset();
+		this.phase = 'browse';
+		void this.#evaluateBrowsed(this.#generation);
+	}
+
+	async #evaluateBrowsed(generation: number) {
+		const fen = this.game.fen;
+		const node = this.bundle.nodes[toEpd(fen)];
+		// Inside the book the evaluation stays hidden: it would give the lines away.
+		if (this.#book.continuations(toEpd(fen)).length || this.inOpening) {
+			this.evaluation = null;
+			return;
+		}
+		if (node?.candidates[0]) {
+			this.evaluation = node.candidates[0].score;
+			return;
+		}
+		const analysis = await this.#analyse(fen);
+		if (generation !== this.#generation || !analysis?.lines[0]) return;
+		this.evaluation = analysis.lines[0].score;
+		this.phase = 'browse';
+	}
+
 	/** Back to the learner's previous decision, past the computer's reply. */
 	async takeBack() {
 		// In "decide" the learner's move is still on the board: taking it back is exactly Try again,
@@ -440,6 +516,7 @@ export class ExploreSession {
 		}
 		if (!this.canTakeBack) return;
 		const generation = ++this.#generation;
+		this.#future = [];
 		for (let plies = this.#takeBackPlies(); plies > 0; plies--) this.game.undo();
 		this.#reset();
 		await this.#continue(generation);

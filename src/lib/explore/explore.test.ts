@@ -286,3 +286,39 @@ describe('ExploreSession', () => {
 		expect(engine.calls.map(toEpd)).toEqual([epdAfter(...OPENING, 'g1f3', 'b8c6', 'f1b5', 'a7a6')]);
 	});
 });
+
+describe('browsing past the book', () => {
+	it('steps back and forward, jumps by ply, and resumes from where it stops', async () => {
+		const { s } = await started();
+		await s.submit('g1', 'f3'); // 3.Nf3, the computer answers ...Nc6
+		expect(s.game.history).toEqual(['e4', 'e5', 'Nf3', 'Nc6']);
+		expect(s.atTip).toBe(true);
+
+		s.back();
+		expect(s.phase).toBe('browse');
+		expect(s.game.history).toEqual(['e4', 'e5', 'Nf3']);
+		expect(s.atTip).toBe(false);
+
+		s.jumpTo(1);
+		expect(s.game.history).toEqual(['e4']);
+		expect(s.canForward).toBe(true);
+
+		await s.forward();
+		expect(s.game.history).toEqual(['e4', 'e5']);
+
+		// Playing on from here drops the rest of the game.
+		await s.playFromHere();
+		expect(s.phase).toBe('your-move');
+		expect(s.canForward).toBe(false);
+		await s.submit('f1', 'c4');
+		// The Bishop line ends here, so play carries on past the book with the computer's answer.
+		expect(s.game.history.slice(0, 3)).toEqual(['e4', 'e5', 'Bc4']);
+	});
+
+	it('hides the evaluation while the position is still in the book', async () => {
+		const { s } = await started();
+		await s.submit('g1', 'f3');
+		s.back();
+		expect(s.evaluation).toBeNull();
+	});
+});

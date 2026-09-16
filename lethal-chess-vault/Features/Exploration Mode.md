@@ -75,6 +75,11 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
   - **History:** v1 floated a toast over the board; it covered pieces and reappeared forever. v2 announced
     entries once and discoveries separately. The user asked for anticipation → celebration instead
     (2026-09-16).
+- **Past the book it is an analysis board (2026-09-16).** Once the game leaves the established lines:
+  - the evaluation bar appears — and only then, since inside the book it would give the lines away;
+  - ← and → step back and forward, a move in the list can be clicked to jump there, and *Play from here*
+    (Enter) carries on from the position on the board, dropping what came after it;
+  - stepping back into the book hides the evaluation again.
 - **No evaluation shown** (bar or number) on the opening page while learning, at the user's request
   (2026-09-16). Evaluation belongs in a future analysis mode. "How exact you must be" stays.
 - **Page stats.**

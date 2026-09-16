@@ -33,6 +33,18 @@ aliases: [Visual Design, Themes, Aesthetics]
 > Measured after the change: the settings page is pixel-identical across Stone, Instrument, Nocturne and
 > Fabulous in both modes (see the geometry note below).
 
+> **Chessnut's black pieces (2026-09-16).** The owner: "the outline features are mixed between a more
+> dimmed outline and white outline". With the artwork open: Chessnut's black pieces have **no outline** —
+> a filled silhouette with the drawing (`#f2f2f2`) traced just inside its edge. On a mid-tone square the
+> dark rim is the edge and the drawing is detail; on Night's or Graphite's near-black squares the rim melts
+> into the square, the near-white `--pbh` drawing became the visible outline, and the dim rim around it read
+> as a second one. The `BLACK_EDGE` fix earlier that day targeted `#000` strokes, which these pieces don't
+> have, so it did nothing and is gone. Now the set's black line-work — strokes and the knight's mane fill
+> alike — is `color-mix(--pbh 70%, --pb2)`: engraving on a black shape whose edge is the body against the
+> square, as drawn. Cburnett is untouched (dark outline, full-highlight details), so the sets stay apart.
+> No edge stroke was added: the drawing sits a few units inside the edge and a stroked edge would run
+> parallel to it as a doubled line.
+
 > **Typeface is its own setting (2026-09-16).** A theme used to decide the type as well as the colours, so
 > choosing a board look changed the reading experience. Settings has a **Typeface** section, kept last
 > because pieces matter more — Match the theme, Editorial, Grotesque, Technical, Geometric, Fabulous,

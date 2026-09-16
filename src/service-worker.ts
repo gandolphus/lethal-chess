@@ -21,14 +21,20 @@ const IMMUTABLE = '/_app/immutable/';
 /** Stockfish: 7 MB, and its file names don't change between releases. See `carryOverEngine`. */
 const ENGINE = '/engine/';
 
-/** Fetched before they're needed: the build, and what the home screen and tab bar show. */
+/**
+ * Fetched before they're needed: the build, what the home screen and tab bar show, and the script that
+ * dresses the page in its theme — that one blocks the first paint, so leaving it to the network would
+ * make every installed load wait, and an offline load flash the default palette.
+ */
 const PRECACHE = [
 	...build,
-	...files.filter((f) => f.startsWith('/icons/') || f.startsWith('/favicon') || f === '/manifest.webmanifest')
+	...files.filter(
+		(f) => f.startsWith('/icons/') || f.startsWith('/favicon') || f === '/manifest.webmanifest' || f === '/theme.js'
+	)
 ];
 
 /** The only paths the worker keeps a copy of. Nothing personal lives under them. */
-const CACHEABLE = [IMMUTABLE, ENGINE, '/icons/', '/favicon', '/manifest.webmanifest', '/openings/repertoires/'];
+const CACHEABLE = [IMMUTABLE, ENGINE, '/icons/', '/favicon', '/manifest.webmanifest', '/theme.js', '/openings/repertoires/'];
 
 sw.addEventListener('install', (event) => {
 	event.waitUntil(

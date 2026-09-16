@@ -6,9 +6,12 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
 
-# The installable app's two unhashed files: revalidated on every visit, like the pages, so a deploy
-# is picked up at once (the ETag makes it a 304).
+# The unhashed files: revalidated on every visit, like the pages, so a deploy is picked up at once
+# (the ETag makes it a 304). theme.js blocks the first paint, so a stale copy would dress the page in
+# a theme the app no longer has.
 /manifest.webmanifest
   Cache-Control: no-cache
 /service-worker.js
+  Cache-Control: no-cache
+/theme.js
   Cache-Control: no-cache

@@ -745,7 +745,8 @@
 		align-items: stretch;
 		gap: 0.6rem;
 		position: sticky;
-		top: 1rem;
+		/* Installed on iPhone the status bar is translucent: keep the board clear of it. */
+		top: calc(1rem + env(safe-area-inset-top));
 	}
 
 	.board-slot {

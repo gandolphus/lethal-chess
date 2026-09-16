@@ -159,8 +159,6 @@ export type LayoutOptions = {
 	width: number;
 	/** Plies of the opening's defining moves: the root column. */
 	opening: number;
-	/** Label for the root column, e.g. "3.Bb5". */
-	openingLabel?: string;
 	here?: Here | null;
 	/** Coarse pointers get taller rows, so a line's end is something a thumb can actually hit. */
 	touch?: boolean;
@@ -207,7 +205,6 @@ export type LayoutNode = {
 export type Layout = {
 	width: number;
 	height: number;
-	ruler: { x: number; label: string }[];
 	bands: LayoutBand[];
 	edges: LayoutEdge[];
 	moves: LayoutMove[];
@@ -219,7 +216,8 @@ const ROW: Record<Zoom, number> = { detail: 16, overview: 7 };
 const TOUCH_ROW: Record<Zoom, number> = { detail: 28, overview: 12 };
 const HEAD: Record<Zoom, number> = { detail: 34, overview: 14 };
 const GAP: Record<Zoom, number> = { detail: 20, overview: 10 };
-const TOP = 28;
+// Just enough air above the first band; there is no longer a ruler up there to clear.
+const TOP = 12;
 
 /** The move that lands on a column: "4." for White's fourth, "4…" for Black's. */
 const plyLabel = (ply: number) => (ply % 2 === 1 ? `${(ply + 1) / 2}.` : `${ply / 2}…`);
@@ -237,14 +235,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 	const x = (ply: number) => gutter + (ply - opening) * plyW;
 	const width = Math.max(options.width, x(maxPly) + nameSpace);
 
-	const ruler: Layout['ruler'] = [];
-	const step = detail ? 1 : 2 * Math.max(1, Math.ceil(30 / (2 * plyW)));
-	for (let ply = opening; ply <= maxPly; ply += step) {
-		if (ply !== opening && x(ply) - x(opening) < 30) continue;
-		ruler.push({ x: x(ply), label: ply === opening ? (options.openingLabel ?? plyLabel(ply)) : plyLabel(ply) });
-	}
-
-	const out: Layout = { width, height: 0, ruler, bands: [], edges: [], moves: [], nodes: [], here: null };
+	const out: Layout = { width, height: 0, bands: [], edges: [], moves: [], nodes: [], here: null };
 	let y = TOP;
 
 	for (const band of bands) {
@@ -334,7 +325,6 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 
 /** Elements the layout will render, for the performance budget. */
 export const elementCount = (l: Layout) =>
-	l.ruler.length +
 	l.bands.length * 3 +
 	l.edges.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
 	// Every move bead of one state rides on a single path of zero-length subpaths with round caps, so the

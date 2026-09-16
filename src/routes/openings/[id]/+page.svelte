@@ -21,12 +21,6 @@
 		return preview.history.map((san, i) => (i % 2 === 0 ? `${i / 2 + 1}.${san}` : san)).join(' ');
 	});
 
-	/** The map's first column: the last defining move, e.g. "3.Bb5" or "1…c5". */
-	const openingLabel = $derived.by(() => {
-		const plies = (bundle.openingMoves ?? bundle.rootMoves).length;
-		const san = openingSan.split(' ').at(-1) ?? '';
-		return plies % 2 ? san : `${plies / 2}…${san}`;
-	});
 
 	// Facts about the opening itself, not about the learner: how much there is and how it is grouped.
 	const facts = $derived.by(() => {
@@ -94,7 +88,7 @@
 		<!-- The territory: the opening as a map, lit where this learner has been. On a phone it is a sheet. -->
 		{#if !narrow}
 			<section class="territory" aria-label="The lines">
-				<LineMap side={bundle.side} lines={book.lines} {stages} here={null} opening={openingLength} {openingLabel} title="The lines" onplay={play} />
+				<LineMap side={bundle.side} lines={book.lines} {stages} here={null} opening={openingLength} title="The lines" onplay={play} />
 			</section>
 		{/if}
 
@@ -172,7 +166,6 @@
 			{stages}
 			here={null}
 			opening={openingLength}
-			{openingLabel}
 			title="{bundle.name} — the lines"
 			band={map.band}
 			onclose={() => (map = null)}

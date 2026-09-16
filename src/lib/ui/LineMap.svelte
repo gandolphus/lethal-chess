@@ -9,7 +9,6 @@
 		here = null,
 		zoom: initialZoom,
 		opening,
-		openingLabel,
 		title,
 		band = null,
 		side = 'w',
@@ -23,8 +22,6 @@
 		zoom?: Zoom;
 		/** Plies of the opening's defining moves: the chart starts after them. */
 		opening: number;
-		/** Label for the first column, e.g. "3.Bb5". */
-		openingLabel?: string;
 		title: string;
 		/** A variation to scroll to when the map opens. */
 		band?: string | null;
@@ -56,7 +53,7 @@
 	// Raw: a proxied line would not compare equal to the one the layout holds.
 	let asked = $state.raw<IndexedLine | null>(null);
 
-	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, openingLabel, here, touch }));
+	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
 
 	/** On a cursor a click plays. On a thumb it asks first, naming the line, so a mis-tap costs nothing. */
 	function pick(line: IndexedLine) {
@@ -233,10 +230,6 @@
 			onpointermove={track}
 			onpointerleave={() => (hover = null)}
 		>
-			{#each chart.ruler as tick (tick.x)}
-				<text class="ply" x={tick.x} y="16" text-anchor="middle">{tick.label}</text>
-			{/each}
-
 			{#each chart.bands as b (b.name)}
 				<g class="band" class:here={b.here}>
 					<line class="band-line" x1="8" x2={chart.width - 8} y1={b.y - 4} y2={b.y - 4} />
@@ -257,7 +250,7 @@
 				{/if}
 			{/each}
 
-			<!-- One bead per move, so a line's length can be counted rather than estimated from the ruler. -->
+			<!-- One bead per move, so a line's length can be counted rather than guessed at. -->
 			<g class="beads" style="--bead: {zoom === 'detail' ? 4 : 2.4}px">
 				{#each ['fog', 'ember-dim', 'ember', 'lit'] as state (state)}
 					{@const d = beads(state)}
@@ -642,12 +635,6 @@
 	.end-name {
 		font-size: 11.5px;
 		fill: var(--text);
-	}
-
-	.ply {
-		font-size: 10px;
-		font-family: var(--font-num);
-		fill: var(--text-3);
 	}
 
 	.here-ring {

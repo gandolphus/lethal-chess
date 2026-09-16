@@ -404,12 +404,6 @@
 		return at.find((p) => p.line === explore?.following) ?? at[0] ?? null;
 	});
 
-	/** The map's first column: the last defining move, e.g. "3.Bb5" or "1…c5". */
-	const openingLabel = $derived.by(() => {
-		const plies = (bundle.openingMoves ?? bundle.rootMoves).length;
-		const san = openingSan.split(' ').at(-1) ?? '';
-		return plies % 2 ? san : `${plies / 2}…${san}`;
-	});
 
 	const share = (value: number | null | undefined) => `${Math.round((value ?? 0) * 100)}%`;
 
@@ -710,7 +704,6 @@
 			{stages}
 			{here}
 			opening={openingLength}
-			{openingLabel}
 			title="{bundle.name} — the lines"
 			band={map.band}
 			onclose={() => (map = null)}

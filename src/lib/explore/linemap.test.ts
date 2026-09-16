@@ -142,7 +142,6 @@ describe('layout', () => {
 		const l = layout(book.lines, new Map(), { ...options, zoom: 'overview', width: 600 });
 		expect(l.width).toBe(600);
 		expect(l.edges.every((e) => e.label === null)).toBe(true);
-		expect(l.ruler[0].label).toBe('3.');
 	});
 
 	it('converts moves to SAN once per line', () => {

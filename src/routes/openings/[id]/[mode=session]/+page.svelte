@@ -507,12 +507,20 @@
 							{:else if celebration.known}
 								Line completed again
 							{:else}
-								{celebration.lines.length > 1 ? `${celebration.lines.length} lines discovered` : 'Line discovered'}
+								{celebration.lines.length > 1 ? `${celebration.lines.length} lines at once` : 'Line discovered'}
 							{/if}
 							{#if celebration.lines.some((l) => l.dubious)}<span class="tag">dubious</span>{/if}
 						</p>
 						<p class="name">{celebration.lines[0].name}</p>
-						{#if celebration.assisted}<p class="sub">Find it without the hint to count it.</p>{/if}
+						{#if celebration.assisted}
+							<p class="sub">Find it without the hint to count it.</p>
+						{:else if celebration.lines.length === 2}
+							<!-- Two named lines can end on the same position by different move orders. Say so, or the
+							     second one lights up on the map later with no memory of having found it. -->
+							<p class="sub">Also <b>{shortLine(celebration.lines[1])}</b> — the same position, another move order.</p>
+						{:else if celebration.lines.length > 2}
+							<p class="sub">{celebration.lines.length - 1} more lines transpose to this position.</p>
+						{/if}
 					</div>
 				{/key}
 			{:else if anticipation}

@@ -395,6 +395,9 @@
 		cursor: pointer;
 	}
 
+	/* This resolves against the card because nothing on the link establishes a containing block. A
+	   `filter`, `transform` or `backdrop-filter` on the link — even only on hover — would make it one,
+	   and the overlay would collapse onto the button. */
 	.approach a.btn::after {
 		content: '';
 		position: absolute;

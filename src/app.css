@@ -511,8 +511,12 @@ a {
 }
 
 .btn.primary:hover:not(:disabled) {
-	border-color: var(--accent);
-	filter: brightness(1.08);
+	/* A colour, not `filter: brightness()`. A filter makes the element a containing block for its own
+	   absolutely-positioned descendants, which collapsed the overlay that stretches an approach card's
+	   link over the card — so hovering the card shrank the thing being hovered, dropped the hover, and
+	   flickered. Mixing toward the text colour brightens on a dark theme and deepens on a light one. */
+	border-color: color-mix(in srgb, var(--accent) 85%, var(--text));
+	background: color-mix(in srgb, var(--accent) 85%, var(--text));
 }
 
 kbd {

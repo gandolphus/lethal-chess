@@ -345,12 +345,20 @@
 		return explore.game.uciHistory.slice(-anticipation.played).map((uci) => parseUci(uci).to);
 	});
 
-	/** The discovered line's route, entrance to end, for the board's one-second trace. */
+	/**
+	 * What the board traces. A discovery draws the line's route from its entrance; otherwise, a position
+	 * picked off the chart draws the way it was reached. A discovery wins, since it is tied to the move
+	 * just played.
+	 */
 	const boardCelebration = $derived.by(() => {
-		if (!celebration || celebration.assisted || explore?.game.history.length !== celebration.ply) return null;
-		const line = celebration.lines[0];
-		const route = line.moves.slice(Math.min(line.entry, line.moves.length - 1));
-		return { id: celebration.id, path: route.map((uci) => parseUci(uci)) };
+		if (celebration && !celebration.assisted && explore?.game.history.length === celebration.ply) {
+			const line = celebration.lines[0];
+			const route = line.moves.slice(Math.min(line.entry, line.moves.length - 1));
+			return { id: celebration.id, path: route.map((uci) => parseUci(uci)) };
+		}
+		const replay = explore?.replay;
+		// Negative, so a replay's id can never collide with a discovery's and hold back its animation.
+		return replay ? { id: -replay.id, path: replay.path.map((uci) => parseUci(uci)) } : null;
 	});
 
 	// A mote flies from the line's last square into the counter under the board.

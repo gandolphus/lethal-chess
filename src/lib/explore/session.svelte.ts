@@ -96,6 +96,13 @@ const HUMAN_MULTIPV = 10;
 
 const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * How long the board takes to draw a route of `steps` moves. Must match `.trace path`'s animation in
+ * `Board.svelte`, which staggers each move by 220ms; `trace.test.ts` fails if the two drift apart.
+ */
+export const TRACE_STEP_MS = 220;
+const traceMs = (steps: number) => (steps ? steps * TRACE_STEP_MS + 120 : 0);
+
 /** A move's mark, from the winning chances it gave away — the scale every analysis board uses. */
 export const qualityOfLoss = (loss: number): MoveQuality =>
 	loss < 0.02 ? 'best' : loss < 0.1 ? 'good' : loss < 0.2 ? 'inaccuracy' : loss < 0.3 ? 'mistake' : 'blunder';
@@ -257,6 +264,10 @@ export class ExploreSession {
 	root = $state.raw<MoveNode>(createRoot());
 	current = $state.raw<MoveNode>(this.root);
 	revision = $state(0);
+	/** The route a resume just walked, for the board to trace. A new id is a new moment. */
+	replay = $state.raw<{ id: number; path: string[] } | null>(null);
+	#replayId = 0;
+
 	/** The engine's line is replayed on the board during an explanation; those moves are not the game. */
 	#replaying = false;
 	/** Where the game stood when browsing began, so stepping back to it hands play back. */
@@ -321,6 +332,7 @@ export class ExploreSession {
 		this.revision++;
 		this.#reset();
 		this.#shown.clear();
+		this.replay = null;
 		this.events = [];
 		this.evaluation = null;
 		this.#visit();
@@ -523,21 +535,38 @@ export class ExploreSession {
 	 */
 	async resume(line: IndexedLine, upTo = line.moves.length): Promise<void> {
 		const generation = ++this.#generation;
+		const end = Math.max(0, Math.min(upTo, line.moves.length));
+		// The route is drawn first and the move that was clicked lands at the end of it, so picking a
+		// position off the chart shows how it was reached rather than cutting to it.
+		const route = line.moves.slice(0, end);
+		const before = route.slice(0, Math.max(0, end - 1));
+
 		this.game.load([]);
 		this.root = createRoot();
-		let node = this.root;
-		for (const uci of line.moves.slice(0, Math.max(0, Math.min(upTo, line.moves.length)))) {
-			const legal = this.game.find(parseUci(uci));
-			if (!legal) break;
-			this.game.move(legal);
-			node = addMove(node, uci, legal.san, 'book');
-		}
-		this.current = node;
-		this.revision++;
+		this.current = this.root;
 		this.#live = null;
 		this.#reset();
 		this.events = [];
 		this.evaluation = null;
+		this.replay = null;
+
+		const walk = (moves: string[]) => {
+			for (const uci of moves) {
+				const legal = this.game.find(parseUci(uci));
+				if (!legal) break;
+				this.game.move(legal);
+				this.current = addMove(this.current, uci, legal.san, 'book');
+			}
+			this.revision++;
+		};
+
+		walk(before);
+		if (route.length) {
+			this.replay = { id: ++this.#replayId, path: route };
+			await this.#wait(traceMs(before.length));
+			if (generation !== this.#generation) return;
+			walk(route.slice(before.length));
+		}
 		this.#visit();
 		await this.#continue(generation);
 	}

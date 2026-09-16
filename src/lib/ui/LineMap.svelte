@@ -55,6 +55,17 @@
 
 	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
 
+	/**
+	 * A click anywhere on the chart plays whatever the pointer is on — every move of a route the learner
+	 * has been down, not only its end. `line` is set only where the position was actually reached, so the
+	 * ply under the pointer is always one they have earned. Ends carry their own button and handle their
+	 * own click; this is for everything else.
+	 */
+	function onClick(event: MouseEvent) {
+		if ((event.target as Element | null)?.closest?.('.pick')) return;
+		if (hover?.move.line) pick(hover.move.line, hover.move.ply);
+	}
+
 	/** On a cursor a click plays. On a thumb it asks first, naming the line, so a mis-tap costs nothing. */
 	function pick(line: IndexedLine, resumeTo: number) {
 		if (!onplay) return;
@@ -223,6 +234,10 @@
 		onpointerup={panEnd}
 		onpointercancel={panEnd}
 	>
+		<!-- Clicking a move is a pointer-only shorthand layered over the hover preview; the keyboard route
+		     to a line is the focusable button on each end node, which handles Enter and Space itself. -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<svg
 			class="map"
 			bind:this={svg}
@@ -233,6 +248,7 @@
 			aria-label="{title}: each variation's lines as a tree, lit where discovered"
 			onpointermove={track}
 			onpointerleave={() => (hover = null)}
+			onclick={onClick}
 		>
 			{#each chart.bands as b (b.name)}
 				<g class="band" class:here={b.here}>

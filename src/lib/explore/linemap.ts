@@ -184,7 +184,15 @@ export type LayoutEdge = { d: string; state: EdgeState; label: { x: number; y: n
  * the learner has been down, or null where the move is still secret — the same rule the edge labels
  * follow, because a tooltip that named a secret move would hand the theory over.
  */
-export type LayoutMove = { x: number; y: number; ply: number; state: EdgeState; line: IndexedLine | null };
+export type LayoutMove = {
+	x: number;
+	y: number;
+	ply: number;
+	state: EdgeState;
+	line: IndexedLine | null;
+	/** A line's last move. It carries its own, larger node, so no bead is drawn — but it is still hoverable. */
+	end: boolean;
+};
 
 export type LayoutNode = {
 	x: number;
@@ -271,14 +279,14 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 					if (shown) label = { x: x2 - 3, y: node.y - 5, text: sanOf(shown)[node.ply - 1] };
 				}
 				out.edges.push({ d, state, label });
-				// A bead where the move lands. Ends carry their own, larger node, so they are left alone.
-				if (!node.ends.length) {
-					const known =
-						state === 'lit' || state === 'ember'
-							? (node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here)) ?? null)
-							: null;
-					out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known });
-				}
+				// Where the move lands: a bead unless it is a line's end, which already has a node drawn for
+				// it. Ends are still recorded, because the end of a found line is the first thing a reader
+				// points at and it would be strange for that one alone to show nothing.
+				const known =
+					state === 'lit' || state === 'ember'
+						? (node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here)) ?? null)
+						: null;
+				out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known, end: node.ends.length > 0 });
 			}
 			for (const child of node.children) draw(child, node);
 			if (node.ends.length) {

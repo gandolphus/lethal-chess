@@ -127,8 +127,9 @@ describe('layout', () => {
 	it('beads every move, and only names the ones the learner has been down', () => {
 		const found = new Map<string, LineStage>([[book.lines[0].key, 'discovered']]);
 		const l = layout(book.lines, found, options);
-		// One bead per move along the tree, minus the ends, which carry their own larger node.
-		expect(l.moves.length).toBe(l.edges.length - l.nodes.filter((n) => n.kind !== 'branch').length);
+		// One move per edge, and the ends among them — they carry no bead but are still hoverable.
+		expect(l.moves.length).toBe(l.edges.length);
+		expect(l.moves.filter((m) => m.end).length).toBe(l.nodes.filter((n) => n.kind !== 'branch').length);
 		// The spoiler rule the edge labels follow: a secret move has no line to draw a diagram from.
 		for (const move of l.moves) {
 			if (move.state === 'fog' || move.state === 'ember-dim') expect(move.line).toBeNull();

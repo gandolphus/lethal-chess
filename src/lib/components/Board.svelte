@@ -404,7 +404,7 @@
 			{#if celebration?.path.length}
 				{#key celebration.id}
 					{@const end = squareCenter(celebration.path.at(-1)!.to)}
-					<svg class="trace" viewBox="0 0 800 800" aria-hidden="true">
+					<svg class="trace" viewBox="0 0 800 800" aria-hidden="true" style="--steps: {celebration.path.length}">
 						{#each celebration.path as step, i (i)}
 							{@const a = squareCenter(step.from)}
 							{@const b = squareCenter(step.to)}
@@ -1096,7 +1096,8 @@
 		height: 100%;
 		overflow: visible;
 		pointer-events: none;
-		animation: trace-out 1.8s ease-in forwards;
+		/* Long enough to hold every move after the last one lands, however many there are. */
+		animation: trace-out calc(var(--steps) * 220ms + 1500ms) ease-in forwards;
 	}
 
 	.trace path {
@@ -1107,13 +1108,15 @@
 		stroke-dasharray: 1;
 		stroke-dashoffset: 1;
 		filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ok) 70%, transparent));
-		animation: trace-draw 220ms cubic-bezier(0.3, 0.1, 0.2, 1) calc(var(--i) * 90ms) forwards;
+		/* One move at a time. The stroke takes 300ms and the next starts at 220ms, so they overlap by a
+		   fraction — enough to read as one continuous route, slow enough to follow the sequence. */
+		animation: trace-draw 300ms cubic-bezier(0.3, 0.1, 0.2, 1) calc(var(--i) * 220ms) forwards;
 	}
 
 	.trace circle {
 		fill: var(--ok);
 		opacity: 0;
-		animation: trace-dot 140ms ease-out calc(var(--i) * 90ms + 200ms) forwards;
+		animation: trace-dot 160ms ease-out calc(var(--i) * 220ms + 280ms) forwards;
 	}
 
 	.trace circle.end {
@@ -1136,7 +1139,7 @@
 
 	@keyframes trace-out {
 		0%,
-		70% {
+		78% {
 			opacity: 1;
 		}
 		100% {

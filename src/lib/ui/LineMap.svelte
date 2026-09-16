@@ -81,7 +81,7 @@
 		const frame = panel.getBoundingClientRect();
 		const px = ((event.clientX - box.left) / box.width) * chart.width;
 		const py = ((event.clientY - box.top) / box.height) * chart.height;
-		const reach = touch ? 14 : 9;
+		const reach = touch ? 16 : 12;
 		let best: LayoutMove | null = null;
 		let bestDistance = reach;
 		for (const move of chart.moves) {
@@ -108,7 +108,7 @@
 	/** Every bead of one state on a single path: a zero-length subpath draws a dot under a round cap. */
 	const beads = (state: string) =>
 		chart.moves
-			.filter((m) => m.state === state)
+			.filter((m) => m.state === state && !m.end)
 			.map((m) => `M${m.x} ${m.y}h0`)
 			.join('');
 

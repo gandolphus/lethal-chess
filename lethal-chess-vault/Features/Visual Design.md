@@ -45,6 +45,21 @@ aliases: [Visual Design, Themes, Aesthetics]
 > No edge stroke was added: the drawing sits a few units inside the edge and a stroked edge would run
 > parallel to it as a doubled line.
 
+> **One light line per black piece (2026-09-16).** The owner, after the Chessnut fix: some black pieces
+> still got different outline colours in some themes. Black pieces are `--pb1`/`--pb2` body, `--pbs` edge,
+> `--pbh` detail. Most themes keep the edge near-black, so the detail is the only light line and nothing can
+> clash. Graphite and Night are the two whose edge is itself light; Graphite had `--pbs == --pbh`, Night had
+> `#93a7c8` against `#cfdcf2`, so the knight's mane, the king's cross and cburnett's engraving sat near-white
+> on a blue-grey edge while the pawn stayed a plain silhouette — three "outlines" on one board. Nocturne's
+> rim filter flooded a hard-coded `#d6e8ff` (and `#6f86ad` underneath) on every theme, a light of its own.
+> Both candidates were rendered across all seven sets: at `#cfdcf2` the black side became hollow line
+> drawings hard to tell from white; at `#93a7c8` it stayed silhouettes with a moonlit rim, the theme's own
+> brief. So Night's `--pbh` is now `#93a7c8`, and the rim floods `var(--pbh)` — the highlight token is the
+> one light a black piece may carry, so the rim matches the edge in Night/Graphite and the detail colour
+> (Obsidian's grey, Onyx's stone) elsewhere; `flood-color` resolves `var()` since the filter lives in the
+> page. `src/lib/theme/tokens.test.ts` reads `app.css` and asserts `--pbh == --pbs` in every theme whose
+> edge is lighter than its body. White pieces untouched.
+
 > **Typeface is its own setting (2026-09-16).** A theme used to decide the type as well as the colours, so
 > choosing a board look changed the reading experience. Settings has a **Typeface** section, kept last
 > because pieces matter more — Match the theme, Editorial, Grotesque, Technical, Geometric, Fabulous,

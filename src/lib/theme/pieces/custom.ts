@@ -358,20 +358,23 @@ const lit = (id: string, w: boolean) => `
 	<feComposite in="out" in2="SourceAlpha" operator="in"/>
 </filter>`;
 
-/* Nocturne: a band of light along every upward-facing edge, computed from the silhouette. */
+/* Nocturne: a band of light along every upward-facing edge, computed from the silhouette. On a black
+   piece the band is the theme's highlight token — the one light line a black piece may carry — so it
+   never differs from the outline where the outline is itself light (Night, Graphite). The underside
+   band is the same colour at lower opacity. */
 const rim = (id: string, w: boolean) => `
 <filter id="${id}" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
 	<feOffset in="SourceAlpha" dx="0" dy="${w ? 2.4 : 2.2}" result="off"/>
 	<feComposite in="SourceAlpha" in2="off" operator="out" result="band"/>
 	<feGaussianBlur in="band" stdDeviation="${w ? 0.55 : 0.5}" result="bandb"/>
-	<feFlood flood-color="${w ? '#ffffff' : '#d6e8ff'}" flood-opacity=".95" result="c"/>
+	<feFlood style="flood-color:${w ? '#ffffff' : 'var(--pbh)'}" flood-opacity=".95" result="c"/>
 	<feComposite in="c" in2="bandb" operator="in" result="rim"/>
 	${
 		w
 			? '<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rim"/></feMerge>'
 			: `<feOffset in="SourceAlpha" dx="0" dy="-1.4" result="off2"/>
 	<feComposite in="SourceAlpha" in2="off2" operator="out" result="band2"/>
-	<feFlood flood-color="#6f86ad" flood-opacity=".55" result="c2"/>
+	<feFlood style="flood-color:var(--pbh)" flood-opacity=".55" result="c2"/>
 	<feComposite in="c2" in2="band2" operator="in" result="rim2"/>
 	<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rim2"/><feMergeNode in="rim"/></feMerge>`
 	}

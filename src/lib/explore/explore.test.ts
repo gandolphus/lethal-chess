@@ -350,3 +350,151 @@ describe('browsing past the book', () => {
 		expect(s.evaluation).toBeNull();
 	});
 });
+
+// ── The Open: a human-shaped opponent and a round of fixed length ─────────────────────────────
+
+/** mulberry32, so a round can be replayed. */
+function seeded(seed: number) {
+	let a = seed >>> 0;
+	return () => {
+		a = (a + 0x6d2b79f5) >>> 0;
+		let t = a;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+/**
+ * An engine that ranks every legal move, each 25cp worse than the last, so every flavour is on offer —
+ * and remembers what it scored each move at, so the position after a bad move is judged as bad.
+ */
+function richEngine() {
+	const multipvs: number[] = [];
+	const evals = new Map<string, number>();
+	return {
+		multipvs,
+		analyse: async (fen: string, { multipv = 5 } = {}): Promise<Analysis> => {
+			multipvs.push(multipv);
+			const chess = new Chess(fen);
+			const sign = chess.turn() === 'w' ? 1 : -1;
+			const base = evals.get(toEpd(fen)) ?? 0;
+			const lines = chess.moves({ verbose: true }).map((m, i) => {
+				const cp = base + sign * -25 * i;
+				evals.set(toEpd(m.after), cp);
+				return { move: `${m.from}${m.to}${m.promotion ?? ''}`, score: { cp }, pv: [], depth: 12 };
+			});
+			return { fen, lines: lines.slice(0, multipv) };
+		}
+	};
+}
+
+function openSession(opts: { random: () => number; engine: { analyse: (fen: string, o?: { multipv?: number }) => Promise<Analysis> }; roundMoves: number }) {
+	const bundle = fixture();
+	const discoveries: Discovery[] = [];
+	const s = new ExploreSession({
+		bundle,
+		book: new Book(bundle),
+		stages: new Map(),
+		engine: async () => opts.engine,
+		onDiscovery: (d) => discoveries.push(d),
+		random: opts.random,
+		wait: async () => {},
+		opponent: 'human',
+		roundMoves: opts.roundMoves
+	});
+	return { s, discoveries };
+}
+
+describe('The Open', () => {
+	it('starts at the defining position, tallies first decisions, and ends after the round’s moves', async () => {
+		const table: Record<string, Analysis['lines']> = {
+			// After 3.a3 the engine sees Black a shade better: 60cp under the book's Bb5, an inaccuracy.
+			[epdAfter(...OPENING, 'g1f3', 'b8c6', 'a2a3')]: [{ move: 'g8f6', score: { cp: -20 }, pv: [], depth: 12 }],
+			[epdAfter(...OPENING, 'g1f3', 'b8c6', 'a2a3', 'g8f6')]: [
+				{ move: 'f1c4', score: { cp: 30 }, pv: [], depth: 12 },
+				{ move: 'd2d3', score: { cp: 10 }, pv: [], depth: 12 }
+			]
+		};
+		const { s, discoveries } = openSession({ random: () => 0, engine: fakeEngine(table), roundMoves: 3 });
+		await s.start();
+		expect(s.game.history).toEqual(['e4', 'e5']);
+		expect(s.phase).toBe('your-move');
+		expect(s.round).toEqual({ length: 3, moves: [] });
+
+		// The move shown by the hint is played: it stops counting.
+		s.hint();
+		s.hint();
+		await s.submit('g1', 'f3');
+		expect(s.round?.moves).toEqual([{ ply: 2, san: 'Nf3', loss: 0, precise: false, better: null, shown: true }]);
+		// Random 0 draws theory, and theory in the book is the book's reply — so the line is entered as in Explore.
+		expect(s.game.history.at(-1)).toBe('Nc6');
+		expect(discoveries.map((d) => d.stage)).toEqual(['entered', 'entered']);
+		// The opponent's move is not marked until it has been answered.
+		expect(s.current.quality).toBeUndefined();
+
+		await s.submit('a2', 'a3');
+		expect(s.round?.moves.at(-1)).toMatchObject({ ply: 4, san: 'a3', precise: false, better: 'Bb5', shown: false });
+		expect(s.round?.moves.at(-1)?.loss).toBeCloseTo(0.11, 2);
+		expect(s.message?.tone).toBe('warn');
+		expect(s.game.history.at(-1)).toBe('Nf6');
+		// Answered, so Nc6 is marked now: it gave nothing away.
+		expect(s.current.parent?.parent?.quality).toBe('best');
+		expect(s.current.parent?.quality).toBe('inaccuracy');
+
+		await s.submit('f1', 'c4');
+		expect(s.phase).toBe('over');
+		expect(s.round?.moves.map((m) => [m.san, m.precise])).toEqual([
+			['Nf3', false],
+			['a3', false],
+			['Bc4', true]
+		]);
+		// The round ended on the learner's move: no reply was played after it.
+		expect(s.game.history.at(-1)).toBe('Bc4');
+	});
+
+	it('keeps the first decision when a missed punishment is rewound', async () => {
+		const random = () => 0.999; // always the junk flavour, when there is any
+		const { s } = openSession({ random, engine: richEngine(), roundMoves: 2 });
+		await s.start();
+		await s.submit('g1', 'f3');
+		// The book has no junk for Black here, so the engine's wide list supplied it.
+		expect(s.round?.moves).toHaveLength(1);
+		expect(s.opportunity).not.toBeNull();
+		const ply = s.game.uciHistory.length;
+		const first = new Chess(s.game.fen).moves({ verbose: true }).at(-1)!;
+		await s.submit(first.from, first.to, first.promotion);
+		// Rewound once: the same ply is still to play, and the miss is already on the tally.
+		expect(s.game.uciHistory).toHaveLength(ply);
+		expect(s.phase).toBe('your-move');
+		expect(s.round?.moves.at(-1)).toMatchObject({ ply, precise: false });
+		expect(s.round?.moves.at(-1)?.better).toBeTruthy();
+		const better = s.round!.moves.at(-1)!.better;
+		const best = new Chess(s.game.fen).moves({ verbose: true }).find((m) => m.san === better)!;
+		await s.submit(best.from, best.to, best.promotion);
+		expect(s.phase).toBe('over');
+		expect(s.round?.moves).toHaveLength(2);
+		expect(s.round?.moves.at(-1)).toMatchObject({ ply, precise: false });
+	});
+
+	it('plays a spread of legal moves and always finishes the round, whatever the dice', async () => {
+		const replies = new Set<string>();
+		for (let seed = 1; seed <= 12; seed++) {
+			const engine = richEngine();
+			const { s } = openSession({ random: seeded(seed), engine, roundMoves: 4 });
+			await s.start();
+			let guard = 0;
+			while (s.phase === 'your-move' && guard++ < 12) {
+				const [move] = new Chess(s.game.fen).moves({ verbose: true });
+				await s.submit(move.from, move.to, move.promotion);
+			}
+			expect(s.phase).toBe('over');
+			expect(s.round?.moves).toHaveLength(4);
+			// Every move on the board is legal: replaying the game would throw otherwise.
+			const chess = new Chess();
+			for (const uci of s.game.uciHistory) chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+			replies.add(s.game.uciHistory[3]);
+		}
+		expect(replies.size).toBeGreaterThanOrEqual(2);
+	});
+});

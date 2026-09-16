@@ -34,9 +34,12 @@ src/
     chess/                    engine.ts (Stockfish wrapper), game.svelte.ts (reactive chess.js)
     components/               Board.svelte (own board: drag/click, marks, arrows, promotion), Piece.svelte
     coach/                    judge.ts (win-chance verdicts), opponent.ts (natural replies + planted
-                              mistakes), freeplay.svelte.ts (coached play from any position)
+                              mistakes; the human-shaped opponent of [[The Open]]: theory / middle / junk
+                              flavours in a mix that drifts with the round), freeplay.svelte.ts (coached play
+                              from any position)
     explore/                  book.ts (established lines by position, discovery summary),
-                              session.svelte.ts (ExploreSession), mastery.ts (FSRS per line from the review log),
+                              session.svelte.ts (ExploreSession: Explore, and a round of The Open with the
+                              `opponent` and `roundMoves` options), mastery.ts (FSRS per line from the review log),
                               review.svelte.ts (ReviewSession: Practice), linemap.ts (the map's layout:
                               bands, trie, edge states), dashboard.ts (standing, the lead approach, card
                               status lines) — see [[Exploration Mode]], [[Opening dashboard]]
@@ -51,7 +54,7 @@ src/
   routes/
     +page.svelte              Opening picker
     openings/[id]/            +layout.server.ts loads the bundle once; +page.svelte is the [[Opening dashboard]];
-                              [mode=session]/ is the playing screen (explore | practice, matcher in src/params/)
+                              [mode=session]/ is the playing screen (explore | practice | open, matcher in src/params/)
     play/                     Play vs computer
     settings/, privacy/, credits/, admin/ (owner only)
     auth/google/…, api/progress, api/attempts, api/cards, api/account/{export,delete}
@@ -82,6 +85,9 @@ the session.
   lines entered and discovered.
 - **Practice** (`ReviewSession`) replays discovered lines from memory, scheduled per line with FSRS derived
   from the review log. The old tree walk (`DrillSession`) is retired from the UI.
+- **[[The Open]]** is `ExploreSession` with a human-shaped opponent and a round of eight learner moves from
+  the defining position, held to precision and spoiled only at the end. Lines met there are discovered as
+  in Explore.
 - **[[Coached Free Play]]** (`FreePlay`) continues from any position with the engine.
 
 **Progress.** Local-first. Every write lands in localStorage at once:

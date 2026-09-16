@@ -5,9 +5,11 @@ aliases: [Exploration Mode, Line Discovery, Explore]
 
 # Exploration Mode
 
-**Status: built 2026-09-15; replaces Learn.** Modes on the playing screen are **Explore · Practice**, at
-`/openings/[id]/explore` and `/openings/[id]/practice`; since 2026-09-16 an opening is entered through the
-[[Opening dashboard]] at `/openings/[id]`, which promotes one of them and holds the slot for [[The Open]].
+**Status: built 2026-09-15; replaces Learn.** Modes on the playing screen are **Explore · Practice · The
+Open**, at `/openings/[id]/explore`, `/practice` and `/open`; since 2026-09-16 an opening is entered through
+the [[Opening dashboard]] at `/openings/[id]`, which promotes one of them. [[The Open]] is `ExploreSession`
+with a human-shaped opponent and a fixed round, so everything on this page about grading, hints and
+discovery holds there too.
 Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See [[System Map]].
 
 > "Instead of expecting the user to follow fixed lines we could design the app around exploration. All

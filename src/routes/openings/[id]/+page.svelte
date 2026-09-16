@@ -65,10 +65,10 @@
 	const APPROACHES: { id: Approach; name: string; blurb: string; action: string; key: string }[] = [
 		{ id: 'explore', name: 'Explore', blurb: 'The lines are secret. Find them by playing good moves.', action: 'Explore', key: 'E' },
 		{ id: 'practice', name: 'Practice', blurb: 'Replay the lines you found, from memory, before they fade.', action: 'Practice', key: 'P' },
-		{ id: 'open', name: 'The Open', blurb: 'Play the opening against moves you cannot predict, and answer each one precisely.', action: 'Enter', key: '' }
+		{ id: 'open', name: 'The Open', blurb: 'Play the opening against someone who might play anything. Answer every move precisely.', action: 'Enter', key: 'O' }
 	];
 
-	const href = (approach: Approach) => (approach === 'open' ? null : `/openings/${bundle.id}/${approach}`);
+	const href = (approach: Approach) => `/openings/${bundle.id}/${approach}`;
 
 	/** A found line on the map is played from: Explore picks it up at its end. */
 	const play = (line: IndexedLine) => void goto(`/openings/${bundle.id}/explore?line=${encodeURIComponent(line.key)}`);
@@ -76,8 +76,9 @@
 	function onKey(event: KeyboardEvent) {
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 		if ((event.target as HTMLElement | null)?.closest('input, textarea, select')) return;
-		if (event.key === 'e') void goto(href('explore')!);
-		else if (event.key === 'p') void goto(href('practice')!);
+		if (event.key === 'e') void goto(href('explore'));
+		else if (event.key === 'p') void goto(href('practice'));
+		else if (event.key === 'o') void goto(href('open'));
 		else if (event.key === 'm' && narrow) map = map ? null : { band: null };
 	}
 </script>
@@ -143,18 +144,13 @@
 			<ul class="approaches" aria-label="Ways to work on this opening">
 				{#each APPROACHES as approach (approach.id)}
 					{@const leads = approach.id === lead}
-					{@const link = href(approach.id)}
-					<li class="approach" class:leads class:soon={!link}>
+					<li class="approach" class:leads>
 						<div class="words">
 							<p class="name">{approach.name}</p>
 							<p class="blurb">{approach.blurb}</p>
 							<p class="status" class:lit={leads}>{stand ? statusOf(approach.id, stand, now) : '…'}</p>
 						</div>
-						{#if link}
-							<a class="btn" class:primary={leads} href={link}>{approach.action}{#if approach.key} <kbd>{approach.key}</kbd>{/if}</a>
-						{:else}
-							<button type="button" class="btn" disabled>{approach.action}</button>
-						{/if}
+						<a class="btn" class:primary={leads} href={href(approach.id)}>{approach.action} <kbd>{approach.key}</kbd></a>
 					</li>
 				{/each}
 			</ul>
@@ -413,14 +409,6 @@
 	.approach:has(a:focus-visible) {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
-	}
-
-	.approach.soon .words {
-		color: var(--text-3);
-	}
-
-	.approach.soon .name {
-		color: var(--text-2);
 	}
 
 	.words p {

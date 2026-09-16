@@ -100,7 +100,7 @@ export function statusOf(approach: Approach, s: Standing, now: Date): string {
 			if (s.due > 0) return `${lines(s.due)} due now.`;
 			return `All caught up${s.nextDue ? ` — the next comes back ${dueIn(s.nextDue, now)}` : ''}.`;
 		case 'open':
-			return 'Not built yet.';
+			return 'One round of eight moves, each held to the best. Anyone can enter.';
 	}
 }
 

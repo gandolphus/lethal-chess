@@ -1,7 +1,7 @@
 import type { ParamMatcher } from '@sveltejs/kit';
 
 /** The ways of playing an opening that have a screen: /openings/[id]/<mode>. */
-export const SESSION_MODES = ['explore', 'practice'] as const;
+export const SESSION_MODES = ['explore', 'practice', 'open'] as const;
 
 export type SessionMode = (typeof SESSION_MODES)[number];
 

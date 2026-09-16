@@ -28,8 +28,8 @@
 		/** Which way up the tooltip's diagram sits. */
 		side?: 'w' | 'b';
 		onclose?: () => void;
-		/** Picks up a found line: the map hands back the line, the page replays it. */
-		onplay?: (line: IndexedLine) => void;
+		/** Picks up a line: the map hands back the line and how far of it the learner has earned. */
+		onplay?: (line: IndexedLine, resumeTo: number) => void;
 	} = $props();
 
 	/**
@@ -51,18 +51,19 @@
 	// mouse on a touchscreen is precise enough to act on directly.
 	let tapped = $state(false);
 	// Raw: a proxied line would not compare equal to the one the layout holds.
-	let asked = $state.raw<IndexedLine | null>(null);
+	let asked = $state.raw<{ line: IndexedLine; resumeTo: number } | null>(null);
 
 	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
 
 	/** On a cursor a click plays. On a thumb it asks first, naming the line, so a mis-tap costs nothing. */
-	function pick(line: IndexedLine) {
+	function pick(line: IndexedLine, resumeTo: number) {
 		if (!onplay) return;
-		if (tapped) asked = line;
-		else onplay(line);
+		if (tapped) asked = { line, resumeTo };
+		else onplay(line, resumeTo);
 	}
 
-	const asks = $derived(asked ? `${asked.name} — ${sanOf(asked).slice(-1)[0]}` : '');
+	// The move it would replay *to*, never the line's last move, which may still be secret.
+	const asks = $derived(asked ? `${asked.line.name} — ${sanOf(asked.line)[asked.resumeTo - 1]}` : '');
 
 	/**
 	 * The move under the pointer. Matched by proximity rather than by giving every bead its own element:
@@ -270,16 +271,18 @@
 					<g
 						class="pick"
 						class:hot={hover?.move.x === node.x && hover?.move.y === node.y}
-						class:asked={asked === node.line}
+						class:asked={asked?.line === node.line}
 						role="button"
 						tabindex="0"
-						aria-label="Play from {node.line.name}"
-						onclick={() => pick(node.line!)}
+						aria-label={node.resumeTo === node.line.moves.length
+							? `Play from ${node.line.name}`
+							: `Pick up ${node.line.name} where you left off`}
+						onclick={() => pick(node.line!, node.resumeTo!)}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault();
 								tapped = false;
-								pick(node.line!);
+								pick(node.line!, node.resumeTo!);
 							}
 						}}
 					>
@@ -317,7 +320,7 @@
 			<p>Play from <strong>{asks}</strong>?</p>
 			<div class="ask-buttons">
 				<button type="button" class="btn small" onclick={() => (asked = null)}>Cancel</button>
-				<button type="button" class="btn small go" onclick={() => { const line = asked!; asked = null; onplay?.(line); }}>Play</button>
+				<button type="button" class="btn small go" onclick={() => { const it = asked!; asked = null; onplay?.(it.line, it.resumeTo); }}>Play</button>
 			</div>
 		</div>
 	{/if}

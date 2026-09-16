@@ -202,6 +202,12 @@ export type LayoutNode = {
 	label: string | null;
 	/** The line this end completes, when it is one the learner has been down and may pick up again. */
 	line?: IndexedLine;
+	/**
+	 * How far along `line` picking it up replays. A found line replays whole; a line only *entered*
+	 * replays to its entrance and no further, because everything past that is still secret — replaying
+	 * it would hand over the moves the learner came here to find.
+	 */
+	resumeTo?: number;
 };
 
 export type Layout = {
@@ -316,7 +322,8 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 				if (detail && stage === 'discovered' && line) {
 					label = band.kind === 'variation' ? shortLine(line) : shortVariation(line.name);
 				}
-				out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label, line });
+				const resumeTo = line ? (stage === 'discovered' ? line.moves.length : entranceOf(line)) : undefined;
+				out.nodes.push({ x: x(node.ply), y: node.y, r: stage ? 3.5 : 2.5, kind, label, line, resumeTo });
 			} else if (detail && node.children.length > 1) {
 				// Branch points are the only structure the fog reveals.
 				out.nodes.push({ x: x(node.ply), y: node.y, r: 1.6, kind: 'branch', label: null });

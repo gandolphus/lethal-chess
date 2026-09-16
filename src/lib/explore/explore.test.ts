@@ -204,6 +204,31 @@ describe('ExploreSession', () => {
 		expect(counts).toEqual([...counts].sort((a, b) => b - a));
 	});
 
+	it('picks up an entered line only as far as its entrance', async () => {
+		// The map offers a line the learner has entered but not finished. Replaying it whole would hand
+		// over the very moves they came to find — and, at its end, credit them with finding them.
+		const book = new Book(fixture());
+		const spanish = book.lines[0];
+		const { s, discoveries } = session({ stages: new Map([[spanish.key, 'entered']]) });
+		await s.start();
+		await s.resume(spanish, spanish.entry);
+		// Replayed to the entrance; the computer then answers, which is play resuming, not the line running on.
+		expect(s.game.uciHistory.slice(0, spanish.entry)).toEqual(spanish.moves.slice(0, spanish.entry));
+		expect(s.game.uciHistory.length).toBeLessThan(spanish.moves.length);
+		// The learner's own next move is still theirs to find, and nothing was credited.
+		expect(s.phase).toBe('your-move');
+		expect(discoveries.filter((d) => d.stage === 'discovered')).toEqual([]);
+	});
+
+	it('picks up a discovered line at its end', async () => {
+		const book = new Book(fixture());
+		const spanish = book.lines[0];
+		const { s } = session({ stages: new Map([[spanish.key, 'discovered']]) });
+		await s.start();
+		await s.resume(spanish);
+		expect(s.game.uciHistory).toEqual(spanish.moves);
+	});
+
 	it('celebrates completing an already discovered line again, without recording it', async () => {
 		const bishop = new Book(fixture()).lines[2].key;
 		const { s, discoveries } = await started({ stages: new Map([[bishop, 'discovered']]) });

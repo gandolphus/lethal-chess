@@ -65,7 +65,8 @@
 	const href = (approach: Approach) => `/openings/${bundle.id}/${approach}`;
 
 	/** A found line on the map is played from: Explore picks it up at its end. */
-	const play = (line: IndexedLine) => void goto(`/openings/${bundle.id}/explore?line=${encodeURIComponent(line.key)}`);
+	const play = (line: IndexedLine, resumeTo: number) =>
+		void goto(`/openings/${bundle.id}/explore?line=${encodeURIComponent(line.key)}&ply=${resumeTo}`);
 
 	function onKey(event: KeyboardEvent) {
 		if (event.metaKey || event.ctrlKey || event.altKey) return;

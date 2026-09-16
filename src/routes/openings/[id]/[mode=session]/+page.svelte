@@ -186,19 +186,21 @@
 	});
 
 	// A session starts for the mode in the URL, and again whenever the URL's mode changes. The dashboard's
-	// map sends a found line along as ?line=<key>: Explore then picks up from that line's end.
+	// map sends a line along as ?line=<key>&ply=<n>: Explore picks it up and stops at ply n, which is the
+	// line's end if it was found and its entrance if it was only entered.
 	$effect(() => {
 		const next = mode;
 		const key = page.url.searchParams.get('line');
-		untrack(() => void begin(next, key));
+		const ply = Number(page.url.searchParams.get('ply'));
+		untrack(() => void begin(next, key, Number.isFinite(ply) && ply > 0 ? ply : undefined));
 	});
 
-	async function begin(next: SessionMode, lineKey: string | null) {
+	async function begin(next: SessionMode, lineKey: string | null, ply?: number) {
 		if (next === 'practice') return startPractice();
 		if (next === 'open') return startOpen();
 		await startExplore();
 		const line = lineKey ? book.lines.find((l) => l.key === lineKey) : undefined;
-		if (line && explore) await explore.resume(line);
+		if (line && explore) await explore.resume(line, ply);
 	}
 
 	const game = $derived(freeplay?.game ?? explore?.game ?? review?.game ?? null);
@@ -710,9 +712,9 @@
 			title="{bundle.name} — the lines"
 			band={map.band}
 			onclose={() => (map = null)}
-			onplay={(line) => {
+			onplay={(line, resumeTo) => {
 				map = null;
-				void explore?.resume(line);
+				void explore?.resume(line, resumeTo);
 			}}
 		/>
 	</div>

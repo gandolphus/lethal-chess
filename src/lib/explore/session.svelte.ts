@@ -517,16 +517,16 @@ export class ExploreSession {
 	}
 
 	/**
-	 * Picks up a line the learner has already been down: replays it from the start and hands play back at
-	 * its end, so a line found once can be practised from. Only lines they have reached are offered —
-	 * replaying a secret one would be giving it away.
+	 * Picks up a line the learner has already been down and hands play back where it stops. `upTo` is how
+	 * far they have earned: a found line replays whole, a line only *entered* replays to its entrance and
+	 * no further. Past that is still secret, and replaying it would hand over the moves they came to find.
 	 */
-	async resume(line: IndexedLine): Promise<void> {
+	async resume(line: IndexedLine, upTo = line.moves.length): Promise<void> {
 		const generation = ++this.#generation;
 		this.game.load([]);
 		this.root = createRoot();
 		let node = this.root;
-		for (const uci of line.moves) {
+		for (const uci of line.moves.slice(0, Math.max(0, Math.min(upTo, line.moves.length)))) {
 			const legal = this.game.find(parseUci(uci));
 			if (!legal) break;
 			this.game.move(legal);

@@ -447,16 +447,21 @@
 		stroke-dasharray: 1.5 3.5;
 	}
 
+	/* An entered line is one route at two brightnesses: the moves played, then the secret continuation.
+	   Both are dashed, so the played part reads as the start of that route. Solid belongs to found lines
+	   alone — drawn solid, a one-move prefix became a bright bar floating clear of the dashes around it,
+	   and read as a stray two-node tree of its own. */
 	.edge.ember {
 		stroke: var(--ember);
-		stroke-width: 2;
+		stroke-width: 1.8;
+		stroke-dasharray: 5 3;
 	}
 
 	.edge.ember-dim {
 		stroke: var(--ember);
 		stroke-width: 1.4;
 		stroke-dasharray: 3 4;
-		opacity: 0.55;
+		opacity: 0.5;
 	}
 
 	.edge.lit {

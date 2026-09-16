@@ -43,6 +43,7 @@
 		/* The grid gap is a theme's own, but it must not change the swatch's height. */
 		box-sizing: border-box;
 		grid-template-columns: repeat(4, 1fr);
+		grid-template-rows: repeat(4, 1fr);
 		aspect-ratio: 1;
 		gap: var(--grid-gap);
 		padding: var(--grid-gap);

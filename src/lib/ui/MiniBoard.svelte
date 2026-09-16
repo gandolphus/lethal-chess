@@ -39,6 +39,8 @@
 	.mini {
 		display: grid;
 		grid-template-columns: repeat(8, 1fr);
+		/* Rows must be stated too: automatic rows grow around the pieces they hold, so empty ranks come out thin. */
+		grid-template-rows: repeat(8, 1fr);
 		width: 100%;
 		aspect-ratio: 1;
 		border-radius: 4px;

@@ -53,7 +53,7 @@ describe('outbox continuation', () => {
 	 * outbox: the rest waits for the next write or reload, and the status stays "Saving…". The existing
 	 * tests pass only because they call `flush()` in a loop themselves.
 	 */
-	it.fails('sends a backlog larger than one batch without being poked', async () => {
+	it('sends a backlog larger than one batch without being poked', async () => {
 		const storage = memoryStorage();
 		const received: number[] = [];
 		const statuses: SyncStatus[] = [];
@@ -70,7 +70,7 @@ describe('outbox continuation', () => {
 		expect(statuses.at(-1)).toBe('synced');
 	});
 
-	it.fails('goes on with the rows behind a rejected one without being poked', async () => {
+	it('goes on with the rows behind a rejected one without being poked', async () => {
 		const storage = memoryStorage();
 		const received: string[][] = [];
 		const server = quietServer(async (data) => {
@@ -96,7 +96,7 @@ describe('outbox on an unnamed 4xx with rows in two lists', () => {
 	 * drains. This is the "poisoned outbox" the soundness audit's fix was meant to end. (Were the dead
 	 * continuation above fixed on its own, this would become a tight request loop.)
 	 */
-	it.fails('drops or backs off instead of re-sending the same batch forever', async () => {
+	it('drops or backs off instead of re-sending the same batch forever', async () => {
 		const storage = memoryStorage();
 		let calls = 0;
 		const server = quietServer(async () => {

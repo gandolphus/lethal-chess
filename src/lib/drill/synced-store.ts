@@ -128,11 +128,27 @@ export class SyncedProgressStore implements ProgressStore {
 		void this.flush();
 	}
 
-	/** Uploads everything pending. Concurrent calls share one upload. */
+	/**
+	 * Uploads everything pending. Concurrent calls share one upload, and an upload that leaves rows behind
+	 * starts the next one itself.
+	 *
+	 * The continuation belongs here rather than inside `#upload`: a microtask queued in there runs *before*
+	 * this `.finally`, so it joined the upload that was already finishing and started nothing. A backlog
+	 * over one batch then moved a batch per write, and the status never came back from "Saving…".
+	 */
 	flush(): Promise<void> {
-		this.#flushing ??= this.#upload().finally(() => (this.#flushing = null));
+		this.#flushing ??= this.#upload().finally(() => {
+			this.#flushing = null;
+			if (this.#more) {
+				this.#more = false;
+				void this.flush();
+			}
+		});
 		return this.#flushing;
 	}
+
+	/** Set by an upload that left rows behind, read by `flush` once this one is properly finished. */
+	#more = false;
 
 	async #upload() {
 		const pending = this.#readOutbox();
@@ -151,7 +167,7 @@ export class SyncedProgressStore implements ProgressStore {
 		} catch (error) {
 			if (isRejected(error)) {
 				this.#reject(batch, error as ProgressSyncError);
-				queueMicrotask(() => void this.flush());
+				this.#more = true;
 			} else if (error instanceof ProgressSyncError && error.status === 401) {
 				// The session is gone (signed out elsewhere, or the account deleted). Keep the rows; a sign-in resumes.
 				this.#options.onStatus?.('signed-out');
@@ -166,7 +182,7 @@ export class SyncedProgressStore implements ProgressStore {
 		// Remove exactly what was sent; anything enqueued during the upload stays for the next round.
 		const outbox = this.#without(this.#readOutbox(), batch);
 		this.#writeOutbox(outbox);
-		if (outboxSize(outbox)) queueMicrotask(() => void this.flush());
+		if (outboxSize(outbox)) this.#more = true;
 		else this.#options.onStatus?.('synced');
 	}
 
@@ -198,8 +214,13 @@ export class SyncedProgressStore implements ProgressStore {
 		} else if (outboxSize(batch) === 1) {
 			drop = batch;
 		} else {
-			this.#limit = Math.max(1, Math.floor(Math.max(batch.attempts.length, batch.cards.length, batch.discoveries.length, batch.reviews.length) / 2));
-			return;
+			const longest = Math.max(batch.attempts.length, batch.cards.length, batch.discoveries.length, batch.reviews.length);
+			// `#limit` caps each list, so a batch of one attempt and one discovery is two rows at limit 1 and
+			// halving cannot shrink it. Without this the same batch went back unchanged for ever.
+			if (longest > 1) {
+				this.#limit = Math.max(1, Math.floor(longest / 2));
+				return;
+			}
 		}
 		if (!drop) drop = { attempts: batch.attempts.slice(0, 1), cards: batch.cards.slice(0, 1), discoveries: batch.discoveries.slice(0, 1), reviews: batch.reviews.slice(0, 1) };
 		console.warn('Progress rows rejected by the server and dropped:', error.message, drop);

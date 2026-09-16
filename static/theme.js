@@ -16,7 +16,8 @@
 		material: ['onyx', 'alabaster'],
 		instrument: ['graphite', 'vellum'],
 		nocturne: ['night', 'dawn'],
-		fabulous: ['amethyst', 'wisteria']
+		fabulous: ['amethyst', 'wisteria'],
+		prism: ['nebula', 'iris']
 	};
 	var FONTS = ['theme', 'editorial', 'grotesque', 'technical', 'geometric', 'fabulous', 'system'];
 

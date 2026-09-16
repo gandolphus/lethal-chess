@@ -284,12 +284,13 @@
 [data-theme='night'] {
 	--bg: #090b10; --surface-1: #0e1117; --surface-2: #151923; --border: #1d2330;
 	--text: #e6ebf4; --text-2: #8e98ab; --text-3: #525b6c;
-	--sq-light: #232a38; --sq-dark: #151a25;
+	--sq-light: #272f3f; --sq-dark: #171d29;
 	--coord: #4c566a; --coord-on-light: #4c566a; --coord-on-dark: #4c566a;
 	--board-shadow: 0 0 0 1px rgba(160,190,255,.06), 0 60px 120px -40px rgba(0,0,0,.9);
 	--vignette: radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0,0,0,.28) 100%);
 	--pw1: #e2e8f1; --pw2: #aeb9ca; --pws: #0a0d13;
-	--pb1: #252c3b; --pb2: #10141c; --pbs: #8595b1; --pbh: #c6d4ea;
+	/* Black pieces are silhouettes with a moonlit rim: darker than the darkest square, never level with it. */
+	--pb1: #0d1119; --pb2: #05070c; --pbs: #93a7c8; --pbh: #cfdcf2;
 	--piece-shadow: drop-shadow(0 4px 6px rgba(0,0,0,.6));
 	--accent: #8ec6ff; --ring: #bfe0ff; --sel: rgba(142,198,255,.55); --last: rgba(142,198,255,.26);
 	--dot: rgba(180,214,255,.7); --dot-on-dark: rgba(180,214,255,.7);

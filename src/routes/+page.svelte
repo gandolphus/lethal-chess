@@ -511,8 +511,14 @@
 		}
 
 		.hero {
-			grid-template-columns: 1fr;
+			display: flex;
+			flex-direction: column;
 			gap: 1.5rem;
+		}
+
+		/* On a phone the thing to tap comes before the pitch. */
+		.resume {
+			order: -1;
 		}
 
 		.featured {

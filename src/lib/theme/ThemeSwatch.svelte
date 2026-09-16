@@ -16,7 +16,7 @@
 </script>
 
 <!-- Theme tokens are keyed by [data-theme], so scoping them to this subtree previews the real palette. -->
-<span class="swatch" data-theme={theme.id} data-mode={theme.mode} data-board={theme.board}>
+<span class="swatch" data-theme={theme.id} data-mode={theme.mode} data-board={theme.board} data-scene={theme.scene}>
 	<span class="mini">
 		{#each CELLS as cell, i (i)}
 			<span class="sq" class:light={cell.light} class:sel={cell.sel} class:last={cell.last} class:dot={cell.dot}>
@@ -25,6 +25,10 @@
 				{/if}
 			</span>
 		{/each}
+		{#if theme.scene}
+			<!-- The same veil the board carries, so the swatch shows the theme moving. -->
+			<span class="veil" aria-hidden="true"><span></span></span>
+		{/if}
 	</span>
 </span>
 
@@ -33,12 +37,15 @@
 		display: block;
 		padding: 10px;
 		border-radius: 8px;
-		background: var(--bg);
+		/* A theme with a scene shows its far layer here; a calm theme's is `none`, leaving the page colour. */
+		background-color: var(--bg);
+		background-image: var(--scene-far);
 		border: 1px solid var(--border);
 		container-type: inline-size;
 	}
 
 	.mini {
+		position: relative;
 		display: grid;
 		/* The grid gap is a theme's own, but it must not change the swatch's height. */
 		box-sizing: border-box;
@@ -99,5 +106,43 @@
 		inset: 4%;
 		z-index: 2;
 		--piece-size: 4.5cqi;
+	}
+
+	/* The veil sits over the squares and under every mark, as on the board. */
+	.veil {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		border-radius: var(--radius);
+		mix-blend-mode: var(--veil-blend);
+		pointer-events: none;
+	}
+
+	.veil > span {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: -100%;
+		width: 300%;
+		background: var(--veil);
+		animation: veil-drift var(--veil-ms) linear infinite;
+	}
+
+	@keyframes veil-drift {
+		to {
+			transform: translateX(-33.3333%);
+		}
+	}
+
+	[data-scene] .sq::before,
+	[data-scene] .sq::after {
+		z-index: 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.veil > span {
+			animation: none;
+		}
 	}
 </style>

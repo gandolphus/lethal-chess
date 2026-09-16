@@ -5,6 +5,16 @@ aliases: [Visual Design, Themes, Aesthetics]
 
 # Visual Design
 
+> **A theme may carry a scene (2026-09-16).** The contract gained motion and depth as an opt-in: a family
+> with `scene: 'hyperspace'` gets `data-scene` on the root, the board and its swatch, and its tokens paint
+> three fixed backdrop layers (`--scene-far`, `--scene-tint`, `--scene-near`, `--scene-near-ms`), a hue
+> **veil** the board blends over its squares and under every mark (`--veil`, `--veil-ms`, `--veil-blend`,
+> repeating every `100cqi`), and a piece **sway** (`--sway-ms`; the board owns the amplitude, ±1.6° and
+> ±0.8 %, with per-piece phases from `swayPhase`). Without the attribute none of it exists in the DOM.
+> Everything animates `transform`/`opacity` only and keyframes hold no `var()`. The ninth family, **Prism**
+> (Nebula / Iris), is the first scene; `?board=` previews any palette under another board treatment.
+> Measured and proven in [[Eye candy themes]]; the calm palettes are frozen by `palettes.test.ts`.
+
 > **Theme families, dark or light (2026-09-16).** Settings no longer shows the build history ("Round 1",
 > "Round 2 · Material"…). Every theme is a **family with a dark and a light side**, and Dark / Light is
 > its own control above the list; the swatches flip with it. Families, in the order shown (quiet to loud:
@@ -21,6 +31,7 @@ aliases: [Visual Design, Themes, Aesthetics]
 > | Instrument | instrument | Graphite | Vellum |
 > | Nocturne | nocturne | Night | Dawn |
 > | Fabulous | material | Amethyst | Wisteria |
+> | Prism (scene: hyperspace) | flat | Nebula | Iris |
 >
 > Moss had no light side, so **Sage** was drawn for it: celadon paper (`#eef1e8`), sage squares
 > (`#e4e8d3` / `#7f9a72`), straw highlights that multiply to olive, and an ochre accent (`#8f5f0e`,

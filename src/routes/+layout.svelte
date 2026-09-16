@@ -13,6 +13,11 @@
 	$effect(() => {
 		document.documentElement.dataset.theme = appearance.theme;
 		document.documentElement.dataset.mode = appearance.mode;
+		// How fast a piece travels to its square; `app.css` turns this into `--piece-ms`.
+		document.documentElement.dataset.motion = appearance.motion;
+		// A theme with a scene carries depth and motion behind the page; a calm theme sets no attribute.
+		if (appearance.scene) document.documentElement.dataset.scene = appearance.scene;
+		else delete document.documentElement.dataset.scene;
 		// "Match the theme" means no attribute, so the theme's own pairing stands.
 		if (appearance.font === 'theme') delete document.documentElement.dataset.font;
 		else document.documentElement.dataset.font = appearance.font;

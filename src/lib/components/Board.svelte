@@ -2,6 +2,7 @@
 	import type { Square } from 'chess.js';
 	import { PROMOTION_PIECES } from '$lib/chess/pieces';
 	import { appearance } from '$lib/theme/settings.svelte';
+	import { swayPhase } from '$lib/theme/scene';
 	import Piece from './Piece.svelte';
 	import type { Arrow, SquareMarks } from './board';
 	import { movedPieces } from './motion';
@@ -52,6 +53,8 @@
 
 	// The theme's structural board treatment. Everything else the board draws comes from tokens.
 	const boardStyle = $derived(appearance.themeOption.board);
+	// A theme with a scene puts a hue veil under the marks and sways the pieces; a calm theme adds nothing.
+	const scene = $derived(appearance.themeOption.scene);
 
 	// Any position change from outside (engine reply, undo, new game, a drill
 	// jumping positions) invalidates selection state tied to the old position.
@@ -348,7 +351,7 @@
 	}
 </script>
 
-<div class="board-wrap" data-board={boardStyle} role="group" aria-label="Board" oncontextmenu={handleContextMenu}>
+<div class="board-wrap" data-board={boardStyle} data-scene={scene} role="group" aria-label="Board" oncontextmenu={handleContextMenu}>
 	<div class="frame">
 		<div class="area">
 			<!-- TODO: real keyboard/screen-reader support (roving focus over a role="grid")
@@ -364,7 +367,7 @@
 				onpointerup={handlePointerUp}
 				onpointercancel={handlePointerUp}
 			>
-				{#each squares as square (square)}
+				{#each squares as square, index (square)}
 					{@const piece = position[square]}
 					{@const isTarget = targets.includes(square)}
 					{@const squareMarks = marks[square] ?? []}
@@ -381,7 +384,15 @@
 						class:wrong={squareMarks.includes('wrong')}
 					>
 						{#if piece && drag?.from !== square}
-							<span class="piece-slot"><Piece type={piece.type} color={piece.color} /></span>
+							<span class="piece-slot">
+								{#if scene}
+									<!-- The sway is on this inner wrapper, not on the slot: the slot's own transform is
+									     reserved for moving a piece between squares, and the piece's for its set. -->
+									<span class="sway" style="--phase: {swayPhase(index)}"><Piece type={piece.type} color={piece.color} /></span>
+								{:else}
+									<Piece type={piece.type} color={piece.color} />
+								{/if}
+							</span>
 						{/if}
 
 						{#if trail.includes(square)}
@@ -393,6 +404,12 @@
 						{/if}
 					</div>
 				{/each}
+
+				{#if scene}
+					<!-- Clipped to the board; the inner strip is what drifts, and it is wider than the board by one
+					     shift on each side so there is always veil under every square. -->
+					<span class="veil" aria-hidden="true"><span></span></span>
+				{/if}
 			</div>
 
 			<div class="sheen"></div>
@@ -1056,6 +1073,76 @@
 		fill: var(--coord);
 	}
 
+	/* ═══ A scene: hue drifting under the marks, pieces swaying ═══
+	   The veil is blended over the squares and nothing else: it is positioned at z-index 0 after every
+	   square, so it covers their backgrounds, and every mark on a square is lifted to 1 to stay above it —
+	   the feedback colours must mean the same thing whatever hue is passing underneath. */
+	.veil {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		border-radius: var(--radius);
+		mix-blend-mode: var(--veil-blend);
+		pointer-events: none;
+	}
+
+	/* Three boards wide, drifting one board width per period: the theme's gradient repeats every board
+	   width, so the strip is back where it started when the animation loops. No token inside the
+	   keyframes — an animation whose keyframes hold a var() is not handed to the compositor and would
+	   cost a style recalculation every frame. */
+	.veil > span {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: -100%;
+		width: 300%;
+		background: var(--veil);
+		animation: veil-drift var(--veil-ms) linear infinite;
+	}
+
+	@keyframes veil-drift {
+		to {
+			transform: translateX(-33.3333%);
+		}
+	}
+
+	[data-scene] .square::before {
+		z-index: 1;
+	}
+
+	/* Two slow pendulums with unrelated periods — a lean about the base and a drift up and down — so the
+	   motion never repeats exactly. Each piece starts at its own phase. The amplitude is the board's:
+	   1.6° about a point near the base and 0.8 % of the square keep every piece inside its square. They
+	   animate `rotate` and `translate`, never `transform`, and on a wrapper of their own. */
+	.sway {
+		display: block;
+		width: 100%;
+		height: 100%;
+		transform-origin: 50% 88%;
+		animation:
+			sway-lean var(--sway-ms) ease-in-out calc(var(--phase, 0) * var(--sway-ms) * -1) infinite alternate,
+			sway-drift calc(var(--sway-ms) * 1.37) ease-in-out calc(var(--phase, 0) * var(--sway-ms) * -2) infinite alternate;
+	}
+
+	@keyframes sway-lean {
+		from {
+			rotate: -1.6deg;
+		}
+		to {
+			rotate: 1.6deg;
+		}
+	}
+
+	@keyframes sway-drift {
+		from {
+			translate: 0 -0.8%;
+		}
+		to {
+			translate: 0 0.8%;
+		}
+	}
+
 	/* ── promotion picker ── */
 	.promotion {
 		position: absolute;
@@ -1245,6 +1332,12 @@
 		.sweep {
 			background: var(--ok);
 			animation: still 1000ms ease-out both;
+		}
+
+		/* The veil stays, still: a spectrum laid across the board. The pieces stand. */
+		.veil > span,
+		.sway {
+			animation: none;
 		}
 	}
 </style>

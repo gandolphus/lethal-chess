@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Piece from '$lib/components/Piece.svelte';
 	import ThemeSwatch from '$lib/theme/ThemeSwatch.svelte';
-	import { appearance, AVAILABLE_PIECE_SETS, FAMILIES, FONTS, themeFor, type Mode } from '$lib/theme/settings.svelte';
+	import { appearance, AVAILABLE_PIECE_SETS, FAMILIES, FONTS, MOTIONS, themeFor, type Mode } from '$lib/theme/settings.svelte';
 
 	const MODES: { id: Mode; name: string }[] = [
 		{ id: 'dark', name: 'Dark' },
@@ -113,6 +113,25 @@
 	</section>
 
 	<section>
+		<h2>Movement</h2>
+		<p class="collection">How a piece travels to its square</p>
+		<div class="segmented" role="group" aria-label="Movement">
+			{#each MOTIONS as motion (motion.id)}
+				<button
+					type="button"
+					aria-pressed={appearance.motion === motion.id}
+					title={motion.note}
+					onclick={() => appearance.set({ motion: motion.id })}>{motion.name}</button
+				>
+			{/each}
+		</div>
+		<p class="note">
+			{MOTIONS.find((m) => m.id === appearance.motion)?.note}. A device set to reduce motion is never
+			animated, whatever is chosen here.
+		</p>
+	</section>
+
+	<section>
 		<h2>Typeface</h2>
 		<p class="collection">Chosen apart from the theme</p>
 		<div class="options">
@@ -165,7 +184,8 @@
 
 	<p class="note">
 		Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page;
-		<code>?mode=light</code> flips whichever theme is chosen.
+		<code>?mode=light</code> flips whichever theme is chosen; <code>?board=material</code> puts another family's board
+		treatment under it.
 	</p>
 </main>
 
@@ -194,6 +214,12 @@
 		font-family: var(--font-display);
 		font-weight: 400;
 		font-size: 1.5rem;
+	}
+
+	.note {
+		margin: 0.6rem 0 0;
+		font-size: 0.85rem;
+		color: var(--text-3);
 	}
 
 	section {

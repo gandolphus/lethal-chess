@@ -22,7 +22,7 @@ pre-drill MVP.
 | Hosting | Cloudflare Worker (`adapter-cloudflare`) | `lethalchess.com` + `www`; workers.dev and preview URLs off |
 | Database | Cloudflare D1, EU jurisdiction | Migrations in `migrations/` |
 | Auth | Google OAuth, vendored (fetch + Web Crypto) | State + PKCE; DB sessions with hashed tokens |
-| Styling | Plain scoped CSS, design tokens | 8 theme families × dark/light (16 palettes), 8 piece sets ([[Visual Design]]) |
+| Styling | Plain scoped CSS, design tokens | 9 theme families × dark/light (18 palettes), 8 piece sets; a family may declare a *scene* — backdrop, hue veil, piece sway — as additive tokens ([[Visual Design]], [[Eye candy themes]]) |
 
 ## Directory layout
 
@@ -48,7 +48,8 @@ src/
                               progress.ts / synced-store.ts / server-store.ts / account.svelte.ts (progress storage)
     server/                   google.ts, session.ts, users.ts, progress.ts, account.ts, stats.ts,
                               validate.ts, http.ts, assets.ts (static files via ASSETS in production)
-    theme/                    Themes and piece sets, settings persistence
+    theme/                    Themes and piece sets, settings persistence; scene.ts (sway phases),
+                              palettes.test.ts + palettes.frozen.json (the calm palettes, frozen)
     ui/                       EvalBar, Meter, MiniBoard, LineShelf (variations under the board),
                               LineMap (the fog-of-war chart), position helpers
   routes/

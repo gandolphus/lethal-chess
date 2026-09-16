@@ -131,6 +131,94 @@ engine evaluations and the book's own lines.
   difference is precisely the scouting report. Do not ship the profiles on faked data — the report would be
   a lie about a real distribution.
 
+## Refinement, 2026-09-16 — the fork, and the way out of it
+
+The owner, pausing before any of this is built: "It could basically be a standalone game… which poses its
+own risks. One risk is it makes the rest of the app redundant… Another risk is we spend a ton of energy on
+it but it still doesn't turn out that fun… the actual chess wouldn't be the main feature but just one
+element in a game which might be more centred around strategising."
+
+### The risk that is actually dangerous
+
+Neither of the two named. "It succeeds and eats the app" is a good outcome wearing a worried face, and "it
+isn't fun" is recoverable because you find out early. The dangerous state is the **middle**: a large mode
+inside a training app that is neither a great mode nor a great game, absorbing the attention that would
+have made the trainer sharp. That is the one to design against, and the whole of the rest of this section
+is about not landing there.
+
+### The hole in the design as written
+
+A Slay the Spire fight is interesting because **every turn presents several defensible options**. An
+opening does not. If you know the theory the move is forced; if you don't, you are guessing. Composure,
+scouting and a rating all sit *around* a per-move loop that has no decision in it. Fix that or the rest is
+scaffolding around a quiz.
+
+Two fixes, and they work together:
+
+**1. The deck is your repertoire.** Before a run you **draft**: of the variations you have discovered in
+this opening, you take a limited number — say four — as the ones you are allowed to steer into. The run
+then tests whether that repertoire covers what you meet. Being taken out of your prep is not a loss, it is
+the *information*: it names the hole. This is the "strategising" layer the owner was reaching for, it is
+made entirely of real chess decisions, and it is what a repertoire is actually for.
+
+**2. A round has an objective, not just a survival bar.** Give each round a steer — *reach a position with
+opposite-side castling*, *keep the queens on*, *trade into a structure you know* — so that several sound
+moves become distinguishable and one is preferred. This converts "one right answer" into "a family of
+right answers and a reason". It also teaches the truest thing about openings: they are a choice of
+middlegame.
+
+### The reframe that dissolves the cannibalisation risk
+
+Do not build The Open as a mode inside the trainer, and do not split it off as a separate game.
+**Make the trainer the game's progression system.**
+
+| Mode | What it is in the game |
+| --- | --- |
+| [[Exploration Mode]] | Acquiring cards — a discovered line is a line you may draft |
+| Practice (line review) | Keeping them playable |
+| The Open | Spending them, rated |
+
+Then nothing is an asterisk: Explore and Practice are not a tutorial the game outgrows, they are where the
+deck comes from and how it stays sharp.
+
+**And it yields the mechanic worth building the whole thing for: rust.** FSRS already knows, per line, how
+likely you are to recall it right now. Make that a gameplay stat. A line you have not replayed in six weeks
+is **rusty**: draftable, but it costs more composure to follow, or its first move is not shown to you at
+all. Forgetting theory costs you in a game, which is exactly what it does over the board.
+
+No other game can do this, because no other game has spaced repetition over real knowledge underneath it.
+It is a better centrepiece than the scouting report — scouting gives one round its tension, rust gives the
+whole app its reason to be one app.
+
+### What to do first: validate the atom
+
+Roguelike design validates the single encounter before the structure. Slay the Spire's map is worthless if
+the fights are boring, and no meta layer rescues a dull round.
+
+So: build **one round**, in a branch, as a probe — not a mode, not a run, no map, no rating.
+
+- One opening, one hand-written opponent persona with a real repertoire.
+- The scouting report on that persona.
+- One preparation to spend.
+- Composure draining over eight learner moves.
+- A verdict at the end.
+
+One or two days. Then answer one question honestly: **do you want to press "again"?** If yes, the draft,
+the route, the rating and the rest are worth building and you will know what they are for. If no, no amount
+of meta will save it, and the trainer is better for having the two days back.
+
+### If it does become a standalone game
+
+Worth knowing the precedent before committing. Games that wrap **unmodified** chess in a meta-layer have a
+poor record; the ones that landed — Shotgun King, Pawnbarian — work because they **changed the rules of the
+chess**. A standalone version of this is therefore probably not "lethal-chess with a Steam page"; it is a
+different thing where the board or the pieces change.
+
+What is genuinely unexplored is **opening preparation as a core loop** — scout, draft, prepare, resolve.
+Nobody has built that, and the reason nobody has is that it needs a corpus of named lines, per-position
+evaluations and a per-learner memory model underneath it. We already have all three. That is the bet worth
+making, and it is only available to us *because* the trainer exists.
+
 ## Open questions
 
 - Run length. Five rounds at roughly a minute each puts a run inside a coffee break, which is the right

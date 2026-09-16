@@ -142,7 +142,7 @@ describe('layout', () => {
 		expect(sanOf(rio)).toBe(sanOf(rio));
 	});
 
-	it('draws the Sicilian within budget: at most 2,000 elements, built in under 30 ms', () => {
+	it('draws the Sicilian within budget: at most 2,000 elements, and fast enough to build on open', () => {
 		const bundle = JSON.parse(readFileSync('static/openings/repertoires/sicilian.json', 'utf8')) as Bundle;
 		const sicilian = new Book(bundle);
 		const stages = new Map<string, LineStage>(sicilian.lines.slice(0, 40).map((l, i) => [l.key, i % 3 ? 'discovered' : 'entered']));
@@ -152,7 +152,9 @@ describe('layout', () => {
 			const l = layout(sicilian.lines, stages, { zoom, width: 1000, opening, here: { line: sicilian.lines[0], index: opening + 2 } });
 			const took = performance.now() - started;
 			expect(elementCount(l)).toBeLessThanOrEqual(2000);
-			expect(took).toBeLessThan(30);
+			// A smoke check, not a benchmark: it takes about 4 ms, but a wall clock on a busy machine
+			// (a build running alongside the suite) made a 30 ms bound fail spuriously.
+			expect(took).toBeLessThan(250);
 			expect(l.bands.at(-2)?.name).toBe(SIDELINES);
 		}
 	});

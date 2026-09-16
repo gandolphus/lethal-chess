@@ -40,6 +40,10 @@ limit and no per-user quota, so one free Google account can fill the database in
 
 ## 1 · No rate limit or quota on the write API
 
+**medium · FIXED `7a067ea`** — a 200,000-row per-account ceiling in every write path (507, so the client
+keeps its rows), the Workers rate-limit binding keyed by account, and the per-request maxima down from
+20,000 rows / 8 MB to 2,000 / 1 MB. Originally reported as:
+
 **medium · CONFIRMED** · `src/routes/api/progress/import/+server.ts:7-10,18`,
 `src/lib/server/http.ts:49-60`, `src/lib/server/progress.ts:10,94-110`, `src/lib/server/stats.ts:29-62`
 

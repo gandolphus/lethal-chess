@@ -11,6 +11,11 @@ Audited `main` at b2da9a4 (the Prism merge) against what the vault says the app 
 [[2026-09-16 — Exploration audit]] (all seven fixes re-checked, still hold) and
 [[2026-09-15 — Fable soundness audit]]. `pnpm test` 444 green + 16 expected failures, `pnpm check` 0 errors.
 
+**Fixed the same night, at the owner's word: 1–10, 12 and 13.** Their tests are plain `it` now and guard
+the fixes. Two `it.fails` remain, both deliberate: #11, which is a fact about the shipped catalogue rather
+than a code defect, and the companion to #6 that prints the three dubious book positions. #14 was the
+vault being wrong, and the vault has been corrected. See the status column.
+
 Evidence: every confirmed finding has a failing vitest test, committed as `it.fails` so the suite stays
 green; each turns into a plain `it` when its defect is fixed. The audit files are
 `src/lib/explore/audit-spoilers.test.ts` (6), `src/lib/explore/audit-session.test.ts` (2),
@@ -21,20 +26,20 @@ correctness, progress accounting and the shipped data.
 
 | # | Sev | Status | Finding |
 |---|---|---|---|
-| 1 | medium | CONFIRMED | The map names lines that are only *entered*: on every warm bead's tooltip, in the end's `aria-label`, and in the phone's tap-to-confirm dialog — which also names the bundle's first line at every band root |
-| 2 | medium | CONFIRMED | The map treats the line the game merely *sits on* as entered: right after the defining moves it offers the bundle's first line's end, and picking it replays moves never seen and records the line as entered |
-| 3 | medium | CONFIRMED | The outbox's "send the rest" is dead code: a backlog over 500 rows and the rows behind a dropped one wait for the next write; "Saving…" never clears |
-| 4 | medium | CONFIRMED | An unnamed 4xx on a batch with rows in two lists is re-sent identically forever — the soundness audit's fix #2 does not cover it |
-| 5 | low | CONFIRMED | A move played during a map replay's trace races the trace: the move tree gets a move the board refused |
-| 6 | low | CONFIRMED | Practice calls a dubious line's losing move "good too" and rates it Hard; 3 shipped positions, up to 0.30 win chance |
-| 7 | low | CONFIRMED | A move that ends the game by repetition or the fifty-move rule is graded from the pre-move analysis, so throwing a win away is "best" |
-| 8 | low | CONFIRMED | The Open's celebration card fires on the opponent's theory move, saying what the round is meant to keep quiet |
-| 9 | low | CONFIRMED | A finished round is reopened by ← → to the tip; the next move is tallied as a ninth decision |
-| 10 | low | CONFIRMED | *Why?* answered after the learner has moved on lands on the new position, and blocks *Why?* for a new mistake |
-| 11 | low | CONFIRMED | 61 line ends are continued by catalogued theory by position; leaf-ness is decided by UCI prefix |
-| 12 | info | CONFIRMED | The Explore URL trusts `?ply=`: any line's full route can be replayed and credited by hand |
-| 13 | info | CONFIRMED | `winChance({ mate: 0 })` is level; nothing produces it today |
-| 14 | info | spec gap | The vault says *Why?* after a missed punishment shows the missed move and counts it as shown; the code shows the refutation of the learner's move and marks nothing |
+| 1 | medium | **fixed** `f594241` | The map names lines that are only *entered*: on every warm bead's tooltip, in the end's `aria-label`, and in the phone's tap-to-confirm dialog — which also names the bundle's first line at every band root |
+| 2 | medium | **fixed** `f594241` | The map treats the line the game merely *sits on* as entered: right after the defining moves it offers the bundle's first line's end, and picking it replays moves never seen and records the line as entered |
+| 3 | medium | **fixed** `f1c88f9` | The outbox's "send the rest" is dead code: a backlog over 500 rows and the rows behind a dropped one wait for the next write; "Saving…" never clears |
+| 4 | medium | **fixed** `f1c88f9` | An unnamed 4xx on a batch with rows in two lists is re-sent identically forever — the soundness audit's fix #2 does not cover it |
+| 5 | low | **fixed** `f594241` | A move played during a map replay's trace races the trace: the move tree gets a move the board refused |
+| 6 | low | **fixed** `3f4e23f` | Practice calls a dubious line's losing move "good too" and rates it Hard; 3 shipped positions, up to 0.30 win chance |
+| 7 | low | **fixed** `3f4e23f` | A move that ends the game by repetition or the fifty-move rule is graded from the pre-move analysis, so throwing a win away is "best" |
+| 8 | low | **fixed** `3f4e23f` | The Open's celebration card fires on the opponent's theory move, saying what the round is meant to keep quiet |
+| 9 | low | **fixed** `3f4e23f` | A finished round is reopened by ← → to the tip; the next move is tallied as a ninth decision |
+| 10 | low | **fixed** `3f4e23f` | *Why?* answered after the learner has moved on lands on the new position, and blocks *Why?* for a new mistake |
+| 11 | low | open | 61 line ends are continued by catalogued theory by position; leaf-ness is decided by UCI prefix |
+| 12 | info | **fixed** `f594241` | The Explore URL trusts `?ply=`: any line's full route can be replayed and credited by hand — `resume` now clamps to what the stages record, whoever asks |
+| 13 | info | **fixed** `3f4e23f` | `winChance({ mate: 0 })` is level — refused at `parseInfo` instead, since the sign cannot survive the flip by side to move |
+| 14 | info | **vault corrected** | The vault says *Why?* after a missed punishment shows the missed move and counts it as shown; the code shows the refutation of the learner's move and marks nothing |
 
 ---
 

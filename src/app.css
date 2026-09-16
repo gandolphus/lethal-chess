@@ -643,18 +643,22 @@ kbd {
 	--page-gap: 2rem;
 	--panel-min: 300px;
 	--panel-max: 380px;
+	/* Everything above and below a playing page's content: the nav, the page's own padding, the footer.
+	   A board is sized from what is left, so the window holds the whole screen and nothing scrolls. */
+	--chrome: 9.5rem;
+}
+
+/* The app shell. A chess interface should not scroll to reach its own edges, so the page is a column
+   exactly as tall as the window with the footer at its foot — not a document the footer hangs off. */
+body {
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh;
 }
 
 /* A page that scrolls must not be 15px narrower than one that doesn't. */
 html {
 	scrollbar-gutter: stable;
-}
-
-/* Installed, the app should not scroll to reach its own controls: the footer's links live in Settings. */
-@media (display-mode: standalone) {
-	.site-footer {
-		display: none;
-	}
 }
 
 /* A phone has no keyboard, so the shortcut hints are noise there. */

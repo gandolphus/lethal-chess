@@ -274,6 +274,10 @@ export class ExploreSession {
 	}
 
 	async submit(from: Square, to: Square, promotion?: string): Promise<Verdict | null> {
+		// Moving a piece while looking back *is* the decision to carry on from here; it needs no button.
+		if (this.phase === 'browse' && this.game.turn === this.side && this.game.find({ from, to, promotion })) {
+			await this.playFromHere();
+		}
 		if (this.phase !== 'your-move') return null;
 		const legal = this.game.find({ from, to, promotion });
 		if (!legal) return null;
@@ -343,6 +347,14 @@ export class ExploreSession {
 		await this.#afterLearnerMove(generation);
 		return verdict;
 	}
+
+	/**
+	 * Whether the board should take a move. Looking back counts when it is the learner's turn there:
+	 * moving a piece is how you carry on from a position, so there is no button for it.
+	 */
+	readonly canMove = $derived.by(
+		() => this.phase === 'your-move' || (this.phase === 'browse' && this.game.turn === this.side)
+	);
 
 	/** Whether there is a mistake to explain: the one on the board, or the one play has moved past. */
 	readonly canExplain = $derived(Boolean(this.#mistake) && !this.explanation);

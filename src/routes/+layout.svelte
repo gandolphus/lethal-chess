@@ -227,11 +227,23 @@
 		justify-content: center;
 		align-items: center;
 		gap: 0.5rem;
-		/* Fixed like the nav, so a theme's typeface can't change the page's height. */
-		min-height: 5.5rem;
-		padding: 1rem;
+		/* At the foot of the window, not hanging off the bottom of the content, and no taller than the
+		   nav — a row of small print should never be the reason a screen has to scroll. */
+		margin-top: auto;
+		min-height: 3.25rem;
+		padding: 0.5rem 1rem;
 		font-size: 0.8rem;
 		color: var(--text-3);
+	}
+
+	/* The small print is not phone content, and on a small screen it is the difference between a screen
+	   that fits and one that scrolls. Its links live in Settings, reachable either way. This lives here,
+	   not in app.css: a scoped `.site-footer.svelte-x { display: flex }` outranks a global `.site-footer`,
+	   so the global rule that used to do this for the installed app never actually won. */
+	@media (display-mode: standalone), (max-width: 860px) {
+		.site-footer {
+			display: none;
+		}
 	}
 
 	.site-footer a {

@@ -40,6 +40,8 @@
 	let selected = $state<Square | null>(null);
 	let drag = $state<{ from: Square; piece: PieceInfo; x: number; y: number } | null>(null);
 	let pendingPromotion = $state<{ from: Square; to: Square } | null>(null);
+	/** This press landed on the piece that was already selected, so releasing on it puts the piece down. */
+	let reselect = false;
 
 	const position = $derived(parseFen(fen));
 	const sideToMove = $derived(fen.split(' ')[1] === 'b' ? 'b' : 'w');
@@ -263,6 +265,7 @@
 			return;
 		}
 
+		reselect = selected === square;
 		selected = square;
 		drag = { from: square, piece, x: event.clientX, y: event.clientY };
 		boardEl?.setPointerCapture(event.pointerId);
@@ -300,9 +303,13 @@
 		drag = null;
 		boardEl?.releasePointerCapture?.(event.pointerId);
 
-		// Dropping back on the origin square keeps the piece selected, so a drag
-		// that changes its mind degrades into a click-to-move selection.
-		if (!dropped || dropped === from) return;
+		// Dropping back on the origin square keeps the piece selected, so a drag that changes its mind
+		// degrades into a click-to-move selection — unless it was already selected, in which case this
+		// second click on it is the learner putting it down.
+		if (!dropped || dropped === from) {
+			if (reselect) selected = null;
+			return;
+		}
 		if (legalTargets(from).includes(dropped)) commit(from, dropped);
 		else selected = null;
 	}
@@ -443,7 +450,7 @@
 	/* ── structure: wrap (sizing, container) → frame (padding, chrome) → area → grid ── */
 	.board-wrap {
 		position: relative;
-		width: min(78vh, 100%);
+		width: min(calc(100dvh - var(--chrome)), 100%);
 		aspect-ratio: 1;
 		container-type: inline-size;
 		user-select: none;

@@ -96,9 +96,13 @@
 
 <style>
 	main {
+		/* The screen fills what the shell leaves; the footer sits under it, not past the bottom of it. */
+		flex: 1;
+		min-height: 0;
+		width: 100%;
 		max-width: var(--page-max);
 		margin: 0 auto;
-		padding: 1.25rem 1.25rem 3rem;
+		padding: 1.25rem;
 	}
 
 	.layout {
@@ -232,7 +236,7 @@
 
 	@media (max-width: 860px) {
 		main {
-			padding: 0.75rem 0.75rem 2.5rem;
+			padding: 0.75rem;
 		}
 
 		.layout {
@@ -246,6 +250,26 @@
 
 		.notice {
 			order: -1;
+		}
+
+		/* A phone has the board and the controls to fit; the page's own title and blurb are what give. */
+		header h1 {
+			font-size: 1.3rem;
+		}
+
+		header .dim {
+			display: none;
+		}
+
+		/* Five strengths in one row rather than two, so the controls stay on screen with the board. */
+		.levels {
+			grid-template-columns: repeat(5, 1fr);
+			gap: 0.25rem;
+		}
+
+		.levels .level {
+			padding: 0.4rem 0.2rem;
+			font-size: 0.85rem;
 		}
 	}
 </style>

@@ -410,7 +410,7 @@
 				<Board
 					fen={explore.game.fen}
 					orientation={bundle.side}
-					interactive={explore.phase === 'your-move'}
+					interactive={explore.canMove}
 					legalTargets={explore.game.legalTargets}
 					needsPromotion={explore.game.needsPromotion}
 					marks={explore.marks}
@@ -437,10 +437,7 @@
 				<div class="browse">
 					<button type="button" class="btn small" onclick={() => explore?.back()} disabled={!explore.canBack} aria-label="One move back">◀</button>
 					<button type="button" class="btn small" onclick={() => explore?.forward()} disabled={!explore.canForward} aria-label="One move forward">▶</button>
-					{#if explore.phase === 'browse' && !explore.atTip}
-						<button type="button" class="btn small primary" onclick={() => explore?.playFromHere()}>Play from here <kbd>↵</kbd></button>
-					{/if}
-					<span class="browse-note">{explore.atTip ? 'Latest position' : 'Looking back — play from here to continue'}</span>
+					<span class="browse-note">{explore.atTip ? 'Latest position' : 'Looking back — move a piece to carry on from here'}</span>
 				</div>
 			{/if}
 			{#if mode === 'explore' && summary && !freeplay}
@@ -754,9 +751,16 @@
 
 <style>
 	main {
+		/* This screen hangs the navigation buttons and the variation shelf under the board, so its board
+		   gets less of the window than one that stands alone. */
+		--chrome: 12.5rem;
+		/* The screen fills what the shell leaves; the footer sits under it, not past the bottom of it. */
+		flex: 1;
+		min-height: 0;
+		width: 100%;
 		max-width: var(--page-max);
 		margin: 0 auto;
-		padding: 1.25rem 1.25rem 3rem;
+		padding: 1.25rem;
 	}
 
 	.layout {
@@ -778,7 +782,7 @@
 
 	.board-slot {
 		flex: 0 1 auto;
-		width: min(78vh, 100%);
+		width: min(calc(100dvh - var(--chrome)), 100%);
 		min-width: 0;
 	}
 
@@ -786,6 +790,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.1rem;
+		/* Never the reason the window scrolls: past the board's height the panel scrolls inside itself. */
+		max-height: calc(100dvh - var(--chrome));
+		overflow-y: auto;
+		scrollbar-gutter: stable;
 	}
 
 	.side {

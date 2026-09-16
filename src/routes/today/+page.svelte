@@ -204,9 +204,13 @@
 
 <style>
 	main {
+		/* The screen fills what the shell leaves; the footer sits under it, not past the bottom of it. */
+		flex: 1;
+		min-height: 0;
+		width: 100%;
 		max-width: var(--page-max);
 		margin: 0 auto;
-		padding: 1.25rem 1.25rem 3rem;
+		padding: 1.25rem;
 	}
 
 	.layout {
@@ -217,7 +221,7 @@
 	}
 
 	.board-slot {
-		width: min(78vh, 100%);
+		width: min(calc(100dvh - var(--chrome)), 100%);
 		justify-self: center;
 		position: sticky;
 		top: 1rem;

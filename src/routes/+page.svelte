@@ -110,8 +110,7 @@
 		</div>
 		{#if resume}
 			{@const { opening, progress } = resume}
-			<!-- Straight back into the session, not to the dashboard: this card's whole promise is "continue". -->
-			<a class="resume" href="/openings/{opening.id}/explore" aria-label="Continue exploring the {opening.name}">
+			<a class="resume" href="/openings/{opening.id}" aria-label="Continue with the {opening.name}">
 				<span class="diagram"><MiniBoard fen={fenAfter(opening.moves)} orientation={opening.side} /></span>
 				<span>
 					<span class="resume-kicker">Continue where you left off</span>
@@ -120,7 +119,7 @@
 				{@render spineOf(opening, progress)}
 				<span class="resume-foot">
 					<span>{progress.entered ? `${progress.entered} entered, not finished` : 'Keep exploring'}</span>
-					<span class="btn small primary">Explore</span>
+					<span class="btn small primary">Continue</span>
 				</span>
 			</a>
 		{:else if featured}

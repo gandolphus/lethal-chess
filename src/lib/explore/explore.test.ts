@@ -296,23 +296,26 @@ describe('browsing past the book', () => {
 
 		s.back();
 		expect(s.phase).toBe('browse');
-		expect(s.game.history).toEqual(['e4', 'e5', 'Nf3']);
+		// Back to the learner's own previous move, past the computer's reply.
+		expect(s.game.history).toEqual(['e4', 'e5']);
 		expect(s.atTip).toBe(false);
 
-		s.jumpTo(1);
-		expect(s.game.history).toEqual(['e4']);
+		// Back again: one move of the learner's own each time, so this reaches the start.
+		s.back();
+		expect(s.game.history).toEqual([]);
 		expect(s.canForward).toBe(true);
 
-		await s.forward();
+		// Forward lands on the learner's next turn, not on the computer's half-move.
+		s.forward();
 		expect(s.game.history).toEqual(['e4', 'e5']);
 
-		// Playing on from here drops the rest of the game.
+		// Playing something else from here branches: the old moves stay in the tree.
 		await s.playFromHere();
 		expect(s.phase).toBe('your-move');
-		expect(s.canForward).toBe(false);
 		await s.submit('f1', 'c4');
-		// The Bishop line ends here, so play carries on past the book with the computer's answer.
 		expect(s.game.history.slice(0, 3)).toEqual(['e4', 'e5', 'Bc4']);
+		const afterE5 = s.root.children[0].children[0];
+		expect(afterE5.children.map((m) => m.san)).toEqual(['Nf3', 'Bc4']);
 	});
 
 	it('hides the evaluation while the position is still in the book', async () => {

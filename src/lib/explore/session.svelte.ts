@@ -8,6 +8,7 @@ import type { Arrow, SquareMarks } from '$lib/components/board';
 import type { Bundle, BundleNode } from '$lib/drill/bundle';
 import { toEpd } from '$lib/drill/tree';
 import type { Book, Discovery, IndexedLine, LineStage } from './book';
+import { addMove, createRoot, pathTo, type MoveNode, type MoveQuality } from './movetree';
 
 export type ExplorePhase =
 	| 'thinking' // analysing, or the computer is about to move
@@ -64,6 +65,10 @@ const CONFIDENT_MS = 4000;
 const KNOWN_LINE_WEIGHT = 0.2;
 
 const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** A move's mark, from the winning chances it gave away — the scale every analysis board uses. */
+export const qualityOfLoss = (loss: number): MoveQuality =>
+	loss < 0.02 ? 'best' : loss < 0.1 ? 'good' : loss < 0.2 ? 'inaccuracy' : loss < 0.3 ? 'mistake' : 'blunder';
 
 const sanOf = (fen: string, uci: string) => {
 	try {
@@ -219,8 +224,18 @@ export class ExploreSession {
 	#generation = 0;
 	#eventId = 0;
 	#thinkingSince = 0;
-	/** Moves taken off the board while browsing, newest last, so they can be put back. */
-	#future = $state<string[]>([]);
+	/**
+	 * Everything played this game, branches and all; `current` is the move on the board. The tree is
+	 * mutated in place and held raw — a deep proxy would break the identity checks it is built on — so
+	 * `revision` is what readers watch.
+	 */
+	root = $state.raw<MoveNode>(createRoot());
+	current = $state.raw<MoveNode>(this.root);
+	revision = $state(0);
+	/** The engine's line is replayed on the board during an explanation; those moves are not the game. */
+	#replaying = false;
+	/** Where the game stood when browsing began, so stepping back to it hands play back. */
+	#live: MoveNode | null = null;
 
 	constructor(options: ExploreOptions) {
 		this.#options = options;
@@ -251,7 +266,9 @@ export class ExploreSession {
 	async start(): Promise<void> {
 		const generation = ++this.#generation;
 		this.game.load([]);
-		this.#future = [];
+		this.root = createRoot();
+		this.current = this.root;
+		this.revision++;
 		this.#reset();
 		this.#shown.clear();
 		this.events = [];
@@ -280,6 +297,7 @@ export class ExploreSession {
 			this.flash = { from, to, kind: 'correct' };
 			this.message = null;
 			this.game.move(legal);
+			this.#played(uci, legal.san, 'book');
 			this.#visit();
 			await this.#continue(generation);
 			return 'best';
@@ -294,9 +312,14 @@ export class ExploreSession {
 		this.game.move(legal);
 		// A move that transposes onto a line is established too, even when this position has no such edge.
 		const book = this.#book.isBookMove(epd, uci) || this.#book.at(toEpd(this.game.fen)).some(({ index }) => index > 0);
+		const node = this.#played(uci, legal.san, book ? 'book' : undefined);
 		const played = await this.#scoreOfMove(before, uci);
 		if (generation !== this.#generation || (this.phase as ExplorePhase) === 'over') return null;
 		const verdict = verdictFor(lossFor(best, played, this.side), uci === best.move);
+		if (!book) {
+			node.quality = verdict;
+			this.revision++;
+		}
 		const better = sanOf(before.fen, best.move);
 
 		const serious = verdict === 'mistake' || verdict === 'blunder';
@@ -333,6 +356,7 @@ export class ExploreSession {
 	tryAgain() {
 		if (this.phase !== 'decide' || this.replaying) return;
 		this.game.undo();
+		this.current = this.current.parent ?? this.current;
 		this.flash = null;
 		this.explanation = null;
 		this.#after = null;
@@ -418,7 +442,9 @@ export class ExploreSession {
 			if (generation !== this.#generation || this.phase !== 'decide') break;
 			try {
 				const move = new Chess(this.game.fen).move(san);
+				this.#replaying = true;
 				this.game.move({ from: move.from, to: move.to, promotion: move.promotion });
+				this.#replaying = false;
 				played++;
 			} catch {
 				break;
@@ -436,74 +462,89 @@ export class ExploreSession {
 
 	// ── browsing: past the book this is an analysis board, not a one-way street ──────────────────
 
-	readonly canBack = $derived(this.game.uciHistory.length > 0 && this.phase !== 'thinking');
-	readonly canForward = $derived(this.#future.length > 0);
-	/** Looking at the latest position, rather than back down the game. */
-	readonly atTip = $derived(this.#future.length === 0);
+	readonly canBack = $derived(Boolean(this.current.parent) && this.phase !== 'thinking');
+	readonly canForward = $derived(this.revision >= 0 && this.current.children.length > 0 && this.phase !== 'thinking');
+	/** Looking at the latest move of this branch, rather than back down the game. */
+	readonly atTip = $derived(this.revision >= 0 && this.current.children.length === 0);
 
-	/** One move back. The game is not changed until the learner plays on from here. */
+	/**
+	 * Back one move of the learner's own — past the computer's reply, not half of it. The moves are kept:
+	 * playing something else here starts a branch beside them.
+	 */
 	back() {
 		if (!this.canBack) return;
-		this.#generation++;
-		const move = this.game.uciHistory.at(-1)!;
-		this.game.undo();
-		this.#future = [move, ...this.#future];
-		this.#browse();
+		let at = this.current.parent!;
+		while (at.parent && this.#turnAt(at) !== this.side) at = at.parent;
+		this.#goTo(at);
 	}
 
-	/** One move forward again; arriving back at the latest position hands play back to the game. */
-	async forward() {
+	/** Forward one move of the learner's own, following the branch the game continued with. */
+	forward() {
 		if (!this.canForward) return;
-		this.#generation++;
-		const [move, ...rest] = this.#future;
-		this.game.move(parseUci(move));
-		this.#future = rest;
-		this.#browse();
-		if (!this.#future.length) await this.playFromHere();
+		let at = this.current.children[0];
+		while (at.children.length && this.#turnAt(at) !== this.side) at = at.children[0];
+		this.#goTo(at);
 	}
 
-	/** Jump to the position after `ply` moves; 0 is the starting position. */
-	jumpTo(ply: number) {
-		const all = [...this.game.uciHistory, ...this.#future];
-		if (ply < 0 || ply > all.length) return;
-		this.#generation++;
-		this.game.load(all.slice(0, ply));
-		this.#future = all.slice(ply);
-		this.#browse();
+	/** Jump to any move in the tree. */
+	goTo(node: MoveNode) {
+		if (this.phase === 'thinking') return;
+		this.#goTo(node);
 	}
 
-	/** Carries on from the position on the board, dropping whatever came after it. */
+	/** Carries on from the move on the board; the moves after it stay as a branch. */
 	async playFromHere() {
 		if (this.phase !== 'browse') return;
 		const generation = ++this.#generation;
-		this.#future = [];
+		this.#live = null;
 		this.#reset();
 		await this.#continue(generation);
 	}
 
-	/** Browsing shows the position and, past the book, what the engine makes of it. */
-	#browse() {
-		this.#reset();
-		this.phase = 'browse';
-		void this.#evaluateBrowsed(this.#generation);
+	/** Records a move actually played in the game; replayed engine lines are not the game. */
+	#played(uci: string, san: string, quality?: MoveQuality): MoveNode {
+		if (this.#replaying) return this.current;
+		this.current = addMove(this.current, uci, san, quality);
+		this.revision++;
+		return this.current;
 	}
 
-	async #evaluateBrowsed(generation: number) {
+	/** Whose move it is *after* `node` has been played. */
+	#turnAt(node: MoveNode): Side {
+		return node.ply % 2 === 0 ? 'w' : 'b';
+	}
+
+	#goTo(node: MoveNode) {
+		const generation = ++this.#generation;
+		if (this.phase !== 'browse') this.#live = this.current;
+		this.current = node;
+		this.game.load(pathTo(node).map((move) => move.uci));
+		this.#reset();
+		this.phase = 'browse';
+		// Stepping forward to where the game had got to hands play back, rather than stranding it.
+		if (node === this.#live) {
+			this.#live = null;
+			void this.#continue(generation);
+			return;
+		}
+		void this.#prepareBrowsed(generation);
+	}
+
+	/** Browsing shows what the engine makes of the position — but only past the book, and it stays playable. */
+	async #prepareBrowsed(generation: number) {
 		const fen = this.game.fen;
 		const node = this.bundle.nodes[toEpd(fen)];
-		// Inside the book the evaluation stays hidden: it would give the lines away.
-		if (this.#book.continuations(toEpd(fen)).length || this.inOpening) {
-			this.evaluation = null;
+		const secret = this.#book.continuations(toEpd(fen)).length > 0 || this.inOpening;
+		this.evaluation = secret ? null : (node?.candidates[0]?.score ?? null);
+		if (node?.candidates.length) {
+			this.#before = fromNode(fen, node);
 			return;
 		}
-		if (node?.candidates[0]) {
-			this.evaluation = node.candidates[0].score;
-			return;
-		}
+		if (secret) return;
 		const analysis = await this.#analyse(fen);
-		if (generation !== this.#generation || !analysis?.lines[0]) return;
+		if (generation !== this.#generation || !analysis?.lines.length) return;
+		this.#before = analysis;
 		this.evaluation = analysis.lines[0].score;
-		this.phase = 'browse';
 	}
 
 	/** Back to the learner's previous decision, past the computer's reply. */
@@ -516,8 +557,10 @@ export class ExploreSession {
 		}
 		if (!this.canTakeBack) return;
 		const generation = ++this.#generation;
-		this.#future = [];
-		for (let plies = this.#takeBackPlies(); plies > 0; plies--) this.game.undo();
+		for (let plies = this.#takeBackPlies(); plies > 0; plies--) {
+			this.game.undo();
+			this.current = this.current.parent ?? this.current;
+		}
 		this.#reset();
 		await this.#continue(generation);
 	}
@@ -627,6 +670,8 @@ export class ExploreSession {
 		if (generation !== this.#generation) return;
 		const san = sanOf(fen, move);
 		this.game.move(parseUci(move));
+		// Book replies are theory; past it, how much the reply gave away is known once the position is analysed.
+		const played = this.#played(move, san, chanceBefore === null ? 'book' : undefined);
 		this.#after = null;
 		this.#visit();
 		if (this.#checkOver()) return;
@@ -635,6 +680,10 @@ export class ExploreSession {
 
 		const bestNow = this.#before?.lines[0];
 		const gain = chanceBefore !== null && bestNow ? winChance(bestNow.score, this.side) - chanceBefore : 0;
+		if (chanceBefore !== null) {
+			played.quality = qualityOfLoss(gain);
+			this.revision++;
+		}
 		this.opportunity = gain >= OPPORTUNITY_MIN_GAIN ? { san } : null;
 	}
 

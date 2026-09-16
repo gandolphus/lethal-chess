@@ -613,6 +613,13 @@ kbd {
 	initial-value: 0turn;
 }
 
+/* A phone has no keyboard, so the shortcut hints are noise there. */
+@media (hover: none) and (pointer: coarse) {
+	kbd {
+		display: none;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

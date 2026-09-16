@@ -13,6 +13,7 @@
 	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
 	import LineMap from '$lib/ui/LineMap.svelte';
 	import LineShelf from '$lib/ui/LineShelf.svelte';
+	import MoveTree from '$lib/ui/MoveTree.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
@@ -605,27 +606,20 @@
 				</div>
 			{/if}
 
+			{#if explore}
+				<MoveTree root={explore.root} current={explore.current} revision={explore.revision} onselect={(node) => explore?.goTo(node)} />
+			{:else}
 			<ol class="moves num" aria-label="Moves">
 				{#each pairs as pair, i (pair.number)}
 					<li>
 						<span class="n">{pair.number}.</span>
 						{#each [pair.white, pair.black] as san, half (half)}
-							{@const ply = i * 2 + half + 1}
-							{#if san && explore}
-								<button
-									type="button"
-									class="m"
-									class:cur={ply === browsedPly}
-									onclick={() => explore?.jumpTo(ply)}
-									title="Go back to this move"
-								>{san}</button>
-							{:else}
-								<span class="m" class:cur={ply === browsedPly}>{san}</span>
-							{/if}
+							<span class="m" class:cur={i * 2 + half + 1 === browsedPly}>{san}</span>
 						{/each}
 					</li>
 				{/each}
 			</ol>
+			{/if}
 
 
 			{#if mode === 'explore' && summary}
@@ -921,13 +915,6 @@
 		text-align: left;
 	}
 
-	.moves button.m {
-		cursor: pointer;
-	}
-
-	.moves button.m:hover {
-		background: var(--surface-2);
-	}
 
 	.moves .m.cur {
 		background: var(--surface-2);

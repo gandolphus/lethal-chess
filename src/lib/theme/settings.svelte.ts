@@ -5,12 +5,20 @@
 export type BoardStyle = 'flat' | 'material' | 'instrument' | 'nocturne';
 export type Mode = 'dark' | 'light';
 
+/**
+ * A theme that carries depth and motion: backdrop layers behind the page, a hue veil under the board's
+ * marks, pieces that sway. Set as `data-scene` on the root, the board and the swatch; without it none of
+ * that is generated, so a calm theme costs nothing. The value names the scene for CSS that wants to know.
+ */
+export type Scene = 'hyperspace';
+
 /** One concrete palette: a `[data-theme]` block in app.css. */
 export type ThemeOption = {
 	id: string;
 	name: string;
 	mode: Mode;
 	board: BoardStyle;
+	scene?: Scene;
 };
 
 /** A look that exists in both modes. What the settings page lists; the active theme is `family[mode]`. */
@@ -18,6 +26,7 @@ export type ThemeFamily = {
 	id: string;
 	name: string;
 	board: BoardStyle;
+	scene?: Scene;
 	dark: string;
 	light: string;
 };
@@ -34,7 +43,8 @@ export type PieceSetOption = {
  * Ordered quiet to loud. The four flat boards come first because they are the conventional look most
  * people expect and the default lives among them — neutral, then warm, cool and green. Then the three
  * structural boards in increasing departure from a plain board: inlaid tiles, a hairline grid, light as
- * the feedback medium. Fabulous last: the one ornamental theme, made to order.
+ * the feedback medium. Fabulous next: the one ornamental theme, made to order. Prism last: the one
+ * that moves — the loudest thing in the list, so it closes it.
  */
 export const FAMILIES: ThemeFamily[] = [
 	{ id: 'stone', name: 'Stone', board: 'flat', dark: 'obsidian', light: 'gallery' },
@@ -44,7 +54,8 @@ export const FAMILIES: ThemeFamily[] = [
 	{ id: 'material', name: 'Material', board: 'material', dark: 'onyx', light: 'alabaster' },
 	{ id: 'instrument', name: 'Instrument', board: 'instrument', dark: 'graphite', light: 'vellum' },
 	{ id: 'nocturne', name: 'Nocturne', board: 'nocturne', dark: 'night', light: 'dawn' },
-	{ id: 'fabulous', name: 'Fabulous', board: 'material', dark: 'amethyst', light: 'wisteria' }
+	{ id: 'fabulous', name: 'Fabulous', board: 'material', dark: 'amethyst', light: 'wisteria' },
+	{ id: 'prism', name: 'Prism', board: 'flat', scene: 'hyperspace', dark: 'nebula', light: 'iris' }
 ];
 
 const NAMES: Record<string, string> = {
@@ -63,12 +74,20 @@ const NAMES: Record<string, string> = {
 	night: 'Night',
 	dawn: 'Dawn',
 	amethyst: 'Amethyst',
-	wisteria: 'Wisteria'
+	wisteria: 'Wisteria',
+	nebula: 'Nebula',
+	iris: 'Iris'
 };
 
 /** Every palette, dark before light within each family, in family order. */
 export const THEMES: ThemeOption[] = FAMILIES.flatMap((family) =>
-	(['dark', 'light'] as const).map((mode) => ({ id: family[mode], name: NAMES[family[mode]], mode, board: family.board }))
+	(['dark', 'light'] as const).map((mode) => ({
+		id: family[mode],
+		name: NAMES[family[mode]],
+		mode,
+		board: family.board,
+		...(family.scene ? { scene: family.scene } : {})
+	}))
 );
 
 export const PIECE_SETS: PieceSetOption[] = [
@@ -124,8 +143,11 @@ export const themeFor = (familyId: string, mode: Mode): ThemeOption => {
 	return THEMES.find((t) => t.id === family[mode]) ?? THEMES[0];
 };
 
+const BOARD_STYLES: BoardStyle[] = ['flat', 'material', 'instrument', 'nocturne'];
+
 const validFamily = (id: unknown) => (FAMILIES.some((f) => f.id === id) ? (id as string) : null);
 const validMode = (mode: unknown): Mode | null => (mode === 'dark' || mode === 'light' ? mode : null);
+const validBoard = (id: unknown): BoardStyle | null => (BOARD_STYLES.includes(id as BoardStyle) ? (id as BoardStyle) : null);
 const validSet = (id: unknown) => (AVAILABLE_PIECE_SETS.some((p) => p.id === id) ? (id as string) : null);
 const validFont = (id: unknown) => (FONTS.some((f) => f.id === id) ? (id as string) : null);
 
@@ -151,10 +173,11 @@ export function fromStored(raw: unknown): Partial<Stored> {
 /**
  * `?theme=…&mode=…&pieces=…&font=…` previews a look for design review without touching the stored
  * choice. `theme` names a palette, so it sets the family and the mode; `mode` on its own flips the
- * stored family, and next to `theme` it picks that family's other side.
+ * stored family, and next to `theme` it picks that family's other side. `board` puts another family's
+ * board treatment under the palette — never stored, only for judging a scene under all four.
  */
-export function fromSearch(search: string): Partial<Stored> {
-	const out: Partial<Stored> = {};
+export function fromSearch(search: string): Partial<Stored> & { board?: BoardStyle } {
+	const out: Partial<Stored> & { board?: BoardStyle } = {};
 	try {
 		const params = new URLSearchParams(search);
 		const theme = familyOf(params.get('theme'));
@@ -162,10 +185,12 @@ export function fromSearch(search: string): Partial<Stored> {
 		const mode = validMode(params.get('mode')) ?? theme?.mode;
 		const pieceSet = validSet(params.get('pieces'));
 		const font = validFont(params.get('font'));
+		const board = validBoard(params.get('board'));
 		if (family) out.family = family;
 		if (mode) out.mode = mode;
 		if (pieceSet) out.pieceSet = pieceSet;
 		if (font) out.font = font;
+		if (board) out.board = board;
 	} catch {
 		// A malformed query previews nothing.
 	}
@@ -199,9 +224,13 @@ class Appearance {
 	pieceSet = $state(this.#override.pieceSet ?? this.#stored.pieceSet ?? PIECE_SETS[0].id);
 	font = $state(this.#override.font ?? this.#stored.font ?? FONTS[0].id);
 
-	readonly themeOption = $derived(themeFor(this.family, this.mode));
+	readonly themeOption = $derived<ThemeOption>(
+		this.#override.board ? { ...themeFor(this.family, this.mode), board: this.#override.board } : themeFor(this.family, this.mode)
+	);
 	/** The active palette's id — what `[data-theme]` is set to. */
 	readonly theme = $derived(this.themeOption.id);
+	/** The active theme's scene, if it has one — what `data-scene` is set to. */
+	readonly scene = $derived(this.themeOption.scene);
 
 	set(update: Partial<Stored> & { theme?: string }) {
 		const theme = familyOf(update.theme);

@@ -165,7 +165,8 @@
 
 	<p class="note">
 		Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page;
-		<code>?mode=light</code> flips whichever theme is chosen.
+		<code>?mode=light</code> flips whichever theme is chosen; <code>?board=material</code> puts another family's board
+		treatment under it.
 	</p>
 </main>
 

@@ -165,6 +165,19 @@ one-second celebration: edge sweep, move replay, a mote into the counter) and **
 (picker cards with per-variation spines). Recommendation and component mapping in
 [[README|Round 3 README]]: build the trace with the shelf first, then the chart, then the picker.
 
+## Board geometry (2026-09-16)
+
+- **A knight's arrow turns the corner.** Long leg first, then short, for hint, engine and refutation
+  arrows in every board style, and for the trace a discovered line draws. `elbow()` in `Board.svelte`
+  returns the corner; the filled shapes mitre it (a right-angle join sits one width out along both
+  normals), Instrument's hairline just bends.
+- **Material's coordinates sit inside the chamfer.** The bevel is `0.9cqi` in from the frame rather than a
+  fixed `6px`, so it keeps its distance at every board size, and the file letters are centred in the band
+  between the board's edge and it (`y: 102.05` in board units, ranks at `x: -1.5`) instead of crossing it.
+  The owner asked to keep the bevel — "I actually really like how the bevel looks in the Onyx theme" —
+  which is why the letters moved and not the chamfer. Round 2 hit the same complaint on Fabulous and
+  answered it by deleting the frame; this is the other answer.
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

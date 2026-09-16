@@ -65,6 +65,10 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
 - **Hints.** First the piece, then the arrow, for the book move that keeps the most unfound lines open.
   A line through a position where the move was *shown* does not count as discovered; the user is told
   to find it alone.
+- **Nothing else gives the move away.** An inaccuracy, a dubious book move and a blunder all say what the
+  move *was* and point at Hint; none of them names what to play instead. The answer costs two deliberate
+  presses, and that is the only way to it. The opening's own defining moves are the exception — they are
+  fixed, so the notice names them.
 - **Take back** returns to the previous decision, never into the defining moves.
 - **The line card** sits above the notice (under the board on phones).
   - **Anticipation:** from a line's entrance until its end, the card shows "Line in progress", the

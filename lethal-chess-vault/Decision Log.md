@@ -9,6 +9,28 @@ Dated, rationale-bearing record of locked decisions. See [[System Map]] for the 
 
 ---
 
+## 2026-09-16 — Explore never names the move you should have played
+
+The owner: "when exploring in the Openings page I don't want to spoil the correct moves … that's what the
+Hint button is for. And if pressing the hint again then maybe we can spoil it. But we should mask the
+spoiling behind at least a couple of direct interactions just to be sure that the user actually wants it."
+The notice used to answer every imperfect move with "Nc3 was better." — handing over the very thing
+[[Exploration Mode]] asks the learner to find. It now says what the move was and nothing more, and points
+at Hint, whose two levels (the piece, then the move) are the two deliberate asks that earn the answer.
+Two exceptions stand: the **opening's defining moves** are named, because they are fixed rather than
+discovered, and **[[Free play]]** still names the better move, because analysis is its whole purpose.
+
+## 2026-09-16 — A knight's arrow turns the corner
+
+The owner prefers the L over the diagonal, "long side first then short". Every arrow and the discovery
+trace bend at the knight's corner now; `elbow()` in `Board.svelte` returns it, and a right-angle mitre
+keeps the shaft one width wide through the turn. Same day: Material's file letters crossed the frame's
+bevel because the label sat 3.6 % of the board below its edge while the bevel was a fixed `6px` in from
+the frame — the two met at some sizes and not others. The bevel is proportional (`0.9cqi`) and the labels
+are centred in the band between board and bevel. The owner: "I actually really like how the bevel looks in
+the Onyx theme. So I think we should keep it!" Same complaint that killed Fabulous's frame in Round 2 —
+see [[Visual Design]].
+
 ## 2026-09-16 — A black piece carries one light line, in every theme
 
 The owner: "some of the black pieces get different coloured outlines only in some themes … they look

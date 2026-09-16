@@ -428,6 +428,16 @@
 			{:else}
 				<Board fen={rootFen} orientation={bundle.side} interactive={false} onMove={() => {}} />
 			{/if}
+			{#if explore && (analysing || explore.phase === 'browse')}
+				<div class="browse">
+					<button type="button" class="btn small" onclick={() => explore?.back()} disabled={!explore.canBack} aria-label="One move back">◀</button>
+					<button type="button" class="btn small" onclick={() => explore?.forward()} disabled={!explore.canForward} aria-label="One move forward">▶</button>
+					{#if explore.phase === 'browse' && !explore.atTip}
+						<button type="button" class="btn small primary" onclick={() => explore?.playFromHere()}>Play from here <kbd>↵</kbd></button>
+					{/if}
+					<span class="browse-note">{explore.atTip ? 'Latest position' : 'Looking back — play from here to continue'}</span>
+				</div>
+			{/if}
 			{#if mode === 'explore' && summary && !freeplay}
 				<LineShelf variations={summary.variations} here={explore?.following?.variation ?? null} bind:count={counter} onopen={(band) => (map = { band })} />
 			{/if}
@@ -617,16 +627,6 @@
 				{/each}
 			</ol>
 
-			{#if explore && (analysing || explore.phase === 'browse')}
-				<div class="browse">
-					<button type="button" class="btn small" onclick={() => explore?.back()} disabled={!explore.canBack} aria-label="One move back">◀</button>
-					<button type="button" class="btn small" onclick={() => explore?.forward()} disabled={!explore.canForward} aria-label="One move forward">▶</button>
-					{#if explore.phase === 'browse' && !explore.atTip}
-						<button type="button" class="btn small primary" onclick={() => explore?.playFromHere()}>Play from here <kbd>↵</kbd></button>
-					{/if}
-					<span class="browse-note">{explore.atTip ? 'Latest position' : 'Looking back — play from here to continue'}</span>
-				</div>
-			{/if}
 
 			{#if mode === 'explore' && summary}
 				<div class="prof discoveries">
@@ -872,14 +872,21 @@
 		flex: none;
 	}
 
+	/* Under the board, where the hands are: on a phone the panel is a scroll away. */
 	.browse {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		padding-top: 0.5rem;
+		margin-top: 0.6rem;
+	}
+
+	.browse .btn {
+		min-width: 3rem;
+		justify-content: center;
 	}
 
 	.browse-note {
+		margin-left: auto;
 		font-size: 0.78rem;
 		color: var(--text-3);
 	}
@@ -1225,6 +1232,16 @@
 	@media (max-width: 860px) {
 		main {
 			padding: 0.75rem 0.75rem 2.5rem;
+		}
+
+		/* Thumb-sized, and the sentence goes: the buttons say what they do. */
+		.browse .btn {
+			flex: 1;
+			min-height: 2.75rem;
+		}
+
+		.browse-note {
+			display: none;
 		}
 
 		.layout {

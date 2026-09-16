@@ -26,7 +26,7 @@
    swatch inherited any token its theme doesn't redefine from whichever theme is *active*. */
 :root,
 [data-theme] {
-	/* Obsidian (Round 1) is the default: neutral graphite, warm stone, ice-blue accent. */
+	/* Obsidian is the default: neutral graphite, warm stone, ice-blue accent. */
 	--bg: #131316; --surface-1: #1b1b1f; --surface-2: #232328; --border: #2a2a30;
 	--text: #ebe8e2; --text-2: #a09da3; --text-3: #6b696f;
 	--sq-light: #aea9a1; --sq-dark: #4c4c54;
@@ -60,7 +60,8 @@
 [data-mode='light'] { --hl-blend: multiply; color-scheme: light; }
 [data-mode='dark'] { --hl-blend: normal; color-scheme: dark; }
 
-/* ═══ Round 1 ═══ */
+/* ═══ Flat boards — Stone (Obsidian / Gallery), Timber (Ember / Paper), Tide (Abyss / Porcelain),
+   Grove (Moss / Sage). Families are registered in $lib/theme/settings. ═══ */
 /* Obsidian is the default set above. */
 
 [data-theme='ember'] {
@@ -112,6 +113,26 @@
 	--soft: #ffb454; --soft-fill: rgba(255,180,84,.45);
 	--bad: #ff6d62; --bad-fill: rgba(255,109,98,.52);
 	--focus: #ead882; --signal: #ead882;
+}
+
+/* Moss by daylight: celadon paper, sage squares, straw highlights; the accent is the ochre the straw
+   darkens to, since Moss's pale gold would vanish as text on a light page. */
+[data-theme='sage'] {
+	--bg: #eef1e8; --surface-1: #f7f9f3; --surface-2: #e3e8db; --border: #d0d8c6;
+	--text: #171d16; --text-2: #5f6b5b; --text-3: #96a390;
+	--sq-light: #e4e8d3; --sq-dark: #7f9a72;
+	--coord: #96a390; --coord-on-light: #7f9a72; --coord-on-dark: #e4e8d3;
+	--frame-edge: rgba(30,50,25,.12); --board-shadow: 0 30px 60px -28px rgba(30,50,25,.4);
+	--pw1: #fdfdf7; --pw2: #e9ebdd; --pws: #1e2a1c;
+	--pb1: #2a3328; --pb2: #161d15; --pbs: #0a100a; --pbh: #98a893;
+	--piece-shadow: drop-shadow(0 1.5px 1px rgba(30,50,25,.3));
+	--accent: #8f5f0e; --ring: #8f5f0e; --sel: #e9d466; --last: #f0e39c;
+	--dot: rgba(20,35,15,.30); --dot-on-dark: rgba(255,255,255,.34);
+	--hint: #8f5f0e; --check: #dd3a2a;
+	--ok: #1f9a5a; --ok-fill: rgba(31,154,90,.42);
+	--soft: #d59d16; --soft-fill: rgba(213,157,22,.38);
+	--bad: #d6483d; --bad-fill: rgba(214,72,61,.42);
+	--focus: #8f5f0e; --signal: #8f5f0e;
 }
 
 [data-theme='paper'] {
@@ -168,7 +189,7 @@
 	--focus: #d98c05; --signal: #d98c05;
 }
 
-/* ═══ Round 2 · Material — inlaid stone tiles, chamfered frame, engraved coordinates ═══ */
+/* ═══ Material — inlaid stone tiles, chamfered frame, engraved coordinates ═══ */
 [data-theme='onyx'],
 [data-theme='alabaster'] {
 	--font-ui: 'Figtree', system-ui, sans-serif;
@@ -222,7 +243,7 @@
 	--check: #e33a2c; --focus: #1f6e72; --signal: #1f6e72;
 }
 
-/* ═══ Round 2 · Instrument — hairline grid, ruler ticks, one signal colour ═══ */
+/* ═══ Instrument — hairline grid, ruler ticks, one signal colour ═══ */
 [data-theme='graphite'],
 [data-theme='vellum'] {
 	--font-ui: 'Geist', system-ui, sans-serif;
@@ -270,7 +291,7 @@
 	--check: var(--signal); --focus: #17181a;
 }
 
-/* ═══ Round 2 · Nocturne — light is the feedback medium ═══ */
+/* ═══ Nocturne — light is the feedback medium ═══ */
 [data-theme='night'],
 [data-theme='dawn'] {
 	--font-ui: 'Jost', system-ui, sans-serif;

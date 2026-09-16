@@ -11,7 +11,7 @@
 	// Themes are pure CSS token sets keyed off these attributes; nothing else knows a theme exists.
 	$effect(() => {
 		document.documentElement.dataset.theme = appearance.theme;
-		document.documentElement.dataset.mode = appearance.themeOption.mode;
+		document.documentElement.dataset.mode = appearance.mode;
 		// "Match the theme" means no attribute, so the theme's own pairing stands.
 		if (appearance.font === 'theme') delete document.documentElement.dataset.font;
 		else document.documentElement.dataset.font = appearance.font;

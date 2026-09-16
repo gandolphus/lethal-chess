@@ -1,60 +1,85 @@
-// Appearance settings: which theme, which piece set and which typeface. Stored per browser
-// (a viewer convenience); nothing about progress lives here.
+// Appearance settings: which theme family, dark or light, which piece set and which typeface. Stored
+// per browser (a viewer convenience); nothing about progress lives here.
 
 /** Structural board treatment a theme asks for; the board reads only this and tokens. */
 export type BoardStyle = 'flat' | 'material' | 'instrument' | 'nocturne';
+export type Mode = 'dark' | 'light';
 
+/** One concrete palette: a `[data-theme]` block in app.css. */
 export type ThemeOption = {
 	id: string;
 	name: string;
-	mode: 'dark' | 'light';
-	collection: string;
+	mode: Mode;
 	board: BoardStyle;
 };
+
+/** A look that exists in both modes. What the settings page lists; the active theme is `family[mode]`. */
+export type ThemeFamily = {
+	id: string;
+	name: string;
+	board: BoardStyle;
+	dark: string;
+	light: string;
+};
+
 export type PieceSetOption = {
 	id: string;
 	name: string;
-	collection: string;
 	publicSafe: boolean;
 	/** Attribution shown in the picker for third-party sets (full texts in $lib/theme/pieces/LICENSES.md). */
 	credit?: string;
 };
 
-const r1 = (id: string, name: string, mode: 'dark' | 'light'): ThemeOption => ({
-	id,
-	name,
-	mode,
-	collection: 'Round 1',
-	board: 'flat'
-});
-
-export const THEMES: ThemeOption[] = [
-	r1('obsidian', 'Obsidian', 'dark'),
-	r1('ember', 'Ember', 'dark'),
-	r1('abyss', 'Abyss', 'dark'),
-	r1('moss', 'Moss', 'dark'),
-	r1('paper', 'Paper', 'light'),
-	r1('gallery', 'Gallery', 'light'),
-	r1('porcelain', 'Porcelain', 'light'),
-	{ id: 'onyx', name: 'Onyx', mode: 'dark', collection: 'Round 2 · Material', board: 'material' },
-	{ id: 'alabaster', name: 'Alabaster', mode: 'light', collection: 'Round 2 · Material', board: 'material' },
-	{ id: 'graphite', name: 'Graphite', mode: 'dark', collection: 'Round 2 · Instrument', board: 'instrument' },
-	{ id: 'vellum', name: 'Vellum', mode: 'light', collection: 'Round 2 · Instrument', board: 'instrument' },
-	{ id: 'night', name: 'Night', mode: 'dark', collection: 'Round 2 · Nocturne', board: 'nocturne' },
-	{ id: 'dawn', name: 'Dawn', mode: 'light', collection: 'Round 2 · Nocturne', board: 'nocturne' },
-	{ id: 'amethyst', name: 'Amethyst', mode: 'dark', collection: 'Fabulous', board: 'material' },
-	{ id: 'wisteria', name: 'Wisteria', mode: 'light', collection: 'Fabulous', board: 'material' }
+/**
+ * Ordered quiet to loud. The four flat boards come first because they are the conventional look most
+ * people expect and the default lives among them — neutral, then warm, cool and green. Then the three
+ * structural boards in increasing departure from a plain board: inlaid tiles, a hairline grid, light as
+ * the feedback medium. Fabulous last: the one ornamental theme, made to order.
+ */
+export const FAMILIES: ThemeFamily[] = [
+	{ id: 'stone', name: 'Stone', board: 'flat', dark: 'obsidian', light: 'gallery' },
+	{ id: 'timber', name: 'Timber', board: 'flat', dark: 'ember', light: 'paper' },
+	{ id: 'tide', name: 'Tide', board: 'flat', dark: 'abyss', light: 'porcelain' },
+	{ id: 'grove', name: 'Grove', board: 'flat', dark: 'moss', light: 'sage' },
+	{ id: 'material', name: 'Material', board: 'material', dark: 'onyx', light: 'alabaster' },
+	{ id: 'instrument', name: 'Instrument', board: 'instrument', dark: 'graphite', light: 'vellum' },
+	{ id: 'nocturne', name: 'Nocturne', board: 'nocturne', dark: 'night', light: 'dawn' },
+	{ id: 'fabulous', name: 'Fabulous', board: 'material', dark: 'amethyst', light: 'wisteria' }
 ];
 
+const NAMES: Record<string, string> = {
+	obsidian: 'Obsidian',
+	gallery: 'Gallery',
+	ember: 'Ember',
+	paper: 'Paper',
+	abyss: 'Abyss',
+	porcelain: 'Porcelain',
+	moss: 'Moss',
+	sage: 'Sage',
+	onyx: 'Onyx',
+	alabaster: 'Alabaster',
+	graphite: 'Graphite',
+	vellum: 'Vellum',
+	night: 'Night',
+	dawn: 'Dawn',
+	amethyst: 'Amethyst',
+	wisteria: 'Wisteria'
+};
+
+/** Every palette, dark before light within each family, in family order. */
+export const THEMES: ThemeOption[] = FAMILIES.flatMap((family) =>
+	(['dark', 'light'] as const).map((mode) => ({ id: family[mode], name: NAMES[family[mode]], mode, board: family.board }))
+);
+
 export const PIECE_SETS: PieceSetOption[] = [
-	{ id: 'monolith', name: 'Monolith', collection: 'Round 1', publicSafe: true },
-	{ id: 'chessnut', name: 'Chessnut', collection: 'Round 1', publicSafe: true, credit: 'Lichess · Apache-2.0' },
-	{ id: 'cburnett', name: 'Cburnett', collection: 'Round 1', publicSafe: true, credit: 'Colin M. L. Burnett · GPL-2.0+' },
-	{ id: 'material', name: 'Material', collection: 'Round 2', publicSafe: true },
-	{ id: 'instrument', name: 'Instrument', collection: 'Round 2', publicSafe: true },
-	{ id: 'nocturne', name: 'Nocturne', collection: 'Round 2', publicSafe: true },
-	{ id: 'regalia', name: 'Regalia', collection: 'Fabulous', publicSafe: true },
-	{ id: 'glyph', name: 'Glyph', collection: 'Base', publicSafe: true }
+	{ id: 'monolith', name: 'Monolith', publicSafe: true },
+	{ id: 'chessnut', name: 'Chessnut', publicSafe: true, credit: 'Lichess · Apache-2.0' },
+	{ id: 'cburnett', name: 'Cburnett', publicSafe: true, credit: 'Colin M. L. Burnett · GPL-2.0+' },
+	{ id: 'material', name: 'Material', publicSafe: true },
+	{ id: 'instrument', name: 'Instrument', publicSafe: true },
+	{ id: 'nocturne', name: 'Nocturne', publicSafe: true },
+	{ id: 'regalia', name: 'Regalia', publicSafe: true },
+	{ id: 'glyph', name: 'Glyph', publicSafe: true }
 ];
 
 export type FontOption = {
@@ -83,54 +108,109 @@ export const AVAILABLE_PIECE_SETS = PIECE_SETS.filter((set) => set.publicSafe ||
 
 const KEY = 'lethal:appearance';
 
-type Stored = { theme: string; pieceSet: string; font: string };
+export type Stored = { family: string; mode: Mode; pieceSet: string; font: string };
 
-const validTheme = (id: unknown) => (THEMES.some((t) => t.id === id) ? (id as string) : null);
+/** The family a theme id belongs to, and which side of it. */
+export function familyOf(themeId: unknown): { family: ThemeFamily; mode: Mode } | null {
+	for (const family of FAMILIES) {
+		if (family.dark === themeId) return { family, mode: 'dark' };
+		if (family.light === themeId) return { family, mode: 'light' };
+	}
+	return null;
+}
+
+export const themeFor = (familyId: string, mode: Mode): ThemeOption => {
+	const family = FAMILIES.find((f) => f.id === familyId) ?? FAMILIES[0];
+	return THEMES.find((t) => t.id === family[mode]) ?? THEMES[0];
+};
+
+const validFamily = (id: unknown) => (FAMILIES.some((f) => f.id === id) ? (id as string) : null);
+const validMode = (mode: unknown): Mode | null => (mode === 'dark' || mode === 'light' ? mode : null);
 const validSet = (id: unknown) => (AVAILABLE_PIECE_SETS.some((p) => p.id === id) ? (id as string) : null);
 const validFont = (id: unknown) => (FONTS.some((f) => f.id === id) ? (id as string) : null);
 
-function load(): Stored {
-	const fallback = { theme: THEMES[0].id, pieceSet: PIECE_SETS[0].id, font: FONTS[0].id };
-	try {
-		const raw = globalThis.localStorage?.getItem(KEY);
-		const parsed = raw ? (JSON.parse(raw) as Partial<Stored>) : {};
-		return {
-			theme: validTheme(parsed.theme) ?? fallback.theme,
-			pieceSet: validSet(parsed.pieceSet) ?? fallback.pieceSet,
-			font: validFont(parsed.font) ?? fallback.font
-		};
-	} catch {
-		return fallback;
-	}
+/**
+ * What a stored record means, with any unknown value dropped. A record from before theme families
+ * carried a single `theme` id; that names both a family and a mode.
+ */
+export function fromStored(raw: unknown): Partial<Stored> {
+	const parsed = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+	const legacy = familyOf(parsed.theme);
+	const out: Partial<Stored> = {};
+	const family = validFamily(parsed.family) ?? legacy?.family.id;
+	const mode = validMode(parsed.mode) ?? legacy?.mode;
+	const pieceSet = validSet(parsed.pieceSet);
+	const font = validFont(parsed.font);
+	if (family) out.family = family;
+	if (mode) out.mode = mode;
+	if (pieceSet) out.pieceSet = pieceSet;
+	if (font) out.font = font;
+	return out;
 }
 
-/** `?theme=…&pieces=…&font=…` previews a look for design review without touching the stored choice. */
-function urlOverride(): Partial<Stored> {
+/**
+ * `?theme=…&mode=…&pieces=…&font=…` previews a look for design review without touching the stored
+ * choice. `theme` names a palette, so it sets the family and the mode; `mode` on its own flips the
+ * stored family, and next to `theme` it picks that family's other side.
+ */
+export function fromSearch(search: string): Partial<Stored> {
+	const out: Partial<Stored> = {};
 	try {
-		const params = new URLSearchParams(globalThis.location?.search ?? '');
-		return {
-			theme: validTheme(params.get('theme')) ?? undefined,
-			pieceSet: validSet(params.get('pieces')) ?? undefined,
-			font: validFont(params.get('font')) ?? undefined
-		};
+		const params = new URLSearchParams(search);
+		const theme = familyOf(params.get('theme'));
+		const family = theme?.family.id;
+		const mode = validMode(params.get('mode')) ?? theme?.mode;
+		const pieceSet = validSet(params.get('pieces'));
+		const font = validFont(params.get('font'));
+		if (family) out.family = family;
+		if (mode) out.mode = mode;
+		if (pieceSet) out.pieceSet = pieceSet;
+		if (font) out.font = font;
+	} catch {
+		// A malformed query previews nothing.
+	}
+	return out;
+}
+
+function load(): Partial<Stored> {
+	try {
+		const raw = globalThis.localStorage?.getItem(KEY);
+		return fromStored(raw ? JSON.parse(raw) : {});
 	} catch {
 		return {};
 	}
 }
 
+/** Until a mode is chosen the device's preference decides; an explicit choice sticks after that. */
+function preferredMode(): Mode {
+	try {
+		return globalThis.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+	} catch {
+		return 'dark';
+	}
+}
+
 class Appearance {
+	/** Only what was chosen here or carried over; a mode never chosen is not written, so the device's stays. */
 	#stored = load();
-	#override = urlOverride();
-	theme = $state(this.#override.theme ?? this.#stored.theme);
-	pieceSet = $state(this.#override.pieceSet ?? this.#stored.pieceSet);
-	font = $state(this.#override.font ?? this.#stored.font);
+	#override = fromSearch(globalThis.location?.search ?? '');
+	family = $state(this.#override.family ?? this.#stored.family ?? FAMILIES[0].id);
+	mode = $state(this.#override.mode ?? this.#stored.mode ?? preferredMode());
+	pieceSet = $state(this.#override.pieceSet ?? this.#stored.pieceSet ?? PIECE_SETS[0].id);
+	font = $state(this.#override.font ?? this.#stored.font ?? FONTS[0].id);
 
-	readonly themeOption = $derived(THEMES.find((t) => t.id === this.theme) ?? THEMES[0]);
+	readonly themeOption = $derived(themeFor(this.family, this.mode));
+	/** The active palette's id — what `[data-theme]` is set to. */
+	readonly theme = $derived(this.themeOption.id);
 
-	set(update: Partial<Stored>) {
-		if (update.theme) this.theme = this.#stored.theme = update.theme;
-		if (update.pieceSet) this.pieceSet = this.#stored.pieceSet = update.pieceSet;
-		if (update.font) this.font = this.#stored.font = update.font;
+	set(update: Partial<Stored> & { theme?: string }) {
+		const theme = familyOf(update.theme);
+		const family = validFamily(update.family) ?? theme?.family.id;
+		const mode = validMode(update.mode) ?? theme?.mode;
+		if (family) this.family = this.#stored.family = family;
+		if (mode) this.mode = this.#stored.mode = mode;
+		if (validSet(update.pieceSet)) this.pieceSet = this.#stored.pieceSet = update.pieceSet!;
+		if (validFont(update.font)) this.font = this.#stored.font = update.font!;
 		try {
 			globalThis.localStorage?.setItem(KEY, JSON.stringify(this.#stored));
 		} catch {

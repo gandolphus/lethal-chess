@@ -52,7 +52,7 @@ only; rating-based strategy is at the bottom of the backlog.
   catalog-named tracks, eval-graded moves, sharpest lines first.
 - [[Progress Tracking]] — **designed**. Append-only attempt log in SQLite; proficiency per track,
   family, repertoire.
-- [[Visual Design]] — **ported + overhauled**. 13 themes and 7 piece sets selectable in settings, eval bar,
+- [[Visual Design]] — **ported + overhauled**. 8 theme families (dark / light) and 8 piece sets selectable in settings, eval bar,
   redesigned picker and drill page.
 - [[Opening Classification]] — **designed, catalog imported, second priority**. Objective cost,
   precision burden, weaknesses; drill the punishment.

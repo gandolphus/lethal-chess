@@ -22,7 +22,7 @@ pre-drill MVP.
 | Hosting | Cloudflare Worker (`adapter-cloudflare`) | `lethalchess.com` + `www`; workers.dev and preview URLs off |
 | Database | Cloudflare D1, EU jurisdiction | Migrations in `migrations/` |
 | Auth | Google OAuth, vendored (fetch + Web Crypto) | State + PKCE; DB sessions with hashed tokens |
-| Styling | Plain scoped CSS, design tokens | 15 themes, 8 piece sets ([[Visual Design]]) |
+| Styling | Plain scoped CSS, design tokens | 8 theme families × dark/light (16 palettes), 8 piece sets ([[Visual Design]]) |
 
 ## Directory layout
 

@@ -5,6 +5,34 @@ aliases: [Visual Design, Themes, Aesthetics]
 
 # Visual Design
 
+> **Theme families, dark or light (2026-09-16).** Settings no longer shows the build history ("Round 1",
+> "Round 2 · Material"…). Every theme is a **family with a dark and a light side**, and Dark / Light is
+> its own control above the list; the swatches flip with it. Families, in the order shown (quiet to loud:
+> flat boards first with the default among them, neutral → warm → cool → green; then the structural
+> boards by how far they leave a plain board; Fabulous last as the one ornament):
+>
+> | Family | Board | Dark | Light |
+> |---|---|---|---|
+> | Stone | flat | Obsidian | Gallery |
+> | Timber | flat | Ember | Paper |
+> | Tide | flat | Abyss | Porcelain |
+> | Grove | flat | Moss | **Sage** (new) |
+> | Material | material | Onyx | Alabaster |
+> | Instrument | instrument | Graphite | Vellum |
+> | Nocturne | nocturne | Night | Dawn |
+> | Fabulous | material | Amethyst | Wisteria |
+>
+> Moss had no light side, so **Sage** was drawn for it: celadon paper (`#eef1e8`), sage squares
+> (`#e4e8d3` / `#7f9a72`), straw highlights that multiply to olive, and an ochre accent (`#8f5f0e`,
+> 4.8:1 on the page) because Moss's pale gold vanishes as text on a light page. Palette ids are unchanged,
+> so `?theme=night` and every saved choice still work. The store keeps `family` + `mode`; a record from
+> before (`{theme: 'night'}`) maps to its family and side on load. `?mode=light` flips whichever theme is
+> on; next to `?theme=` it picks that family's other side. **Default mode follows
+> `prefers-color-scheme` until a mode is chosen here**, and only a chosen mode is written, so a visitor who
+> never touched it keeps following their device. Piece sets lost their group labels too; the names stay.
+> Measured after the change: the settings page is pixel-identical across Stone, Instrument, Nocturne and
+> Fabulous in both modes (see the geometry note below).
+
 > **Typeface is its own setting (2026-09-16).** A theme used to decide the type as well as the colours, so
 > choosing a board look changed the reading experience. Settings has a **Typeface** section, kept last
 > because pieces matter more — Match the theme, Editorial, Grotesque, Technical, Geometric, Fabulous,
@@ -19,7 +47,11 @@ aliases: [Visual Design, Themes, Aesthetics]
 > height), and the settings page pins its own `--font-ui`/`--font-display` and re-reads them with an
 > explicit `font-family` (inheritance passes the resolved family, so setting the token alone did nothing).
 > Each theme's typefaces are shown *inside* its swatch as "Aa Ruy Lopez" instead. Measured: every element
-> on the settings page is pixel-identical across Obsidian, Graphite and Night.
+> on the settings page is pixel-identical across Obsidian, Graphite and Night. **Method:** drive headless
+> Chromium over CDP to `/settings`, click a theme (and now a mode), wait 700 ms, read
+> `getBoundingClientRect()` of `main`, `.mode`, `.options`, the first and fifth theme option, the first
+> piece and font option, the second section and the footer, plus `scrollHeight`; the tuples must be equal
+> for every theme while `body`'s computed font family changes.
 
 **Status: in exploration — Fable 5.1 commissioned for direction + a working prototype (2026-09-15).**
 

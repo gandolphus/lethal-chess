@@ -1,13 +1,12 @@
 <script lang="ts">
 	import Piece from '$lib/components/Piece.svelte';
 	import ThemeSwatch from '$lib/theme/ThemeSwatch.svelte';
-	import { appearance, AVAILABLE_PIECE_SETS, FONTS, THEMES } from '$lib/theme/settings.svelte';
+	import { appearance, AVAILABLE_PIECE_SETS, FAMILIES, FONTS, themeFor, type Mode } from '$lib/theme/settings.svelte';
 
-	const group = <T extends { collection: string }>(items: T[]) =>
-		[...new Set(items.map((i) => i.collection))].map((collection) => ({
-			collection,
-			items: items.filter((i) => i.collection === collection)
-		}));
+	const MODES: { id: Mode; name: string }[] = [
+		{ id: 'dark', name: 'Dark' },
+		{ id: 'light', name: 'Light' }
+	];
 
 	const PREVIEW = ['k', 'q', 'n', 'b'];
 
@@ -53,74 +52,64 @@
 <main>
 	<h1>Settings</h1>
 
-	<section class="account">
-		<h2>Account & data</h2>
-		{#if user}
-			<p class="note">Signed in as <strong>{user.email}</strong>. Your progress is saved to your account.</p>
-			<div class="account-actions">
-				<a class="btn" href="/api/account/export" download>Download my data</a>
-				<button type="button" class="btn danger" onclick={deleteAccount} disabled={deleting}>
-					{deleting ? 'Deleting…' : 'Delete my account'}
-				</button>
-			</div>
-			{#if deleteError}<p class="note error" role="alert">{deleteError}</p>{/if}
-		{:else}
-			<p class="note">
-				You're not signed in, so your progress lives only in this browser. <a href="/auth/google">Sign in with Google</a> to
-				keep it across devices.
-			</p>
-		{/if}
-		<p class="note"><a href="/privacy">What we store and why</a></p>
-	</section>
-
+	<!-- Appearance is what people come here for; the account is the rare visit, so it sits last. -->
 	<section>
 		<h2>Theme</h2>
-		{#each group(THEMES) as { collection, items } (collection)}
-			<p class="collection">{collection}</p>
-			<div class="options">
-				{#each items as theme (theme.id)}
-					<button
-						type="button"
-						class="theme-option"
-						class:active={appearance.theme === theme.id}
-						aria-pressed={appearance.theme === theme.id}
-						onclick={() => appearance.set({ theme: theme.id })}
-					>
-						<ThemeSwatch {theme} />
-						<span class="label"><span>{theme.name}</span><small>{theme.mode}</small></span>
-					</button>
-				{/each}
-			</div>
-		{/each}
+		<!-- Every theme has a dark and a light side; this picks the side, the list below picks the theme. -->
+		<div class="mode" role="group" aria-label="Dark or light">
+			{#each MODES as mode (mode.id)}
+				<button
+					type="button"
+					class="mode-option"
+					class:active={appearance.mode === mode.id}
+					aria-pressed={appearance.mode === mode.id}
+					onclick={() => appearance.set({ mode: mode.id })}
+				>
+					{mode.name}
+				</button>
+			{/each}
+		</div>
+		<div class="options">
+			{#each FAMILIES as family (family.id)}
+				{@const theme = themeFor(family.id, appearance.mode)}
+				<button
+					type="button"
+					class="theme-option"
+					class:active={appearance.family === family.id}
+					aria-pressed={appearance.family === family.id}
+					onclick={() => appearance.set({ family: family.id })}
+				>
+					<ThemeSwatch {theme} />
+					<span class="label"><span>{family.name}</span><small>{theme.name}</small></span>
+				</button>
+			{/each}
+		</div>
 	</section>
 
 	<section>
 		<h2>Pieces</h2>
-		{#each group(AVAILABLE_PIECE_SETS) as { collection, items } (collection)}
-			<p class="collection">{collection}</p>
-			<div class="options">
-				{#each items as set (set.id)}
-					<button
-						type="button"
-						class="piece-option"
-						class:active={appearance.pieceSet === set.id}
-						aria-pressed={appearance.pieceSet === set.id}
-						onclick={() => appearance.set({ pieceSet: set.id })}
-					>
-						<span class="preview">
-							{#each ['w', 'b'] as const as color (color)}
-								{#each PREVIEW as type, i (type)}
-									<span class="cell" class:light={(i + (color === 'w' ? 0 : 1)) % 2 === 0}>
-										<span class="preview-piece"><Piece {type} {color} set={set.id} /></span>
-									</span>
-								{/each}
+		<div class="options">
+			{#each AVAILABLE_PIECE_SETS as set (set.id)}
+				<button
+					type="button"
+					class="piece-option"
+					class:active={appearance.pieceSet === set.id}
+					aria-pressed={appearance.pieceSet === set.id}
+					onclick={() => appearance.set({ pieceSet: set.id })}
+				>
+					<span class="preview">
+						{#each ['w', 'b'] as const as color (color)}
+							{#each PREVIEW as type, i (type)}
+								<span class="cell" class:light={(i + (color === 'w' ? 0 : 1)) % 2 === 0}>
+									<span class="preview-piece"><Piece {type} {color} set={set.id} /></span>
+								</span>
 							{/each}
-						</span>
-						<span class="label"><span>{set.name}</span>{#if set.credit}<small>{set.credit}</small>{/if}</span>
-					</button>
-				{/each}
-			</div>
-		{/each}
+						{/each}
+					</span>
+					<span class="label"><span>{set.name}</span>{#if set.credit}<small>{set.credit}</small>{/if}</span>
+				</button>
+			{/each}
+		</div>
 	</section>
 
 	<section>
@@ -149,12 +138,35 @@
 		</div>
 	</section>
 
+	<section class="account">
+		<h2>Account & data</h2>
+		{#if user}
+			<p class="note">Signed in as <strong>{user.email}</strong>. Your progress is saved to your account.</p>
+			<div class="account-actions">
+				<a class="btn" href="/api/account/export" download>Download my data</a>
+				<button type="button" class="btn danger" onclick={deleteAccount} disabled={deleting}>
+					{deleting ? 'Deleting…' : 'Delete my account'}
+				</button>
+			</div>
+			{#if deleteError}<p class="note error" role="alert">{deleteError}</p>{/if}
+		{:else}
+			<p class="note">
+				You're not signed in, so your progress lives only in this browser. <a href="/auth/google">Sign in with Google</a> to
+				keep it across devices.
+			</p>
+		{/if}
+		<p class="note"><a href="/privacy">What we store and why</a></p>
+	</section>
+
 	<p class="note about">
 		<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">Source code</a> · AGPL-3.0 ·
 		<a href="/privacy">Privacy</a> · <a href="/credits">Credits &amp; licences</a>
 	</p>
 
-	<p class="note">Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page.</p>
+	<p class="note">
+		Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page;
+		<code>?mode=light</code> flips whichever theme is chosen.
+	</p>
 </main>
 
 <style>
@@ -192,6 +204,42 @@
 		margin: 0.8rem 0 0.4rem;
 		font-size: 0.85rem;
 		color: var(--text-2);
+	}
+
+	/* Two halves of one control, the same height whatever theme is on. */
+	.mode {
+		display: inline-flex;
+		margin: 0.6rem 0 0.8rem;
+		padding: 3px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface-1);
+	}
+
+	.mode-option {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 5rem;
+		height: 2rem;
+		padding: 0 1rem;
+		border: 0;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--text-2);
+		font-size: 0.9rem;
+		font-weight: 500;
+		line-height: 1;
+	}
+
+	.mode-option:hover {
+		color: var(--text);
+	}
+
+	.mode-option.active {
+		background: var(--surface-2);
+		color: var(--text);
+		box-shadow: 0 0 0 1px var(--accent);
 	}
 
 	.options {

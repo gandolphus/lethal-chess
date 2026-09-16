@@ -135,7 +135,10 @@ export class FreePlay {
 		else this.evaluation = scoreOfEnded(this.game, this.side) ?? this.evaluation;
 		const playedScore = this.#scoreAfter(after, uci, before);
 		const loss = lossFor(best, playedScore, this.side);
-		const verdict = verdictFor(loss, uci === best.move);
+		// "It was the engine's first choice" cannot excuse a move that drew the game: the engine was given
+		// the position without its history and did not know this move repeated. Let the loss decide.
+		const drawn = this.game.status === 'stalemate' || this.game.status === 'draw';
+		const verdict = verdictFor(loss, uci === best.move && !drawn);
 		this.lastVerdict = verdict;
 
 		if (this.opportunity && !isSound(verdict)) {
@@ -171,11 +174,12 @@ export class FreePlay {
 
 	/** The learner's move's score: its own line if the pre-move analysis had it, otherwise the fresh analysis. */
 	#scoreAfter(after: Analysis, uci: string, before: Analysis): EngineScore {
-		const known = before.lines.find((l) => l.move === uci);
-		if (known) return known.score;
-		// A finished game has no analysis lines (Stockfish sends no pv on a mated position): score it from the result.
+		// The result first: Stockfish is given a position and not a history, so a move that draws by
+		// repetition or by the fifty-move rule still carries the winning score in the pre-move analysis.
 		const ended = scoreOfEnded(this.game, this.side);
 		if (ended) return ended;
+		const known = before.lines.find((l) => l.move === uci);
+		if (known) return known.score;
 		return after.lines[0]?.score ?? { cp: 0 };
 	}
 

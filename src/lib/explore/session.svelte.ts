@@ -334,6 +334,7 @@ export class ExploreSession {
 		this.#reset();
 		this.#shown.clear();
 		this.replay = null;
+		this.#ended = false;
 		this.events = [];
 		this.evaluation = null;
 		this.#visit();
@@ -386,7 +387,10 @@ export class ExploreSession {
 		const played = await this.#scoreOfMove(before, uci);
 		if (generation !== this.#generation || (this.phase as ExplorePhase) === 'over') return null;
 		const loss = lossFor(best, played, this.side);
-		const verdict = verdictFor(loss, uci === best.move);
+		// The same as in free play: the engine's first choice was picked without the game's history, so it
+		// cannot vouch for a move that drew by repetition or by the fifty-move rule.
+		const drawn = this.game.status === 'stalemate' || this.game.status === 'draw';
+		const verdict = verdictFor(loss, uci === best.move && !drawn);
 		if (!book) {
 			node.quality = verdict;
 			this.revision++;
@@ -450,10 +454,14 @@ export class ExploreSession {
 		this.revision++;
 	}
 
+	/** Whether the game has finished: a round that ran its length, or a position with no moves left. */
+	#ended = false;
+
 	/** The round is over, so nothing is secret any more: the page spoils what was better. */
 	#endRound() {
 		const moves = this.round?.moves ?? [];
 		const precise = moves.filter((m) => m.precise).length;
+		this.#ended = true;
 		this.phase = 'over';
 		this.message =
 			precise === moves.length
@@ -487,6 +495,9 @@ export class ExploreSession {
 			line = analysis?.lines[0] ? sanLine(fen, analysis.lines[0].pv) : [];
 		}
 		if (!uci) return;
+		// The engine may have taken long enough for the learner to move on. An explanation of a position
+		// they have left is worse than none: it would also block `canExplain` for the mistake they are on.
+		if (this.#mistake !== fen) return;
 		const san = sanOf(fen, uci);
 		this.explanation = { kind: 'refutation', uci, san, line: line.length ? line : [san], stage: 'shown' };
 	}
@@ -555,6 +566,7 @@ export class ExploreSession {
 		this.events = [];
 		this.evaluation = null;
 		this.replay = null;
+		this.#ended = false;
 
 		const walk = (moves: string[]) => {
 			for (const uci of moves) {
@@ -609,9 +621,14 @@ export class ExploreSession {
 		this.game.load(pathTo(node).map((move) => move.uci));
 		this.#reset();
 		this.phase = 'browse';
-		// Stepping forward to where the game had got to hands play back, rather than stranding it.
+		// Stepping forward to where the game had got to hands play back, rather than stranding it — unless
+		// the game is over, in which case there is nothing to hand back and a round would tally a ninth move.
 		if (node === this.#live) {
 			this.#live = null;
+			if (this.#ended) {
+				this.phase = 'over';
+				return;
+			}
 			void this.#continue(generation);
 			return;
 		}
@@ -841,15 +858,18 @@ export class ExploreSession {
 
 	/** The learner's move's evaluation: from the analysis before it, the book, or a fresh search. */
 	async #scoreOfMove(before: Analysis, uci: string): Promise<EngineScore> {
-		const known = before.lines.find((l) => l.move === uci);
-		if (known) {
-			this.evaluation = known.score;
-			return known.score;
-		}
+		// The result first. Stockfish is given a position and not a history, so a move that repeats for the
+		// third time or hits the fifty-move rule still carries the winning score in the analysis taken
+		// before it — and a learner who threw a won game away by repetition was told "Best move".
 		const ended = scoreOfEnded(this.game, this.side);
 		if (ended) {
 			this.evaluation = ended;
 			return ended;
+		}
+		const known = before.lines.find((l) => l.move === uci);
+		if (known) {
+			this.evaluation = known.score;
+			return known.score;
 		}
 		const fen = this.game.fen;
 		const node = this.bundle.nodes[toEpd(fen)];
@@ -1023,6 +1043,7 @@ export class ExploreSession {
 
 	#checkOver(): boolean {
 		if (!this.game.isOver) return false;
+		this.#ended = true;
 		this.phase = 'over';
 		const status = this.game.status;
 		this.message = {

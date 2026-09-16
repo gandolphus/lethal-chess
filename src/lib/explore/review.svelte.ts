@@ -182,12 +182,17 @@ export class ReviewSession {
 		}
 	}
 
+	/**
+	 * Whether a move off this line is nonetheless a good move. Being in the book is not enough on its own:
+	 * a few catalogued lines take a move the coach calls a mistake, and Explore says so ("an established
+	 * move, but a dubious one") where Practice used to call the same move "good too". The evaluation
+	 * decides when there is one; the book is the fallback for a position the bundle has no node for.
+	 */
 	#isSound(fen: string, uci: string): boolean {
 		const epd = toEpd(fen);
-		if (this.#options.book.isBookMove(epd, uci)) return true;
 		const node = this.bundle.nodes[epd];
 		const played = node?.candidates.find((c) => c.uci === uci);
-		if (!node || !played) return false;
+		if (!node || !played) return this.#options.book.isBookMove(epd, uci);
 		const mover = epd.split(' ')[1] as 'w' | 'b';
 		return winChance(node.candidates[0].score, mover) - winChance(played.score, mover) <= SOUND_LOSS;
 	}

@@ -57,7 +57,7 @@ describe('ReviewSession and the dubious book move', () => {
 	 * Practice calls it "good too" and rates the line Hard instead of Again. A mistake is taught as a
 	 * sound alternative.
 	 */
-	it.fails('does not call the dubious line’s losing move "good too"', async () => {
+	it('does not call the dubious line’s losing move "good too"', async () => {
 		const bundle = fixture();
 		const book = new Book(bundle);
 		const spanish = book.lines[0];

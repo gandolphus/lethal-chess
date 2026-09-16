@@ -95,7 +95,7 @@ function session(opts: { engine?: ReturnType<typeof holdableEngine>; roundMoves?
 }
 
 describe('explain()', () => {
-	it.fails('an explanation that arrives after the learner has moved on is dropped', async () => {
+	it('an explanation that arrives after the learner has moved on is dropped', async () => {
 		// 3.a3 is off the book and, per this engine, loses 3 pawns: a blunder, so "Why?" is offered.
 		const afterA3 = epdAfter(...OPENING, 'a2a3');
 		const engine = holdableEngine({ [afterA3]: -300 });
@@ -124,7 +124,7 @@ describe('explain()', () => {
 });
 
 describe('a finished round', () => {
-	it.fails('cannot be played on from the tip', async () => {
+	it('cannot be played on from the tip', async () => {
 		const { s } = session({ roundMoves: 1 });
 		await s.start();
 		expect(s.game.uciHistory).toEqual(OPENING);

@@ -48,8 +48,13 @@ export function parseInfo(line: string, whiteToMove: boolean): { rank: number; l
 	if (pvAt < 0 || scoreAt < 0 || pvAt === tokens.length - 1) return null;
 
 	const value = Number(tokens[scoreAt + 2]);
+	const mate = tokens[scoreAt + 1] === 'mate';
+	// `score mate 0` is a position already checkmated. Its direction cannot survive the sign flip below —
+	// 0 has none — so it would arrive as "level" where it means "decided". Stockfish sends it without a pv
+	// and it is dropped above; this refuses it outright, since a score that lies is worse than no score.
+	if (mate && value === 0) return null;
 	const sign = whiteToMove ? 1 : -1;
-	const score: EngineScore = tokens[scoreAt + 1] === 'mate' ? { mate: sign * value } : { cp: sign * value };
+	const score: EngineScore = mate ? { mate: sign * value } : { cp: sign * value };
 	const multipvAt = tokens.indexOf('multipv');
 	const pv = tokens.slice(pvAt + 1);
 	return {

@@ -332,11 +332,14 @@
 	const celebration = $derived.by<DiscoveryEvent | null>(() => {
 		const latest = explore?.events.findLast((e) => e.kind === 'discovered');
 		if (!latest || !explore) return null;
+		// Not in a round, and for the same reason the card is withheld there: naming the line says the
+		// opponent's last move was theory, and over half of all lines end on the opponent's move. Whether
+		// what they just played is sound is the thing the round asks.
+		if (explore.round) return null;
 		// A take back can put the game before the discovery: then there is nothing to celebrate.
 		const since = explore.game.history.length - latest.ply;
 		return since >= 0 && since <= 2 ? latest : null;
 	});
-	// In a round the line card would say the opponent just played theory, which is the thing to work out.
 	const anticipation = $derived(explore && !explore.inOpening && !explore.round && !celebration ? explore.progress : null);
 
 	/** Destination squares of the moves played since the entrance of the line in progress. */

@@ -3,9 +3,9 @@
 
 import { Chess } from 'chess.js';
 import { describe, expect, it } from 'vitest';
-import type { Analysis, AnalysisLine } from '$lib/chess/engine';
+import { parseInfo, type Analysis, type AnalysisLine } from '$lib/chess/engine';
 import { FreePlay, type AnalysisEngine } from './freeplay.svelte';
-import { winChance } from './judge';
+
 
 const line = (move: string, cp: number): AnalysisLine => ({ move, score: { cp }, pv: [move], depth: 20 });
 
@@ -25,7 +25,7 @@ describe('grading a move that ends the game in a draw', () => {
 	// Nf3 Nf6 Ng1 Ng8 Nf3 Nf6 Ng1: the start position has occurred twice; ...Ng8 makes it three.
 	const SHUFFLE = ['g1f3', 'g8f6', 'f3g1', 'f6g8', 'g1f3', 'g8f6', 'f3g1'];
 
-	it.fails('scores a threefold repetition from the pre-move analysis, so throwing away a win is "best"', async () => {
+	it('scores a threefold repetition from the pre-move analysis, so throwing away a win is "best"', async () => {
 		// Stockfish sees only the FEN, not the history, so the repeating move carries its full winning score.
 		const engine = scriptedEngine({ [epd(...SHUFFLE)]: [line('f6g8', -300), line('e7e5', -250)] });
 		const play = new FreePlay({ engine, startMoves: SHUFFLE, side: 'b', random: () => 0, wait: async () => {} });
@@ -41,7 +41,13 @@ describe('grading a move that ends the game in a draw', () => {
 describe('winChance', () => {
 	// Latent: nothing in the app produces `mate: 0` today (Stockfish sends it without a pv, which
 	// parseInfo skips), but the model reads it as a level position rather than a loss for the side to move.
-	it.fails('treats mate 0 as decided, not level', () => {
-		expect(Math.abs(winChance({ mate: 0 }, 'w'))).toBe(1);
+	it('never builds a mate 0 score, whose direction cannot survive the parser', () => {
+		// The audit's point was that `winChance({ mate: 0 })` reads as level. It cannot be fixed there —
+		// `parseInfo` multiplies by the side to move, and 0 has no sign to multiply — so it is refused at
+		// the boundary instead. Anything else parses as before.
+		expect(parseInfo('info depth 20 score mate 0 pv e2e4', true)).toBeNull();
+		expect(parseInfo('info depth 20 score mate 3 pv e2e4', true)?.line.score).toEqual({ mate: 3 });
+		expect(parseInfo('info depth 20 score mate 3 pv e2e4', false)?.line.score).toEqual({ mate: -3 });
+		expect(parseInfo('info depth 20 score cp 0 pv e2e4', true)?.line.score).toEqual({ cp: 0 });
 	});
 });

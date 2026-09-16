@@ -661,6 +661,45 @@ html {
 	scrollbar-gutter: stable;
 }
 
+/* Scrollbars belong to the app, not to the browser: a hairline in the theme's own text colour, over
+   nothing. Derived from tokens, so all sixteen palettes get one without defining anything. */
+:root {
+	--scroll-thumb: color-mix(in srgb, var(--text-3) 55%, transparent);
+	--scroll-thumb-hover: var(--text-2);
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+/* Safari and older Chromium ignore the two properties above and need the pseudo-elements instead. Where
+   both are understood the standard ones win, so this must not apply there — hence the @supports. */
+@supports not (scrollbar-color: transparent transparent) {
+	::-webkit-scrollbar {
+		width: 11px;
+		height: 11px;
+	}
+
+	::-webkit-scrollbar-track,
+	::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		border: 3px solid transparent;
+		border-radius: 999px;
+		background: var(--scroll-thumb);
+		/* Without this the border paints in the thumb's colour and the hairline becomes a bar. */
+		background-clip: padding-box;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--scroll-thumb-hover);
+		background-clip: padding-box;
+	}
+}
+
 /* A phone has no keyboard, so the shortcut hints are noise there. */
 @media (hover: none) and (pointer: coarse) {
 	kbd {

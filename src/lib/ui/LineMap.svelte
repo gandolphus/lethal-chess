@@ -96,10 +96,23 @@
 			<span><i class="fog"></i>secret</span>
 		</span>
 		<span class="spacer"></span>
-		<div class="segmented" role="group" aria-label="Zoom">
-			<button type="button" aria-pressed={zoom === 'overview'} onclick={() => (chosenZoom = 'overview')}>Overview</button>
-			<button type="button" aria-pressed={zoom === 'detail'} onclick={() => (chosenZoom = 'detail')}>Detail</button>
-		</div>
+		<!-- The glass carries a + or a − for what the click will do, the way every zoom control does, so
+		     neither state has to be read as a word. -->
+		<button
+			type="button"
+			class="btn zoom"
+			onclick={() => (chosenZoom = zoom === 'detail' ? 'overview' : 'detail')}
+			aria-label={zoom === 'detail' ? 'Zoom out to the whole opening' : 'Zoom in to the moves'}
+			title={zoom === 'detail' ? 'Zoom out' : 'Zoom in'}
+		>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<circle cx="10.5" cy="10.5" r="6.75" />
+				<path d="M15.4 15.4 L21 21" />
+				<path d="M7.5 10.5 H13.5" />
+				{#if zoom !== 'detail'}<path d="M10.5 7.5 V13.5" />{/if}
+			</svg>
+			<span>{zoom === 'detail' ? 'Overview' : 'Detail'}</span>
+		</button>
 		{#if onclose}
 			<button type="button" class="btn close" onclick={onclose} bind:this={closeButton}>Close <kbd>Esc</kbd></button>
 		{/if}
@@ -259,6 +272,15 @@
 	svg.map {
 		display: block;
 		font-family: var(--font-ui);
+	}
+
+	.zoom svg {
+		width: 1.05rem;
+		height: 1.05rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.9;
+		stroke-linecap: round;
 	}
 
 	.band-line {

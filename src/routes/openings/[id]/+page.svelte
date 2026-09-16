@@ -65,7 +65,7 @@
 	const APPROACHES: { id: Approach; name: string; blurb: string; action: string; key: string }[] = [
 		{ id: 'explore', name: 'Explore', blurb: 'The lines are secret. Find them by playing good moves.', action: 'Explore', key: 'E' },
 		{ id: 'practice', name: 'Practice', blurb: 'Replay the lines you found, from memory, before they fade.', action: 'Practice', key: 'P' },
-		{ id: 'open', name: 'The Open', blurb: 'Five rated rounds from the defining position, against opponents you scout first.', action: 'Enter', key: '' }
+		{ id: 'open', name: 'The Open', blurb: 'Play the opening against moves you cannot predict, and answer each one precisely.', action: 'Enter', key: '' }
 	];
 
 	const href = (approach: Approach) => (approach === 'open' ? null : `/openings/${bundle.id}/${approach}`);

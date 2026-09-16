@@ -96,7 +96,7 @@
 <main>
 	<header class="hero">
 		<div class="pitch">
-			<h1>Know your openings cold.</h1>
+			<h1 class="pick-text">Know your openings cold.</h1>
 			<p>
 				Pick an opening you want to play. Explore it: the established lines are hidden, and you find them by
 				playing good moves — every move checked against a deep engine evaluation. Then the lines you find come
@@ -147,8 +147,8 @@
 							<a href="/openings/{opening.id}">
 								<span class="diagram"><MiniBoard fen={fenAfter(opening.moves)} orientation={opening.side} /></span>
 								<span class="body">
-									<span class="name">{opening.name}</span>
-									<span class="moves num">{opening.moves}</span>
+									<span class="name pick-text">{opening.name}</span>
+									<span class="moves num pick-text">{opening.moves}</span>
 									<span class="foot">
 										<span class="lethal" title="Lethality: how much precision it demands of your opponent" role="img" aria-label="Lethality {lethality(opening)} of 5">
 											Lethality

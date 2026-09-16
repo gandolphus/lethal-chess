@@ -658,6 +658,45 @@ body {
 	display: flex;
 	flex-direction: column;
 	min-height: 100dvh;
+	/* Dragging across an app selects its buttons and labels, which is never what was meant — and on the
+	   chart it fought panning. Selection is off by default and asked for where the text is worth taking. */
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* Worth taking: names, notation, and prose. `.prose` turns a whole page on; `.pick-text` one thing. */
+.prose,
+.pick-text,
+input,
+textarea,
+[contenteditable] {
+	-webkit-user-select: text;
+	user-select: text;
+}
+
+/* Something copied in one press, for text nobody wants to select by hand. */
+.copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.1rem 0.4rem;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: none;
+	color: var(--text-3);
+	font: inherit;
+	font-size: 0.72rem;
+	cursor: pointer;
+}
+
+.copy:hover {
+	border-color: var(--text-3);
+	color: var(--text-2);
+}
+
+.copy[data-done='true'] {
+	border-color: var(--ok);
+	color: var(--ok);
 }
 
 /* A page that scrolls must not be 15px narrower than one that doesn't. */

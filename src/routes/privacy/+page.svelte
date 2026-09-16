@@ -2,7 +2,7 @@
 	<title>Privacy — Lethal Chess</title>
 </svelte:head>
 
-<main>
+<main class="prose">
 	<h1>Privacy</h1>
 	<p class="lede">What Lethal Chess stores, why, where — and how to take it back. Last updated 15 September 2026.</p>
 

@@ -17,6 +17,7 @@
 	import LineMap from '$lib/ui/LineMap.svelte';
 	import LineShelf from '$lib/ui/LineShelf.svelte';
 	import MoveTree from '$lib/ui/MoveTree.svelte';
+	import Copy from '$lib/ui/Copy.svelte';
 	import Meter from '$lib/ui/Meter.svelte';
 	import EvalBar from '$lib/ui/EvalBar.svelte';
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
@@ -384,6 +385,8 @@
 	});
 
 	const pairs = $derived(movePairs(game?.history ?? []));
+	/** The game so far, in the notation an analysis board will take. */
+	const movesText = $derived(pairs.map((p) => `${p.number}.${p.white}${p.black ? ` ${p.black}` : ''}`).join(' '));
 
 	/**
 	 * Past the established lines the page becomes an analysis board: the evaluation is shown, and the game
@@ -498,9 +501,9 @@
 						<a class="back" href="/openings/{bundle.id}">← Dashboard</a>
 					</p>
 				{/if}
-				<h1>{bundle.name}</h1>
+				<h1 class="pick-text">{bundle.name}</h1>
 				{#if !narrow}
-					<p class="opening num">{openingSan}</p>
+					<p class="opening num pick-text">{openingSan}</p>
 					{#if variationName && variationName !== bundle.name}
 						<p class="variation">{variationName}</p>
 					{/if}
@@ -536,7 +539,7 @@
 							{/if}
 							{#if celebration.lines.some((l) => l.dubious)}<span class="tag">dubious</span>{/if}
 						</p>
-						<p class="name">{celebration.lines[0].name}</p>
+						<p class="name pick-text">{celebration.lines[0].name}</p>
 						{#if celebration.assisted}
 							<p class="sub">Find it without the hint to count it.</p>
 						{:else if celebration.lines.length === 2}
@@ -552,7 +555,7 @@
 				<!-- The round: where it stands, one pip per decision. Nothing about the position, which is the exercise. -->
 				<div class="discovery" data-kind="round" role="status">
 					<p class="kicker">The Open · move {Math.min(tally.played + 1, tally.length)} of {tally.length}</p>
-					<p class="name">{bundle.name}</p>
+					<p class="name pick-text">{bundle.name}</p>
 					{@render roundPips()}
 					<p class="sub">
 						{#if tally.played}{tally.precise} of {tally.played} precise so far.{:else}{tally.length} moves. Each is held to the best.{/if}
@@ -562,7 +565,7 @@
 				{#key anticipation.name}
 					<div class="discovery" data-kind="entered" role="status">
 						<p class="kicker">{anticipation.allKnown ? 'Known line' : 'Line in progress'}</p>
-						<p class="name">{anticipation.name}</p>
+						<p class="name pick-text">{anticipation.name}</p>
 						<span class="pips" aria-hidden="true">
 							{#each { length: Math.min(anticipation.total, 24) } as _, i (i)}
 								<i class:on={i < anticipation.played}></i>
@@ -580,7 +583,7 @@
 			{:else if review && review.phase !== 'done'}
 				<div class="discovery" data-kind="entered" role="status">
 					<p class="kicker">Replaying a line</p>
-					<p class="name">Name hidden until the end</p>
+					<p class="name pick-text">Name hidden until the end</p>
 					<span class="pips" aria-hidden="true">
 						{#each { length: Math.min(review.progress.total, 24) } as _, i (i)}
 							<i class:on={i < review.progress.played}></i>
@@ -590,13 +593,13 @@
 			{:else if explore && !explore.inOpening && !explore.round}
 				<div class="discovery" data-kind="idle" role="status">
 					<p class="kicker">{explore.inBook ? 'In the book' : 'Past the known lines'}</p>
-					<p class="name">{explore.inBook ? (explore.name ?? bundle.name) : 'Free play'}</p>
+					<p class="name pick-text">{explore.inBook ? (explore.name ?? bundle.name) : 'Free play'}</p>
 					<p class="sub">{explore.inBook ? 'Established lines continue from here.' : 'The book ends here. Play on, or start a new game.'}</p>
 				</div>
 			{:else if explore && !explore.round}
 				<div class="discovery" data-kind="idle" role="status">
 					<p class="kicker">The opening</p>
-					<p class="name">{bundle.name}</p>
+					<p class="name pick-text">{bundle.name}</p>
 					<p class="sub num">{openingSan}</p>
 				</div>
 			{/if}
@@ -733,7 +736,7 @@
 	{#if explore}
 		<MoveTree root={explore.root} current={explore.current} revision={explore.revision} onselect={(node) => explore?.goTo(node)} />
 	{:else}
-	<ol class="moves num" aria-label="Moves">
+	<ol class="moves num pick-text" aria-label="Moves">
 		{#each pairs as pair, i (pair.number)}
 			<li>
 				<span class="n">{pair.number}.</span>
@@ -743,6 +746,14 @@
 			</li>
 		{/each}
 	</ol>
+	{/if}
+
+	<!-- A position and a game are worth taking elsewhere, and neither is worth selecting by hand. -->
+	{#if game && movesText}
+		<p class="copies">
+			<Copy value={game.fen} label="Copy position" />
+			<Copy value={movesText} label="Copy moves" />
+		</p>
 	{/if}
 
 
@@ -1019,6 +1030,12 @@
 		margin-left: auto;
 		font-size: 0.78rem;
 		color: var(--text-3);
+	}
+
+	.copies {
+		display: flex;
+		gap: 0.4rem;
+		margin: 0.5rem 0 0;
 	}
 
 	.moves {

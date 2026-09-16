@@ -2,7 +2,7 @@
 	<title>Credits & licences — Lethal Chess</title>
 </svelte:head>
 
-<main>
+<main class="prose">
 	<h1>Credits & licences</h1>
 	<p class="lede">
 		Lethal Chess is free software under the

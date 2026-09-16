@@ -95,8 +95,8 @@
 		<aside class="panel">
 			<header>
 				<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}</p>
-				<h1>{bundle.name}</h1>
-				<p class="opening num">{openingSan}</p>
+				<h1 class="pick-text">{bundle.name}</h1>
+				<p class="opening num pick-text">{openingSan}</p>
 				<p class="facts">{facts}</p>
 			</header>
 

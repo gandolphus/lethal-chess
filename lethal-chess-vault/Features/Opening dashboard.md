@@ -259,6 +259,19 @@ are rarer and come from the lines people actually play.
 Everything else — composure carrying between rounds, one preparation per round, pairing by rating,
 exploration never rated, one rated run per opening per day — holds.
 
+## Deferred: a share button
+
+The owner, 2026-09-16: "Another feature which apps usually have which I suppose we can have is some sort
+of *share* button. The dashboard should probably have this in order for users to be able to share their
+progress. However, since we're still quite early on I think we should wait with this until we have a more
+established setup."
+
+So: **not now.** Noted here so it is not lost. When it comes, the dashboard is the right home for it —
+it is the screen that holds the figures worth sharing — and it wants [[The Open]]'s readiness rating to
+exist first, because "3 of 146 lines found" is a weaker thing to post than a rating and a streak. The
+groundwork that already exists: `Copy` (`src/lib/ui/Copy.svelte`) puts text on the clipboard in one press,
+and the playing screen uses it for a position and a game.
+
 ## What to build, in order
 
 1. **The dashboard shell** — *built, see below.*

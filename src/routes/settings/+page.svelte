@@ -159,7 +159,7 @@
 	</section>
 
 	<p class="note about">
-		<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">Source code</a> · AGPL-3.0 ·
+		<a href="https://github.com/gandolphus/lethal-chess" target="_blank" rel="noopener">Source code</a> · AGPL-3.0 ·
 		<a href="/privacy">Privacy</a> · <a href="/credits">Credits &amp; licences</a>
 	</p>
 

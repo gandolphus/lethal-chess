@@ -93,7 +93,7 @@
 		<!-- The territory: the opening as a map, lit where this learner has been. On a phone it is a sheet. -->
 		{#if !narrow}
 			<section class="territory" aria-label="The lines">
-				<LineMap lines={book.lines} {stages} here={null} opening={openingLength} {openingLabel} title="The lines" onplay={play} />
+				<LineMap side={bundle.side} lines={book.lines} {stages} here={null} opening={openingLength} {openingLabel} title="The lines" onplay={play} />
 			</section>
 		{/if}
 
@@ -171,6 +171,7 @@
 	<button type="button" class="map-scrim" aria-label="Close the map" onclick={() => (map = null)}></button>
 	<div class="map-sheet" role="dialog" aria-modal="true" aria-label="Line map">
 		<LineMap
+			side={bundle.side}
 			lines={book.lines}
 			{stages}
 			here={null}
@@ -385,6 +386,30 @@
 
 	.approach.leads {
 		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	}
+
+	/* The whole card is the target, not just the button on it. The button's own anchor is stretched over
+	   the card rather than a second link being added, so there is still one thing to tab to and one thing
+	   a screen reader announces. */
+	.approach:has(a) {
+		cursor: pointer;
+	}
+
+	.approach a.btn::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 10px;
+	}
+
+	.approach:has(a:hover) {
+		border-color: var(--text-3);
+		background: var(--surface-2);
+	}
+
+	.approach:has(a:focus-visible) {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
 	}
 
 	.approach.soon .words {

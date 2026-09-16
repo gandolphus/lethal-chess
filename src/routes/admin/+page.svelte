@@ -16,7 +16,7 @@
 	<h1>Site stats</h1>
 	<p class="lede">
 		Signed-in learners only. Visitors and where they came from are in
-		<a href="https://dash.cloudflare.com/" rel="noopener">Cloudflare → Web Analytics</a>.
+		<a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare → Web Analytics</a>.
 	</p>
 
 	<section class="tiles">

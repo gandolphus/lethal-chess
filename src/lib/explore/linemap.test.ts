@@ -124,6 +124,19 @@ describe('layout', () => {
 		expect(l.here).toEqual({ x: 180 + 46, y: morphy.y + 16 });
 	});
 
+	it('beads every move, and only names the ones the learner has been down', () => {
+		const found = new Map<string, LineStage>([[book.lines[0].key, 'discovered']]);
+		const l = layout(book.lines, found, options);
+		// One bead per move along the tree, minus the ends, which carry their own larger node.
+		expect(l.moves.length).toBe(l.edges.length - l.nodes.filter((n) => n.kind !== 'branch').length);
+		// The spoiler rule the edge labels follow: a secret move has no line to draw a diagram from.
+		for (const move of l.moves) {
+			if (move.state === 'fog' || move.state === 'ember-dim') expect(move.line).toBeNull();
+			else expect(move.line).not.toBeNull();
+		}
+		expect(l.moves.some((m) => m.state === 'lit' && m.line)).toBe(true);
+	});
+
 	it('fits Overview to the width', () => {
 		const l = layout(book.lines, new Map(), { ...options, zoom: 'overview', width: 600 });
 		expect(l.width).toBe(600);

@@ -645,6 +645,7 @@
 	<button type="button" class="map-scrim" aria-label="Close the map" onclick={() => (map = null)}></button>
 	<div class="map-sheet" role="dialog" aria-modal="true" aria-label="Line map">
 		<LineMap
+			side={bundle.side}
 			lines={book.lines}
 			{stages}
 			{here}

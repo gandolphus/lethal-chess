@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { IndexedLine, LineStage } from '$lib/explore/book';
-	import { layout, sanOf, type Here, type Zoom } from '$lib/explore/linemap';
+	import { layout, sanOf, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
+	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 
 	let {
 		lines,
@@ -11,6 +12,7 @@
 		openingLabel,
 		title,
 		band = null,
+		side = 'w',
 		onclose,
 		onplay
 	}: {
@@ -26,6 +28,8 @@
 		title: string;
 		/** A variation to scroll to when the map opens. */
 		band?: string | null;
+		/** Which way up the tooltip's diagram sits. */
+		side?: 'w' | 'b';
 		onclose?: () => void;
 		/** Picks up a found line: the map hands back the line, the page replays it. */
 		onplay?: (line: IndexedLine) => void;
@@ -33,14 +37,13 @@
 
 	/**
 	 * The chart: the opening as a tree of lines, one band per variation. Discovered lines are lit,
-	 * entered ones warm, everything else fog — structure without names or moves. Two zooms: Overview
-	 * fits the width; Detail writes the moves the learner has played and names the ends they reached.
+	 * entered ones warm, everything else fog — structure without names or moves.
+	 *
+	 * Detail, always: it writes the moves the learner has played and names the ends they reached, and the
+	 * fitted Overview turned out to be the one nobody wanted. `layout` still takes the other, so a caller
+	 * can ask for it and the control can come back, but nothing offers it.
 	 */
-	let chosenZoom = $state<Zoom | null>(null);
-	const zoom = $derived<Zoom>(
-		// Overview is the honest first view: the whole opening in silhouette. Detail is a deliberate step in.
-		chosenZoom ?? initialZoom ?? 'overview'
-	);
+	const zoom = $derived<Zoom>(initialZoom ?? 'detail');
 	let width = $state(0);
 	let scroller = $state<HTMLElement | null>(null);
 	let closeButton = $state<HTMLButtonElement | null>(null);
@@ -63,6 +66,51 @@
 	}
 
 	const asks = $derived(asked ? `${asked.name} — ${sanOf(asked).slice(-1)[0]}` : '');
+
+	/**
+	 * The move under the pointer. Matched by proximity rather than by giving every bead its own element:
+	 * a big opening has a thousand of them, and a linear scan per pointer move costs nothing.
+	 */
+	let hover = $state.raw<{ move: LayoutMove; x: number; y: number } | null>(null);
+	let svg = $state<SVGSVGElement | null>(null);
+	let panel = $state<HTMLElement | null>(null);
+
+	function track(event: PointerEvent) {
+		if (event.pointerType === 'touch' || !svg || !panel) return;
+		const box = svg.getBoundingClientRect();
+		const frame = panel.getBoundingClientRect();
+		const px = ((event.clientX - box.left) / box.width) * chart.width;
+		const py = ((event.clientY - box.top) / box.height) * chart.height;
+		const reach = touch ? 14 : 9;
+		let best: LayoutMove | null = null;
+		let bestDistance = reach;
+		for (const move of chart.moves) {
+			if (!move.line) continue;
+			const distance = Math.hypot(move.x - px, move.y - py);
+			if (distance < bestDistance) {
+				best = move;
+				bestDistance = distance;
+			}
+		}
+		hover = best ? { move: best, x: event.clientX - frame.left, y: event.clientY - frame.top } : null;
+	}
+
+	/** The position the hovered move arrives at, as an EPD — which is a FEN the diagram can read. */
+	const peek = $derived.by(() => {
+		if (!hover?.move.line) return null;
+		const { line, ply } = hover.move;
+		return { epd: line.epds[ply], san: sanOf(line)[ply - 1], ply, name: line.name };
+	});
+
+	/** "12." before a white move, "12…" before a black one. */
+	const moveNumber = (ply: number) => (ply % 2 === 1 ? `${(ply + 1) / 2}.` : `${ply / 2}…`);
+
+	/** Every bead of one state on a single path: a zero-length subpath draws a dot under a round cap. */
+	const beads = (state: string) =>
+		chart.moves
+			.filter((m) => m.state === state)
+			.map((m) => `M${m.x} ${m.y}h0`)
+			.join('');
 
 	// On open: focus the close button, and scroll to the band asked for.
 	$effect(() => {
@@ -87,7 +135,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<section class="linemap" aria-label="Line map" onpointerdown={(e) => (tapped = e.pointerType === 'touch')}>
+<section class="linemap" aria-label="Line map" bind:this={panel} onpointerdown={(e) => (tapped = e.pointerType === 'touch')}>
 	<header class="head">
 		<h2>{title}</h2>
 		<span class="legend" aria-hidden="true">
@@ -96,30 +144,23 @@
 			<span><i class="fog"></i>secret</span>
 		</span>
 		<span class="spacer"></span>
-		<!-- The glass carries a + or a − for what the click will do, the way every zoom control does, so
-		     neither state has to be read as a word. -->
-		<button
-			type="button"
-			class="btn zoom"
-			onclick={() => (chosenZoom = zoom === 'detail' ? 'overview' : 'detail')}
-			aria-label={zoom === 'detail' ? 'Zoom out to the whole opening' : 'Zoom in to the moves'}
-			title={zoom === 'detail' ? 'Zoom out' : 'Zoom in'}
-		>
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<circle cx="10.5" cy="10.5" r="6.75" />
-				<path d="M15.4 15.4 L21 21" />
-				<path d="M7.5 10.5 H13.5" />
-				{#if zoom !== 'detail'}<path d="M10.5 7.5 V13.5" />{/if}
-			</svg>
-			<span>{zoom === 'detail' ? 'Overview' : 'Detail'}</span>
-		</button>
 		{#if onclose}
 			<button type="button" class="btn close" onclick={onclose} bind:this={closeButton}>Close <kbd>Esc</kbd></button>
 		{/if}
 	</header>
 
 	<div class="scroll" bind:this={scroller} bind:clientWidth={width}>
-		<svg class="map" width={chart.width} height={chart.height} viewBox="0 0 {chart.width} {chart.height}" role="img" aria-label="{title}: each variation's lines as a tree, lit where discovered">
+		<svg
+			class="map"
+			bind:this={svg}
+			width={chart.width}
+			height={chart.height}
+			viewBox="0 0 {chart.width} {chart.height}"
+			role="img"
+			aria-label="{title}: each variation's lines as a tree, lit where discovered"
+			onpointermove={track}
+			onpointerleave={() => (hover = null)}
+		>
 			{#each chart.ruler as tick (tick.x)}
 				<text class="ply" x={tick.x} y="16" text-anchor="middle">{tick.label}</text>
 			{/each}
@@ -143,6 +184,18 @@
 					<text class="move {edge.state}" x={edge.label.x} y={edge.label.y} text-anchor="end">{edge.label.text}</text>
 				{/if}
 			{/each}
+
+			<!-- One bead per move, so a line's length can be counted rather than estimated from the ruler. -->
+			<g class="beads" style="--bead: {zoom === 'detail' ? 4 : 2.4}px">
+				{#each ['fog', 'ember-dim', 'ember', 'lit'] as state (state)}
+					{@const d = beads(state)}
+					{#if d}<path class="bead {state}" {d} />{/if}
+				{/each}
+			</g>
+
+			{#if hover}
+				<circle class="bead-hover" cx={hover.move.x} cy={hover.move.y} r={zoom === 'detail' ? 5 : 3.5} />
+			{/if}
 
 			{#each chart.nodes as node}
 				{#if node.line && onplay}
@@ -179,6 +232,17 @@
 		</svg>
 	</div>
 
+	{#if peek && hover}
+		<!-- A diagram beats a move name: you see at once which position the branch under the pointer is. -->
+		<div class="peek" style="--x: {hover.x}px; --y: {hover.y}px" aria-hidden="true">
+			<span class="peek-board"><MiniBoard fen={peek.epd} orientation={side} /></span>
+			<span class="peek-text">
+				<b class="num">{moveNumber(peek.ply)}{peek.san}</b>
+				<span>{peek.name}</span>
+			</span>
+		</div>
+	{/if}
+
 	{#if asked}
 		<div class="ask" role="dialog" aria-label="Play from this line">
 			<p>Play from <strong>{asks}</strong>?</p>
@@ -192,6 +256,7 @@
 
 <style>
 	.linemap {
+		position: relative;
 		--lit: var(--ok);
 		--ember: var(--accent);
 		--fog: color-mix(in srgb, var(--text-3) 60%, transparent);
@@ -232,13 +297,14 @@
 		color: var(--text-2);
 	}
 
+	/* The swatches are the nodes they name: a filled dot, a hollow ring, a dotted trail. */
 	.legend i {
 		display: inline-block;
-		width: 0.8rem;
-		height: 3px;
-		margin-right: 0.35rem;
-		vertical-align: middle;
-		border-radius: 2px;
+		width: 9px;
+		height: 9px;
+		margin-right: 0.4rem;
+		vertical-align: -1px;
+		border-radius: 50%;
 	}
 
 	.legend .lit {
@@ -246,10 +312,14 @@
 	}
 
 	.legend .ember {
-		background: var(--ember);
+		border: 1.6px solid var(--ember);
 	}
 
 	.legend .fog {
+		width: 0.8rem;
+		height: 3px;
+		vertical-align: middle;
+		border-radius: 2px;
 		background: repeating-linear-gradient(90deg, var(--fog) 0 2px, transparent 2px 4px);
 	}
 
@@ -274,13 +344,73 @@
 		font-family: var(--font-ui);
 	}
 
-	.zoom svg {
-		width: 1.05rem;
-		height: 1.05rem;
+	/* Zero-length subpaths under a round cap: one path draws every bead of a state. */
+	.beads path {
 		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.9;
 		stroke-linecap: round;
+		stroke-width: var(--bead);
+	}
+
+	.bead.lit {
+		stroke: var(--lit);
+	}
+
+	.bead.ember {
+		stroke: var(--ember);
+	}
+
+	.bead.ember-dim {
+		stroke: var(--ember);
+		opacity: 0.45;
+	}
+
+	.bead.fog {
+		stroke: var(--fog);
+	}
+
+	.bead-hover {
+		fill: none;
+		stroke: var(--text);
+		stroke-width: 1.4;
+		pointer-events: none;
+	}
+
+	.peek {
+		position: absolute;
+		z-index: 3;
+		/* Above and right of the pointer, and never off the left edge of the panel. */
+		left: max(0.5rem, calc(var(--x) + 14px));
+		top: calc(var(--y) - 0.75rem);
+		transform: translateY(-100%);
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.5rem;
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		background: var(--surface-1);
+		box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.55);
+		pointer-events: none;
+	}
+
+	.peek-board {
+		display: block;
+		width: 104px;
+		flex: none;
+	}
+
+	.peek-text {
+		display: grid;
+		gap: 0.15rem;
+		max-width: 11rem;
+		font-size: 0.78rem;
+		line-height: 1.3;
+		color: var(--text-2);
+	}
+
+	.peek-text b {
+		font-size: 0.95rem;
+		color: var(--text);
 	}
 
 	.band-line {

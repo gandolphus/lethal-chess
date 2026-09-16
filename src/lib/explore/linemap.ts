@@ -178,6 +178,14 @@ export type LayoutBand = {
 
 export type LayoutEdge = { d: string; state: EdgeState; label: { x: number; y: number; text: string } | null };
 
+/**
+ * One move along a line, where its edge lands. Drawn as a bead so a line's length can be counted at a
+ * glance, and the point a pointer hovering the map is matched against. `line` is a line through this move
+ * the learner has been down, or null where the move is still secret — the same rule the edge labels
+ * follow, because a tooltip that named a secret move would hand the theory over.
+ */
+export type LayoutMove = { x: number; y: number; ply: number; state: EdgeState; line: IndexedLine | null };
+
 export type LayoutNode = {
 	x: number;
 	y: number;
@@ -194,6 +202,7 @@ export type Layout = {
 	ruler: { x: number; label: string }[];
 	bands: LayoutBand[];
 	edges: LayoutEdge[];
+	moves: LayoutMove[];
 	nodes: LayoutNode[];
 	here: { x: number; y: number } | null;
 };
@@ -227,7 +236,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 		ruler.push({ x: x(ply), label: ply === opening ? (options.openingLabel ?? plyLabel(ply)) : plyLabel(ply) });
 	}
 
-	const out: Layout = { width, height: 0, ruler, bands: [], edges: [], nodes: [], here: null };
+	const out: Layout = { width, height: 0, ruler, bands: [], edges: [], moves: [], nodes: [], here: null };
 	let y = TOP;
 
 	for (const band of bands) {
@@ -262,6 +271,14 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 					if (shown) label = { x: x2 - 3, y: node.y - 5, text: sanOf(shown)[node.ply - 1] };
 				}
 				out.edges.push({ d, state, label });
+				// A bead where the move lands. Ends carry their own, larger node, so they are left alone.
+				if (!node.ends.length) {
+					const known =
+						state === 'lit' || state === 'ember'
+							? (node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here)) ?? null)
+							: null;
+					out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known });
+				}
 			}
 			for (const child of node.children) draw(child, node);
 			if (node.ends.length) {
@@ -312,5 +329,8 @@ export const elementCount = (l: Layout) =>
 	l.ruler.length +
 	l.bands.length * 3 +
 	l.edges.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
+	// Every move bead of one state rides on a single path of zero-length subpaths with round caps, so the
+	// beads cost four elements however many moves there are.
+	(l.moves.length ? 4 : 0) +
 	l.nodes.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
 	(l.here ? 2 : 0);

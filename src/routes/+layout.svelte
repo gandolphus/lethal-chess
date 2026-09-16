@@ -138,7 +138,7 @@
 {@render children?.()}
 
 <footer class="site-footer">
-	<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">Source code</a>
+	<a href="https://github.com/gandolphus/lethal-chess" target="_blank" rel="noopener">Source code</a>
 	<span aria-hidden="true">·</span>
 	<span>AGPL-3.0</span>
 	<span aria-hidden="true">·</span>

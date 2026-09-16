@@ -87,7 +87,7 @@
 			You can access, correct, download or delete your data, object to processing, or ask us to restrict it. Two of these are
 			one click in <a href="/settings">Settings</a>: <strong>Download my data</strong> and <strong>Delete my account</strong>. For
 			anything else, email <a href="mailto:privacy@lethalchess.com">privacy@lethalchess.com</a>. You may also complain to your
-			data protection authority — in Sweden, <a href="https://www.imy.se/" rel="noopener">IMY</a>.
+			data protection authority — in Sweden, <a href="https://www.imy.se/" target="_blank" rel="noopener">IMY</a>.
 		</p>
 	</section>
 
@@ -95,7 +95,7 @@
 		<h2>Open source</h2>
 		<p>
 			Everything described here can be checked in the source code:
-			<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">github.com/gandolphus/lethal-chess</a> (AGPL-3.0).
+			<a href="https://github.com/gandolphus/lethal-chess" target="_blank" rel="noopener">github.com/gandolphus/lethal-chess</a> (AGPL-3.0).
 		</p>
 	</section>
 </main>

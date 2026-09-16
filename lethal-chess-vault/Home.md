@@ -42,6 +42,9 @@ only; rating-based strategy is at the bottom of the backlog.
 - [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
   natural computer replies, planted mistakes to punish.
 - [[Exploration Mode]] — **built, replaces Learn**. Given opening moves, then secret lines: entered → discovered, dubious lines apart, try again / play on.
+- [[Your games]] — **agreed direction, not built**. Read the learner's real games (chess.com needs only a
+  username), show their real repertoire and where they leave book, then drill it.
+- [[Monetization]] — **open**. Free scan, paid loop; coaches as the sharpest wedge.
 - [[Off-book Practice]] — **designed, first after launch**. Drill punishing the unusual moves opponents
   actually play, not only the book. The blind spot most drilling tools share.
 - [[Play vs Computer]] — **done (MVP), audited + fixed**. Board + Stockfish opponent. Local builds only.

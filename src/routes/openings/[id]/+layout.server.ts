@@ -2,9 +2,10 @@ import { error } from '@sveltejs/kit';
 import type { Bundle } from '$lib/drill/bundle';
 import { loadOpeningIndex } from '$lib/drill/openings';
 import { fetchStatic } from '$lib/server/assets';
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 
-export const load: PageServerLoad = async (event) => {
+// The dashboard and the playing screens under it share one load: moving between them keeps the bundle.
+export const load: LayoutServerLoad = async (event) => {
 	const opening = (await loadOpeningIndex((path) => fetchStatic(event, path))).find((o) => o.id === event.params.id);
 	if (!opening) error(404, 'Unknown opening');
 	const response = await fetchStatic(event, `/openings/repertoires/${event.params.id}.json`);

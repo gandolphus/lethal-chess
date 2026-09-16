@@ -5,7 +5,9 @@ aliases: [Exploration Mode, Line Discovery, Explore]
 
 # Exploration Mode
 
-**Status: built 2026-09-15; replaces Learn.** Modes on the opening page are now **Explore · Practice**.
+**Status: built 2026-09-15; replaces Learn.** Modes on the playing screen are **Explore · Practice**, at
+`/openings/[id]/explore` and `/openings/[id]/practice`; since 2026-09-16 an opening is entered through the
+[[Opening dashboard]] at `/openings/[id]`, which promotes one of them and holds the slot for [[The Open]].
 Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See [[System Map]].
 
 > "Instead of expecting the user to follow fixed lines we could design the app around exploration. All

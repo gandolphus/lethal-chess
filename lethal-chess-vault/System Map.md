@@ -38,7 +38,8 @@ src/
     explore/                  book.ts (established lines by position, discovery summary),
                               session.svelte.ts (ExploreSession), mastery.ts (FSRS per line from the review log),
                               review.svelte.ts (ReviewSession: Practice), linemap.ts (the map's layout:
-                              bands, trie, edge states) — see [[Exploration Mode]]
+                              bands, trie, edge states), dashboard.ts (standing, the lead approach, card
+                              status lines) — see [[Exploration Mode]], [[Opening dashboard]]
     drill/                    bundle.ts (bundle format, shared with the pipeline), session.svelte.ts
                               (Practice walks), grade.ts, tree.ts, scheduler.ts (FSRS),
                               progress.ts / synced-store.ts / server-store.ts / account.svelte.ts (progress storage)
@@ -49,7 +50,8 @@ src/
                               LineMap (the fog-of-war chart), position helpers
   routes/
     +page.svelte              Opening picker
-    openings/[id]/            Explore / Practice page
+    openings/[id]/            +layout.server.ts loads the bundle once; +page.svelte is the [[Opening dashboard]];
+                              [mode=session]/ is the playing screen (explore | practice, matcher in src/params/)
     play/                     Play vs computer
     settings/, privacy/, credits/, admin/ (owner only)
     auth/google/…, api/progress, api/attempts, api/cards, api/account/{export,delete}
@@ -72,7 +74,9 @@ bundle per opening. A bundle holds:
   dubious flag;
 - engine candidates for every position involved.
 
-**In the browser.** The opening page loads its bundle.
+**In the browser.** An opening's layout loads its bundle once; the dashboard reads the learner's discoveries
+and reviews to show where they stand and which approach to lead with, and the playing screen under it runs
+the session.
 - **[[Exploration Mode]]** (`ExploreSession`) grades moves from the bundle while in book, answers with
   book replies steered toward undiscovered lines, and falls back to Stockfish past the book. It reports
   lines entered and discovered.

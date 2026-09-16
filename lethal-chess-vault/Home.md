@@ -42,6 +42,10 @@ only; rating-based strategy is at the bottom of the backlog.
 - [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
   natural computer replies, planted mistakes to punish.
 - [[Exploration Mode]] — **built, replaces Learn**. Given opening moves, then secret lines: entered → discovered, dubious lines apart, try again / play on.
+- [[Opening dashboard]] — **designed, shell built**. `/openings/[id]` is where you choose how to approach an
+  opening (Explore · Practice · The Open) and see where you stand: the map, found, readiness.
+- [[The Open]] — **designed, not built**. Five rated rounds against scouted opponents; readiness rating per
+  opening. Subsumes the "human moves" ask; the opponent's design is in [[Opening dashboard]].
 - [[Your games]] — **agreed direction, not built**. Read the learner's real games (chess.com needs only a
   username), show their real repertoire and where they leave book, then drill it.
 - [[Monetization]] — **open**. Free scan, paid loop; coaches as the sharpest wedge.

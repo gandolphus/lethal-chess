@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import type { SessionMode } from '../../../../params/session';
 	import Board from '$lib/components/Board.svelte';
 	import { Engine, ignoreDestroyed } from '$lib/chess/engine';
 	import { Game, parseUci } from '$lib/chess/game.svelte';
@@ -19,11 +22,18 @@
 	import { movePairs, SHARPNESS_WORDS, sharpnessLevel } from '$lib/ui/position';
 	import type { PageProps } from './$types';
 
-	type PageMode = 'explore' | 'practice';
-
 	let { data }: PageProps = $props();
 	const bundle = $derived(data.bundle);
 	const book = $derived(new Book(bundle));
+
+	// The mode is the URL: /openings/[id]/explore or /practice. Switching is a param change on this same
+	// screen, so the bundle and the engine stay; it replaces the history entry, so Back returns to the
+	// dashboard rather than walking through every switch.
+	const mode = $derived(page.params.mode as SessionMode);
+	function switchTo(next: SessionMode) {
+		if (next === mode) return void restart();
+		void goto(`/openings/${bundle.id}/${next}`, { replaceState: true, noScroll: true });
+	}
 
 	// The start position, rendered on the server and until a session starts, so the board never flashes empty.
 	const rootFen = new Game().fen;
@@ -34,7 +44,6 @@
 		return preview.history.map((san, i) => (i % 2 === 0 ? `${i / 2 + 1}.${san}` : san)).join(' ');
 	});
 
-	let mode = $state<PageMode>('explore');
 	let explore = $state<ExploreSession | null>(null);
 	let review = $state<ReviewSession | null>(null);
 	/** Practice found nothing due: how many lines could be replayed anyway. */
@@ -104,7 +113,6 @@
 		freeplay = null;
 		review = null;
 		caughtUp = null;
-		mode = 'explore';
 		const s = activeStore();
 		const discoveries = await s.loadDiscoveries(bundle.id);
 		const next = new ExploreSession({
@@ -127,7 +135,6 @@
 		freeplay = null;
 		explore = null;
 		review = null;
-		mode = 'practice';
 		const s = activeStore();
 		const [discoveries, reviews] = await Promise.all([s.loadDiscoveries(bundle.id), s.loadReviews(bundle.id)]);
 		// Oldest discovery first, so lines come back in the order they were found.
@@ -164,13 +171,27 @@
 		sync();
 		phone.addEventListener('change', sync);
 		onDestroy(() => phone.removeEventListener('change', sync));
-		void startExplore();
 		void refreshStats();
 		return () => {
 			stopSessions();
 			engine?.destroy();
 		};
 	});
+
+	// A session starts for the mode in the URL, and again whenever the URL's mode changes. The dashboard's
+	// map sends a found line along as ?line=<key>: Explore then picks up from that line's end.
+	$effect(() => {
+		const next = mode;
+		const key = page.url.searchParams.get('line');
+		untrack(() => void begin(next, key));
+	});
+
+	async function begin(next: SessionMode, lineKey: string | null) {
+		if (next === 'practice') return startPractice();
+		await startExplore();
+		const line = lineKey ? book.lines.find((l) => l.key === lineKey) : undefined;
+		if (line && explore) await explore.resume(line);
+	}
 
 	const game = $derived(freeplay?.game ?? explore?.game ?? review?.game ?? null);
 	const node = $derived(game ? bundle.nodes[toEpd(game.fen)] : undefined);
@@ -376,14 +397,14 @@
 		else if (event.key === 'ArrowRight' && explore) void explore.forward();
 		else if (event.key === 'Enter' && explore?.phase === 'browse') void explore.playFromHere();
 		else if (event.key === 'k' && review?.phase === 'done' && !freeplay) void keepPlaying();
-		else if (event.key === 'e' && mode !== 'explore') void startExplore();
-		else if (event.key === 'p' && mode !== 'practice') void startPractice();
+		else if (event.key === 'e' && mode !== 'explore') switchTo('explore');
+		else if (event.key === 'p' && mode !== 'practice') switchTo('practice');
 		else if (event.key === 'm' && mode === 'explore' && summary) map = map ? null : { band: null };
 	}
 </script>
 
 <svelte:head>
-	<title>{bundle.name} — Lethal Chess</title>
+	<title>{bundle.name} · {mode === 'practice' ? 'Practice' : 'Explore'} — Lethal Chess</title>
 </svelte:head>
 
 <svelte:window onkeydown={onKey} />
@@ -449,7 +470,10 @@
 		<aside class="panel">
 			<header class="track" class:hidden={narrow}>
 				{#if !narrow}
-					<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}</p>
+					<p class="side">
+						<i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}
+						<a class="back" href="/openings/{bundle.id}">← Dashboard</a>
+					</p>
 				{/if}
 				<h1>{bundle.name}</h1>
 				{#if !narrow}
@@ -462,8 +486,8 @@
 
 			<div class="modes">
 				<div class="segmented" role="tablist" aria-label="Mode">
-					<button type="button" role="tab" aria-selected={mode === 'explore'} onclick={() => startExplore()}>Explore</button>
-					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => startPractice()}>Practice</button>
+					<button type="button" role="tab" aria-selected={mode === 'explore'} onclick={() => switchTo('explore')}>Explore</button>
+					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => switchTo('practice')}>Practice</button>
 				</div>
 				<p class="mode-hint">
 					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
@@ -574,7 +598,7 @@
 						{#if caughtUp.lines}
 							<button type="button" class="btn" onclick={() => startPractice(true)}>Replay a line anyway</button>
 						{/if}
-						<button type="button" class="btn primary" onclick={() => startExplore()}>Explore <kbd>E</kbd></button>
+						<button type="button" class="btn primary" onclick={() => switchTo('explore')}>Explore <kbd>E</kbd></button>
 					</div>
 				{:else if review}
 					<div class="actions">
@@ -608,6 +632,8 @@
 	<div class="map-sheet reference" role="dialog" aria-modal="true" aria-label="Moves and progress">
 		<header class="sheet-head">
 			<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'} · <span class="num">{openingSan}</span></p>
+			<!-- The phone's way back: the mode row has no room for another button, and an installed app has no Back. -->
+			<a class="btn small" href="/openings/{bundle.id}">← Dashboard</a>
 			<button type="button" class="btn small" onclick={() => (sheet = false)}>Close</button>
 		</header>
 		{@render referenceBlocks()}
@@ -1256,6 +1282,18 @@
 		margin-left: auto;
 	}
 
+	.back {
+		margin-left: auto;
+		font-size: 0.8rem;
+		color: var(--text-3);
+		text-decoration: none;
+	}
+
+	.back:hover,
+	.back:focus-visible {
+		color: var(--accent);
+	}
+
 	.track.hidden {
 		display: none;
 	}
@@ -1275,11 +1313,19 @@
 
 	.sheet-head {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
+		gap: 0.5rem 0.6rem;
 		font-size: 0.85rem;
 		color: var(--text-2);
+	}
+
+	.sheet-head .side {
+		flex: 1 1 100%;
+	}
+
+	.sheet-head .btn:last-child {
+		margin-left: auto;
 	}
 
 	@media (max-width: 860px) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Piece from '$lib/components/Piece.svelte';
 	import ThemeSwatch from '$lib/theme/ThemeSwatch.svelte';
-	import { appearance, AVAILABLE_PIECE_SETS, THEMES } from '$lib/theme/settings.svelte';
+	import { appearance, AVAILABLE_PIECE_SETS, FONTS, THEMES } from '$lib/theme/settings.svelte';
 
 	const group = <T extends { collection: string }>(items: T[]) =>
 		[...new Set(items.map((i) => i.collection))].map((collection) => ({
@@ -95,6 +95,32 @@
 	</section>
 
 	<section>
+		<h2>Typeface</h2>
+		<p class="collection">Chosen apart from the theme</p>
+		<div class="options">
+			{#each FONTS as font (font.id)}
+				<button
+					type="button"
+					class="font-option"
+					class:active={appearance.font === font.id}
+					aria-pressed={appearance.font === font.id}
+					onclick={() => appearance.set({ font: font.id })}
+				>
+					<span
+						class="type-sample"
+						data-font={font.id === 'theme' ? undefined : font.id}
+						data-theme={font.id === 'theme' ? appearance.theme : undefined}
+					>
+						<b>Ruy Lopez</b>
+						<i>Closed, Breyer Defense · 1.e4 e5 2.Nf3</i>
+					</span>
+					<span class="label"><span>{font.name}</span><small>{font.note}</small></span>
+				</button>
+			{/each}
+		</div>
+	</section>
+
+	<section>
 		<h2>Pieces</h2>
 		{#each group(AVAILABLE_PIECE_SETS) as { collection, items } (collection)}
 			<p class="collection">{collection}</p>
@@ -123,7 +149,7 @@
 		{/each}
 	</section>
 
-	<p class="note">Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne</code> on any page.</p>
+	<p class="note">Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page.</p>
 </main>
 
 <style>
@@ -189,6 +215,47 @@
 	button.active {
 		border-color: var(--accent);
 		box-shadow: 0 0 0 1px var(--accent);
+	}
+
+	/* A sample in the pairing itself; fixed height, so choosing one never moves the page. */
+	/* The note sits under the name here: these labels are sentences, not a word and a tag. */
+	.font-option .label {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.1rem;
+	}
+
+	.font-option small {
+		text-align: left;
+	}
+
+	.type-sample {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.15rem;
+		height: 5.4rem;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: var(--surface-1);
+		overflow: hidden;
+	}
+
+	.type-sample b {
+		font-family: var(--font-display);
+		font-size: 1.35rem;
+		font-weight: 400;
+		line-height: 1.5rem;
+		color: var(--text);
+	}
+
+	.type-sample i {
+		font-family: var(--font-ui);
+		font-size: 0.75rem;
+		font-style: normal;
+		line-height: 1.1rem;
+		color: var(--text-2);
 	}
 
 	.label {

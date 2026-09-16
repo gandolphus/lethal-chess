@@ -554,6 +554,45 @@ kbd {
 	color: var(--text-2);
 }
 
+/* ── Typefaces, chosen apart from the theme ──────────────────────────────────────────────────────
+   These come after every [data-theme] block on purpose: same specificity, so the later rule wins and a
+   chosen pairing overrides the theme's own. "Match the theme" sets no attribute at all. */
+[data-font='editorial'] {
+	--font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+	--font-num: var(--font-ui);
+}
+
+[data-font='grotesque'] {
+	--font-ui: 'Figtree', system-ui, sans-serif;
+	--font-display: 'Fraunces', Georgia, serif;
+	--font-num: var(--font-ui);
+}
+
+[data-font='technical'] {
+	--font-ui: 'Geist', system-ui, sans-serif;
+	--font-display: 'Geist', system-ui, sans-serif;
+	--font-num: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+[data-font='geometric'] {
+	--font-ui: 'Jost', system-ui, sans-serif;
+	--font-display: 'Jost', system-ui, sans-serif;
+	--font-num: var(--font-ui);
+}
+
+[data-font='fabulous'] {
+	--font-ui: 'Jost', system-ui, sans-serif;
+	--font-display: 'Fraunces', Georgia, serif;
+	--font-num: var(--font-ui);
+}
+
+[data-font='system'] {
+	--font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: Georgia, 'Times New Roman', serif;
+	--font-num: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
 /* A discovered line flying from the board into the line counter (created by the opening page). */
 .mote {
 	position: fixed;

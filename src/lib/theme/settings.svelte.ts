@@ -1,4 +1,4 @@
-// Appearance settings: which theme and which piece set. Stored per browser
+// Appearance settings: which theme, which piece set and which typeface. Stored per browser
 // (a viewer convenience); nothing about progress lives here.
 
 /** Structural board treatment a theme asks for; the board reads only this and tokens. */
@@ -57,37 +57,61 @@ export const PIECE_SETS: PieceSetOption[] = [
 	{ id: 'glyph', name: 'Glyph', collection: 'Base', publicSafe: true }
 ];
 
+export type FontOption = {
+	id: string;
+	name: string;
+	/** What the pairing is for, in a few words. */
+	note: string;
+};
+
+/**
+ * Typefaces, chosen apart from the theme. Each theme still carries a default pairing; "Match the theme"
+ * uses it. The families themselves live in `app.css` under `[data-font]`, after the theme blocks so they win.
+ */
+export const FONTS: FontOption[] = [
+	{ id: 'theme', name: 'Match the theme', note: "Each theme's own pairing" },
+	{ id: 'editorial', name: 'Editorial', note: 'Instrument Sans with Instrument Serif' },
+	{ id: 'grotesque', name: 'Grotesque', note: 'Figtree with Fraunces' },
+	{ id: 'technical', name: 'Technical', note: 'Geist, with Geist Mono for numbers' },
+	{ id: 'geometric', name: 'Geometric', note: 'Jost throughout' },
+	{ id: 'fabulous', name: 'Fabulous', note: 'Jost with Fraunces' },
+	{ id: 'system', name: 'System', note: "Your device's own fonts — nothing to download" }
+];
+
 /** Sets offered in this build; licensing-restricted sets are filtered out of public builds. */
 export const AVAILABLE_PIECE_SETS = PIECE_SETS.filter((set) => set.publicSafe || import.meta.env.DEV);
 
 const KEY = 'lethal:appearance';
 
-type Stored = { theme: string; pieceSet: string };
+type Stored = { theme: string; pieceSet: string; font: string };
 
 const validTheme = (id: unknown) => (THEMES.some((t) => t.id === id) ? (id as string) : null);
 const validSet = (id: unknown) => (AVAILABLE_PIECE_SETS.some((p) => p.id === id) ? (id as string) : null);
+const validFont = (id: unknown) => (FONTS.some((f) => f.id === id) ? (id as string) : null);
 
 function load(): Stored {
-	const fallback = { theme: THEMES[0].id, pieceSet: PIECE_SETS[0].id };
+	const fallback = { theme: THEMES[0].id, pieceSet: PIECE_SETS[0].id, font: FONTS[0].id };
 	try {
 		const raw = globalThis.localStorage?.getItem(KEY);
 		const parsed = raw ? (JSON.parse(raw) as Partial<Stored>) : {};
 		return {
 			theme: validTheme(parsed.theme) ?? fallback.theme,
-			pieceSet: validSet(parsed.pieceSet) ?? fallback.pieceSet
+			pieceSet: validSet(parsed.pieceSet) ?? fallback.pieceSet,
+			font: validFont(parsed.font) ?? fallback.font
 		};
 	} catch {
 		return fallback;
 	}
 }
 
-/** `?theme=…&pieces=…` previews a look for design review without touching the stored choice. */
+/** `?theme=…&pieces=…&font=…` previews a look for design review without touching the stored choice. */
 function urlOverride(): Partial<Stored> {
 	try {
 		const params = new URLSearchParams(globalThis.location?.search ?? '');
 		return {
 			theme: validTheme(params.get('theme')) ?? undefined,
-			pieceSet: validSet(params.get('pieces')) ?? undefined
+			pieceSet: validSet(params.get('pieces')) ?? undefined,
+			font: validFont(params.get('font')) ?? undefined
 		};
 	} catch {
 		return {};
@@ -99,12 +123,14 @@ class Appearance {
 	#override = urlOverride();
 	theme = $state(this.#override.theme ?? this.#stored.theme);
 	pieceSet = $state(this.#override.pieceSet ?? this.#stored.pieceSet);
+	font = $state(this.#override.font ?? this.#stored.font);
 
 	readonly themeOption = $derived(THEMES.find((t) => t.id === this.theme) ?? THEMES[0]);
 
 	set(update: Partial<Stored>) {
 		if (update.theme) this.theme = this.#stored.theme = update.theme;
 		if (update.pieceSet) this.pieceSet = this.#stored.pieceSet = update.pieceSet;
+		if (update.font) this.font = this.#stored.font = update.font;
 		try {
 			globalThis.localStorage?.setItem(KEY, JSON.stringify(this.#stored));
 		} catch {

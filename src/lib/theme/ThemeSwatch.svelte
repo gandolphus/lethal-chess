@@ -26,7 +26,6 @@
 			</span>
 		{/each}
 	</span>
-	<span class="type" aria-hidden="true"><b>Aa</b><i>Ruy Lopez</i></span>
 </span>
 
 <style>
@@ -92,33 +91,6 @@
 
 	.sq.light.dot::after {
 		background: var(--dot);
-	}
-
-	/* The theme's own typefaces, in a box of fixed height so the swatch never changes size. */
-	.type {
-		display: flex;
-		align-items: baseline;
-		gap: 0.4rem;
-		height: 1.3rem;
-		margin-top: 0.4rem;
-		overflow: hidden;
-		color: var(--text-2);
-	}
-
-	.type b {
-		font-family: var(--font-display);
-		font-size: 1rem;
-		font-weight: 400;
-		line-height: 1.3rem;
-		color: var(--text);
-	}
-
-	.type i {
-		font-family: var(--font-ui);
-		font-size: 0.72rem;
-		font-style: normal;
-		line-height: 1.3rem;
-		white-space: nowrap;
 	}
 
 	.pc {

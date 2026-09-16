@@ -202,47 +202,40 @@ describe('ExploreSession', () => {
 		expect(s.phase).toBe('your-move');
 	});
 
-	it('stops on a mistake off the book: try again takes it back, play on lets the computer answer', async () => {
+	it('plays on after an ordinary mistake, keeping the move and answering it', async () => {
 		const engine = fakeEngine({ [epdAfter(...OPENING, 'f2f3')]: [{ move: 'd8h4', score: { cp: -250 }, pv: [], depth: 20 }] });
-		const { s, discoveries } = await started({ engine });
-		await s.submit('f2', 'f3');
-		expect(s.phase).toBe('decide');
-		expect(s.message?.tone).toBe('bad');
-		// Played at once (the test clock never moves), so the refutation is asked for straight away.
-		expect(s.message?.text).toContain('played quickly');
-		expect(s.explanation?.stage).toBe('find');
-
-		s.tryAgain();
-		expect(s.phase).toBe('your-move');
-		expect(s.game.history).toEqual(['e4', 'e5']);
-
-		await s.submit('f2', 'f3');
-		await s.playOn();
-		expect(s.game.history).toEqual(['e4', 'e5', 'f3', 'Qh4+']);
-		expect(discoveries).toEqual([]);
-	});
-
-	it('explains a mistake on request with the punishing reply, and clears it on try again', async () => {
-		const engine = fakeEngine({
-			[epdAfter(...OPENING, 'f2f3')]: [{ move: 'd8h4', score: { cp: -250 }, pv: ['d8h4', 'g2g3'], depth: 20 }]
-		});
 		const { s } = await started({ engine });
 		await s.submit('f2', 'f3');
-		expect(s.phase).toBe('decide');
+		expect(s.phase).toBe('your-move');
+		expect(s.game.history).toEqual(['e4', 'e5', 'f3', 'Qh4+']);
+		expect(s.message?.tone).toBe('bad');
+		expect(s.canTakeBack).toBe(true);
+	});
+
+	it('rewinds a missed punishment once and names it, then plays on', async () => {
+		const engine = fakeEngine({ [epdAfter(...OPENING, 'f2f3')]: [{ move: 'd8h4', score: { cp: -250 }, pv: [], depth: 20 }] });
+		const { s } = await started({ engine });
+		s.opportunity = { san: 'g4' };
+		await s.submit('f2', 'f3');
+		// The move comes back rather than the game stopping, and the chance is named.
+		expect(s.phase).toBe('your-move');
+		expect(s.game.history).toEqual(['e4', 'e5']);
+		expect(s.message?.text).toContain('punish g4');
+
+		// A second miss plays on: it is a game, not an exam.
+		s.opportunity = { san: 'g4' };
+		await s.submit('f2', 'f3');
+		expect(s.game.history).toEqual(['e4', 'e5', 'f3', 'Qh4+']);
+	});
+
+	it('explains what a mistake allowed, after play has moved past it', async () => {
+		const engine = fakeEngine({ [epdAfter(...OPENING, 'f2f3')]: [{ move: 'd8h4', score: { cp: -250 }, pv: ['d8h4', 'g2g3'], depth: 20 }] });
+		const { s } = await started({ engine });
+		await s.submit('f2', 'f3');
+		expect(s.canExplain).toBe(true);
 		await s.explain();
-		// First a question: find Black's reply. No arrow yet.
-		expect(s.explanation).toMatchObject({ kind: 'refutation', uci: 'd8h4', san: 'Qh4+', line: ['Qh4+', 'g3'], stage: 'find' });
-		expect(s.arrows).toEqual([]);
-		expect(await s.answerWhy('b8', 'c6')).toBe(false);
-		expect(s.explanation?.stage).toBe('retry');
-		expect(await s.answerWhy('d8', 'h4')).toBe(true);
-		expect(s.explanation?.stage).toBe('shown');
-		// The line played out and was taken back: the learner's mistake is on the board again.
-		expect(s.game.history).toEqual(['e4', 'e5', 'f3']);
-		expect(s.arrows).toEqual([{ from: 'd8', to: 'h4', kind: 'refutation' }]);
-		s.tryAgain();
-		expect(s.explanation).toBeNull();
-		expect(s.arrows).toEqual([]);
+		expect(s.explanation).toMatchObject({ san: 'Qh4+', line: ['Qh4+', 'g3'] });
+		expect(s.canExplain).toBe(false);
 	});
 
 	it('lets an established but dubious move through, and counts the dubious line', async () => {

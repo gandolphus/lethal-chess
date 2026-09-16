@@ -246,8 +246,6 @@
 							? 'Play on, or step back through the game.'
 							: 'Step through the game with ← and →, or play on from this position.'
 					};
-				case 'decide':
-					return { tone: 'fail', title: 'Try again?', text: message?.text ?? '' };
 				case 'over':
 					return { tone, title: 'Game over', text: message?.text ?? '' };
 			}
@@ -372,8 +370,7 @@
 		if (event.key === 'n' && (explore || review?.phase === 'done' || caughtUp || freeplay)) void restart();
 		else if (event.key === 'h' && explore?.phase === 'your-move') explore.hint();
 		else if (event.key === 'h' && review && ['await', 'retry'].includes(review.phase)) review.hint();
-		else if (event.key === 't' && explore?.phase === 'decide') explore.tryAgain();
-		else if (event.key === 'w' && explore?.phase === 'decide') void explore.explain();
+		else if (event.key === 'w' && explore?.canExplain) void explore.explain();
 		else if (event.key === 'b' && explore?.canTakeBack) void explore.takeBack();
 		else if (event.key === 'ArrowLeft' && explore) explore.back();
 		else if (event.key === 'ArrowRight' && explore) void explore.forward();
@@ -413,15 +410,14 @@
 				<Board
 					fen={explore.game.fen}
 					orientation={bundle.side}
-					interactive={explore.phase === 'your-move' || (explore.phase === 'decide' && !explore.replaying && ['find', 'retry'].includes(explore.explanation?.stage ?? ''))}
+					interactive={explore.phase === 'your-move'}
 					legalTargets={explore.game.legalTargets}
 					needsPromotion={explore.game.needsPromotion}
 					marks={explore.marks}
 					arrows={explore.arrows}
 					{trail}
 					celebration={boardCelebration}
-					onMove={(from, to, promotion) =>
-						void (explore?.phase === 'decide' ? explore.answerWhy(from, to, promotion) : explore?.submit(from, to, promotion))?.catch(ignoreDestroyed)}
+					onMove={(from, to, promotion) => void explore?.submit(from, to, promotion).catch(ignoreDestroyed)}
 				/>
 			{:else if review}
 				<Board
@@ -554,29 +550,22 @@
 					</div>
 				{:else if explore}
 					<div class="actions">
-						{#if explore.phase === 'decide'}
-							<button type="button" class="btn primary" onclick={() => explore?.tryAgain()} disabled={explore.replaying}>Try again <kbd>T</kbd></button>
-							<button type="button" class="btn" onclick={() => explore?.explain()} disabled={Boolean(explore.explanation)}>Why? <kbd>W</kbd></button>
-							<button type="button" class="btn" onclick={() => explore?.playOn()} disabled={explore.replaying}>Play on</button>
-						{:else}
-							{#if explore.phase === 'your-move' && !explore.inOpening}
-								<button type="button" class="btn" onclick={() => explore?.hint()} disabled={explore.hintLevel >= 2}>
-									{explore.hintLevel === 0 ? 'Hint' : 'Show the move'} <kbd>H</kbd>
-								</button>
-							{/if}
-							{#if explore.canTakeBack}
-								<button type="button" class="btn" onclick={() => explore?.takeBack()}>Take back <kbd>B</kbd></button>
-							{/if}
+						{#if explore.phase === 'your-move' && !explore.inOpening}
+							<button type="button" class="btn" onclick={() => explore?.hint()} disabled={explore.hintLevel >= 2}>
+								{explore.hintLevel === 0 ? 'Hint' : 'Show the move'} <kbd>H</kbd>
+							</button>
+						{/if}
+						{#if explore.canExplain}
+							<button type="button" class="btn" onclick={() => explore?.explain()}>Why? <kbd>W</kbd></button>
+						{/if}
+						{#if explore.canTakeBack}
+							<button type="button" class="btn" onclick={() => explore?.takeBack()}>Take back <kbd>B</kbd></button>
 						{/if}
 						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => startExplore()}>New game <kbd>N</kbd></button>
 					</div>
-					{#if explore.phase === 'decide' && explore.explanation?.stage === 'shown'}
+					{#if explore.explanation}
 						<p class="text why">
-							{#if explore.explanation.kind === 'refutation'}
-								The reply that punishes it: <b class="num">{explore.explanation.san}</b>.
-							{:else}
-								You could have played <b class="num">{explore.explanation.san}</b>.
-							{/if}
+							What it allowed: <b class="num">{explore.explanation.san}</b>.
 							<span class="pv num">{explore.explanation.line.join(' ')}</span>
 						</p>
 					{/if}

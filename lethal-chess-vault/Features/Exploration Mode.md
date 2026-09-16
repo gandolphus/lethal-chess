@@ -24,8 +24,11 @@ Code: `src/lib/explore/` and `buildLines` in `pipeline/repertoire/build.ts`. See
    The page shows both.
 4. **"Follow the line."** Inside an entered line the notice asks how it continues, and Hint is there to
    help.
-5. **A bad move gets a choice.** A mistake or blunder off the book stops play with *Try again* / *Play on*.
-   So does missing a punishable move after the computer erred. Good moves never interrupt.
+5. **A bad move never stops the game** (changed 2026-09-16, owner: "otherwise how is it possible to know
+   *why* it's a mistake?"). The move stands, the computer answers it, and the notice names it with
+   *Why?* (what it allowed, from the engine's line) and *Take back* beside it. The one exception is a
+   **missed punishment**: when the computer has just erred and the learner walks past it, the move is
+   rewound once and the chance is named — a second miss plays on.
 6. **Purpose: active learning.** No arrows by default; the user has to think.
 7. **Dubious lines are shown separately.** A dubious line needs a learner move the coach calls a mistake.
 

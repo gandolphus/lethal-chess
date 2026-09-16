@@ -4,7 +4,7 @@
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { swayPhase } from '$lib/theme/scene';
 	import Piece from './Piece.svelte';
-	import type { Arrow, SquareMarks } from './board';
+	import { noNotes, toggleArrow, toggleSquare, type Arrow, type Notes, type SquareMarks } from './board';
 	import { movedPieces } from './motion';
 
 	type PieceInfo = { type: string; color: 'w' | 'b' };
@@ -44,6 +44,14 @@
 	let pendingPromotion = $state<{ from: Square; to: Square } | null>(null);
 	/** This press landed on the piece that was already selected, so releasing on it puts the piece down. */
 	let reselect = false;
+	/**
+	 * The learner's own marks, made with the right button: a click marks a square, a drag draws an arrow.
+	 * Both toggle, so the gesture that made a mark unmakes it. They belong to the position on the board
+	 * and go when it changes.
+	 */
+	let notes = $state<Notes>(noNotes());
+	/** The right-button gesture in progress, and the square it is currently over. */
+	let noting = $state<{ from: Square; to: Square } | null>(null);
 
 	const position = $derived(parseFen(fen));
 	const sideToMove = $derived(fen.split(' ')[1] === 'b' ? 'b' : 'w');
@@ -63,6 +71,8 @@
 		selected = null;
 		drag = null;
 		pendingPromotion = null;
+		notes = noNotes();
+		noting = null;
 	});
 
 	/**
@@ -129,6 +139,14 @@
 		(FILES.indexOf(square[0]) + Number(square[1])) % 2 === 0;
 
 	const uid = $props.id();
+
+	/** The learner's arrows, with the one under the pointer shown as it is dragged. */
+	const drawn = $derived<Arrow[]>([
+		...notes.arrows.map((a) => ({ ...a, kind: 'drawn' as const })),
+		...(noting && noting.from !== noting.to && !notes.arrows.some((a) => a.from === noting!.from && a.to === noting!.to)
+			? [{ ...noting, kind: 'drawn' as const }]
+			: [])
+	]);
 
 	/** Centre of a square in board units (0–800), respecting orientation. */
 	function squareCenter(square: Square) {
@@ -284,11 +302,18 @@
 	function handlePointerDown(event: PointerEvent) {
 		if (event.button === 2) {
 			cancelInteraction(event.pointerId);
+			const at = squareFromPoint(event.clientX, event.clientY);
+			if (at) {
+				noting = { from: at, to: at };
+				boardEl?.setPointerCapture(event.pointerId);
+			}
 			return;
 		}
 		if (!interactive || pendingPromotion || event.button !== 0) return;
 		const square = squareFromPoint(event.clientX, event.clientY);
 		if (!square) return;
+		// A left press on the board clears what was drawn on it, the way every board does.
+		notes = noNotes();
 
 		if (selected && targets.includes(square)) {
 			commit(selected, square);
@@ -317,6 +342,11 @@
 	}
 
 	function handlePointerMove(event: PointerEvent) {
+		if (noting) {
+			const at = squareFromPoint(event.clientX, event.clientY);
+			if (at && at !== noting.to) noting = { ...noting, to: at };
+			return;
+		}
 		if (!drag) return;
 		// A right-button press while dragging arrives as a chorded pointermove, not a pointerdown.
 		if (event.buttons & 2) {
@@ -327,12 +357,18 @@
 	}
 
 	function handleContextMenu(event: MouseEvent) {
-		// Never show the browser menu over the board; right-click means "put it back".
+		// Never show the browser menu over the board: the right button is for marking it.
 		event.preventDefault();
-		cancelInteraction();
 	}
 
 	function handlePointerUp(event: PointerEvent) {
+		if (noting) {
+			const { from, to } = noting;
+			noting = null;
+			boardEl?.releasePointerCapture?.(event.pointerId);
+			notes = from === to ? toggleSquare(notes, from) : toggleArrow(notes, from, to);
+			return;
+		}
 		if (!drag) return;
 		const from = drag.from;
 		const dropped = squareFromPoint(event.clientX, event.clientY);
@@ -395,6 +431,10 @@
 							</span>
 						{/if}
 
+						{#if notes.squares.includes(square)}
+							<span class="noted" aria-hidden="true"></span>
+						{/if}
+
 						{#if trail.includes(square)}
 							<span class="trail" aria-hidden="true"></span>
 						{/if}
@@ -431,7 +471,7 @@
 				{/each}
 			</svg>
 
-			{#if arrows.length}
+			{#if arrows.length || drawn.length}
 				<svg class="arrows" viewBox="0 0 800 800" aria-hidden="true">
 					<defs>
 						<filter id="{uid}-beam" x="-20%" y="-20%" width="140%" height="140%">
@@ -440,7 +480,7 @@
 							<feMerge><feMergeNode in="g2" /><feMergeNode in="SourceGraphic" /></feMerge>
 						</filter>
 					</defs>
-					{#each arrows as arrow (`${arrow.from}${arrow.to}${arrow.kind}`)}
+					{#each [...arrows, ...drawn] as arrow (`${arrow.from}${arrow.to}${arrow.kind}`)}
 						{@const shape = arrowShape(arrow)}
 						{#if shape?.points}
 							<polygon class="arrow {arrow.kind ?? 'hint'}" points={shape.points} style:filter={boardStyle === 'nocturne' ? `url(#${uid}-beam)` : undefined} />
@@ -740,6 +780,12 @@
 	.arrow.refutation {
 		fill: var(--bad);
 		stroke: var(--bad);
+	}
+
+	.arrow.drawn {
+		fill: var(--draw);
+		stroke: var(--draw);
+		opacity: 0.78;
 	}
 
 	polygon.arrow {
@@ -1196,6 +1242,17 @@
 	}
 
 	/* ── exploration: a line's trail, and the moment it is discovered ── */
+	/* The learner's own mark on a square: a ring inside it, out of the way of the piece and of every mark
+	   the coach makes, so the two can never be read for one another. */
+	.noted {
+		position: absolute;
+		inset: 0;
+		z-index: 3;
+		border-radius: 2px;
+		box-shadow: inset 0 0 0 0.9cqi var(--draw);
+		pointer-events: none;
+	}
+
 	.trail {
 		position: absolute;
 		top: 0;

@@ -900,6 +900,12 @@ html {
 	scrollbar-gutter: stable;
 }
 
+/* What the learner draws on the board with the right button. A colour of its own: it must never be read
+   as the coach's hint, engine line or refutation, nor as a square's feedback. */
+:root {
+	--draw: #ff9f43;
+}
+
 /* A piece slides to its new square. The curve is an S — slow away, quick across, slow into place — which
    is what a moved piece feels like rather than a slid one. `data-motion` on the document sets the pace. */
 :root {

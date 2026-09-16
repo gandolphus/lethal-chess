@@ -128,6 +128,13 @@
 
 <style>
 	main {
+		/* The page's own type never changes: trying a theme on must not move the option you are about to
+		   click. Each theme's typeface is shown inside its swatch instead. */
+		--font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+		--font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+		--font-num: var(--font-ui);
+		/* Inheritance passes the resolved family, so the page must re-read the token it just pinned. */
+		font-family: var(--font-ui);
 		max-width: 960px;
 		margin: 0 auto;
 		padding: 2rem 1.5rem 4rem;

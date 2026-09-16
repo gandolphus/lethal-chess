@@ -5,6 +5,15 @@ aliases: [Visual Design, Themes, Aesthetics]
 
 # Visual Design
 
+> **Geometry is fixed across themes (2026-09-16).** A theme changes colour, board treatment *and*
+> typeface, and different faces have different metrics. Switching a theme used to reflow the settings page
+> by a few pixels — the option under the cursor moved. Now the site nav has a fixed height, the footer a
+> minimum height, the swatch's mini board is `border-box` (its grid gap no longer changes the swatch's
+> height), and the settings page pins its own `--font-ui`/`--font-display` and re-reads them with an
+> explicit `font-family` (inheritance passes the resolved family, so setting the token alone did nothing).
+> Each theme's typefaces are shown *inside* its swatch as "Aa Ruy Lopez" instead. Measured: every element
+> on the settings page is pixel-identical across Obsidian, Graphite and Night.
+
 **Status: in exploration — Fable 5.1 commissioned for direction + a working prototype (2026-09-15).**
 
 > "I'm really big on aesthetics. Try a dark theme — maybe a few different ones. And some light themes

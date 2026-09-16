@@ -132,7 +132,9 @@
 		display: flex;
 		align-items: center;
 		gap: 1.25rem;
-		padding: 0.55rem 1.25rem;
+		/* Fixed height: themes change the typeface, and the bar must not resize the page under the reader. */
+		height: 3.25rem;
+		padding: 0 1.25rem;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -218,8 +220,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
+		align-items: center;
 		gap: 0.5rem;
-		padding: 2rem 1rem 2.5rem;
+		/* Fixed like the nav, so a theme's typeface can't change the page's height. */
+		min-height: 5.5rem;
+		padding: 1rem;
 		font-size: 0.8rem;
 		color: var(--text-3);
 	}
@@ -237,6 +242,9 @@
 		.site {
 			flex-wrap: wrap;
 			gap: 0.5rem 0.75rem;
+			/* Two rows on a phone, so the bar grows instead of clipping. */
+			height: auto;
+			min-height: 3.25rem;
 			padding: 0.5rem 0.9rem;
 		}
 

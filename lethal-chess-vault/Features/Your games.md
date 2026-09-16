@@ -59,4 +59,6 @@ have, and it is the onboarding answer to "which of the 28 openings is mine?".
 - A username is not proof of identity: public data, but results are stored only under the account that
   asked for them, and the privacy page must say so.
 - How far past the book to analyse before it stops being an opening trainer.
-- Whether frequency weighting should override spaced repetition's due dates, or only break ties.
+- ~~Whether frequency weighting should override spaced repetition's due dates.~~ **Equal weight for now**
+  (owner, 2026-09-16): a line that is due and a position the learner keeps meeting are worth the same in
+  the daily queue.

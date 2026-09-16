@@ -750,14 +750,14 @@
 
 <style>
 	main {
-		max-width: 1180px;
+		max-width: var(--page-max);
 		margin: 0 auto;
 		padding: 1.25rem 1.25rem 3rem;
 	}
 
 	.layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+		grid-template-columns: minmax(0, 1fr) minmax(var(--panel-min), var(--panel-max));
 		gap: 2rem;
 		align-items: start;
 	}

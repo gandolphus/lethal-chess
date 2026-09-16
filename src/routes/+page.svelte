@@ -192,7 +192,7 @@
 
 <style>
 	main {
-		max-width: 1080px;
+		max-width: var(--page-max);
 		margin: 0 auto;
 		padding: 2rem 1.25rem 4rem;
 	}

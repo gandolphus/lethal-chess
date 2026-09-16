@@ -615,6 +615,19 @@ kbd {
 	initial-value: 0turn;
 }
 
+/* One page frame for every screen you play on, so moving between them never shifts the layout. */
+:root {
+	--page-max: 1180px;
+	--page-gap: 2rem;
+	--panel-min: 300px;
+	--panel-max: 380px;
+}
+
+/* A page that scrolls must not be 15px narrower than one that doesn't. */
+html {
+	scrollbar-gutter: stable;
+}
+
 /* Installed, the app should not scroll to reach its own controls: the footer's links live in Settings. */
 @media (display-mode: standalone) {
 	.site-footer {

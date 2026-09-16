@@ -13,7 +13,7 @@
 	import { Book, stagesOf, summarize, type DiscoverySummary, type IndexedLine, type LineStage } from '$lib/explore/book';
 	import { lineCards, mastery, nextLine, reviewable, type Mastery } from '$lib/explore/mastery';
 	import { ReviewSession } from '$lib/explore/review.svelte';
-	import { ExploreSession, type DiscoveryEvent } from '$lib/explore/session.svelte';
+	import { ExploreSession, type DiscoveryEvent, type ExploreOptions, type RoundMove } from '$lib/explore/session.svelte';
 	import LineMap from '$lib/ui/LineMap.svelte';
 	import LineShelf from '$lib/ui/LineShelf.svelte';
 	import MoveTree from '$lib/ui/MoveTree.svelte';
@@ -108,7 +108,7 @@
 		review?.abandon();
 	}
 
-	async function startExplore() {
+	async function startExplore(options: Pick<ExploreOptions, 'opponent' | 'roundMoves'> = {}) {
 		stopSessions();
 		freeplay = null;
 		review = null;
@@ -120,11 +120,17 @@
 			book,
 			stages: stagesOf(discoveries),
 			engine: loadEngine,
-			onDiscovery: (discovery) => void s.recordDiscovery(discovery).then(refreshStats)
+			onDiscovery: (discovery) => void s.recordDiscovery(discovery).then(refreshStats),
+			...options
 		});
 		explore = next;
 		await next.start();
 	}
+
+	// A round of The Open is eight of the learner's moves: long enough to leave the book behind against
+	// an opponent who may leave it at once, short enough to want another.
+	const ROUND_MOVES = 8;
+	const startOpen = () => startExplore({ opponent: 'human', roundMoves: ROUND_MOVES });
 
 	/**
 	 * Practice replays discovered lines from memory: the most overdue first, then lines never replayed.
@@ -161,7 +167,7 @@
 		await next.start();
 	}
 
-	const restart = () => (mode === 'explore' ? startExplore() : startPractice());
+	const restart = () => (mode === 'explore' ? startExplore() : mode === 'open' ? startOpen() : startPractice());
 
 	// On a phone the reference blocks move into a sheet, so the page itself never has to scroll.
 	let narrow = $state(false);
@@ -188,6 +194,7 @@
 
 	async function begin(next: SessionMode, lineKey: string | null) {
 		if (next === 'practice') return startPractice();
+		if (next === 'open') return startOpen();
 		await startExplore();
 		const line = lineKey ? book.lines.find((l) => l.key === lineKey) : undefined;
 		if (line && explore) await explore.resume(line);
@@ -196,8 +203,11 @@
 	const game = $derived(freeplay?.game ?? explore?.game ?? review?.game ?? null);
 	const node = $derived(game ? bundle.nodes[toEpd(game.fen)] : undefined);
 	const yourTurn = $derived(game ? game.turn === bundle.side : false);
-	// A replayed line keeps its name hidden until it is done: recalling it is the exercise.
-	const variationName = $derived(explore?.name ?? (review?.phase === 'done' ? review.line.name : null));
+	// A replayed line keeps its name hidden until it is done: recalling it is the exercise. A round keeps it
+	// hidden too — the name only moves when the opponent plays theory, which would say so.
+	const variationName = $derived(
+		explore ? (explore.round && explore.phase !== 'over' ? null : explore.name) : review?.phase === 'done' ? review.line.name : null
+	);
 
 	/** "later today", "tomorrow", "in 6 days". */
 	function dueIn(due: Date, now = new Date()) {
@@ -217,6 +227,16 @@
 	const shortVariation = (name: string) => name.replace(/^[^:]+:\s*/, '') || name;
 
 	const linesWord = (n: number) => `${n} line${n === 1 ? '' : 's'}`;
+
+	/** "4.Nc3" or "4…Nf6". */
+	const moveLabel = (m: RoundMove) => `${Math.floor(m.ply / 2) + 1}${m.ply % 2 ? '…' : '.'}${m.san}`;
+
+	/** The round's tally so far: how many decisions, and how many met the standard. */
+	const tally = $derived.by(() => {
+		const round = explore?.round;
+		if (!round) return null;
+		return { ...round, played: round.moves.length, precise: round.moves.filter((m) => m.precise).length };
+	});
 
 	/**
 	 * The one card that says what is happening: whose move, what the last move
@@ -244,7 +264,7 @@
 				case 'thinking':
 					return {
 						tone: 'wait',
-						title: explore.loadingEngine ? 'Loading the engine…' : yourTurn ? 'Evaluating…' : 'Computer is thinking…',
+						title: explore.loadingEngine ? 'Loading the engine…' : yourTurn ? 'Evaluating…' : explore.round ? 'Opponent is thinking…' : 'Computer is thinking…',
 						text: message?.text ?? ''
 					};
 				case 'your-move': {
@@ -252,11 +272,13 @@
 						return { tone, title: `Play the ${bundle.name}`, text: message?.text ?? `It starts ${openingSan}. The lines after that are yours to discover.` };
 					}
 					// The title is about now, the text about the last move; where the game stands is the line card's job.
-					const prompt = explore.following
-						? 'How does the line continue?'
-						: explore.inBook
-							? 'Established lines continue from here. What would you play?'
-							: 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.';
+					const prompt = explore.round
+						? 'Whatever they play, find the best answer.'
+						: explore.following
+							? 'How does the line continue?'
+							: explore.inBook
+								? 'Established lines continue from here. What would you play?'
+								: 'Every move gets a verdict. The computer sometimes errs on purpose — punish it.';
 					return { tone, title: 'Your move', text: message?.text ?? prompt };
 				}
 				case 'browse':
@@ -268,7 +290,11 @@
 							: 'Step through the game with ← and →, or play on from this position.'
 					};
 				case 'over':
-					return { tone, title: 'Game over', text: message?.text ?? '' };
+					return {
+						tone,
+						title: tally ? `Round over — ${tally.precise} of ${tally.played} precise` : 'Game over',
+						text: message?.text ?? ''
+					};
 			}
 		}
 		if (caughtUp) {
@@ -307,7 +333,8 @@
 		const since = explore.game.history.length - latest.ply;
 		return since >= 0 && since <= 2 ? latest : null;
 	});
-	const anticipation = $derived(explore && !explore.inOpening && !celebration ? explore.progress : null);
+	// In a round the line card would say the opponent just played theory, which is the thing to work out.
+	const anticipation = $derived(explore && !explore.inOpening && !explore.round && !celebration ? explore.progress : null);
 
 	/** Destination squares of the moves played since the entrance of the line in progress. */
 	const trail = $derived.by(() => {
@@ -360,10 +387,11 @@
 
 	/**
 	 * Past the established lines the page becomes an analysis board: the evaluation is shown, and the game
-	 * can be walked back and forward. Inside the book it stays hidden — it would give the lines away.
+	 * can be walked back and forward. Inside the book it stays hidden — it would give the lines away. A
+	 * round of The Open hides it until the round is over: a bar that jumps says the opponent just erred.
 	 */
 	const analysing = $derived(
-		Boolean(freeplay) || Boolean(explore && !explore.inOpening && !explore.inBook)
+		Boolean(freeplay) || Boolean(explore && !explore.inOpening && !explore.inBook && (!explore.round || explore.phase === 'over'))
 	);
 	const evaluation = $derived(freeplay ? freeplay.evaluation : (explore?.evaluation ?? null));
 	/** Moves the learner can click back to: the game plus anything taken off while browsing. */
@@ -399,12 +427,13 @@
 		else if (event.key === 'k' && review?.phase === 'done' && !freeplay) void keepPlaying();
 		else if (event.key === 'e' && mode !== 'explore') switchTo('explore');
 		else if (event.key === 'p' && mode !== 'practice') switchTo('practice');
+		else if (event.key === 'o' && mode !== 'open') switchTo('open');
 		else if (event.key === 'm' && mode === 'explore' && summary) map = map ? null : { band: null };
 	}
 </script>
 
 <svelte:head>
-	<title>{bundle.name} · {mode === 'practice' ? 'Practice' : 'Explore'} — Lethal Chess</title>
+	<title>{bundle.name} · {mode === 'practice' ? 'Practice' : mode === 'open' ? 'The Open' : 'Explore'} — Lethal Chess</title>
 </svelte:head>
 
 <svelte:window onkeydown={onKey} />
@@ -488,16 +517,18 @@
 				<div class="segmented" role="tablist" aria-label="Mode">
 					<button type="button" role="tab" aria-selected={mode === 'explore'} onclick={() => switchTo('explore')}>Explore</button>
 					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => switchTo('practice')}>Practice</button>
+					<button type="button" role="tab" aria-selected={mode === 'open'} onclick={() => switchTo('open')}>The Open</button>
 				</div>
 				<p class="mode-hint">
-					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
+					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else if mode === 'open'}They might play anything. Answer each move precisely — the best, or as good as.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
 				</p>
 				{#if narrow}
 					<button type="button" class="btn small sheet-button" onclick={() => (sheet = true)}>Moves &amp; progress</button>
 				{/if}
 			</div>
 
-			<div class="line-slot" class:empty={!explore && !review}>
+			<!-- A finished round's card would repeat the notice, which carries the score and the pips itself. -->
+			<div class="line-slot" class:empty={(!explore && !review) || (tally && explore?.phase === 'over')}>
 			{#if celebration}
 				{#key celebration.id}
 					<div class="discovery" data-kind={celebration.assisted ? 'assisted' : celebration.known ? 'known' : 'discovered'} role="status">
@@ -515,6 +546,16 @@
 						{#if celebration.assisted}<p class="sub">Find it without the hint to count it.</p>{/if}
 					</div>
 				{/key}
+			{:else if explore && tally && explore.phase !== 'over'}
+				<!-- The round: where it stands, one pip per decision. Nothing about the position, which is the exercise. -->
+				<div class="discovery" data-kind="round" role="status">
+					<p class="kicker">The Open · move {Math.min(tally.played + 1, tally.length)} of {tally.length}</p>
+					<p class="name">{bundle.name}</p>
+					{@render roundPips()}
+					<p class="sub">
+						{#if tally.played}{tally.precise} of {tally.played} precise so far.{:else}{tally.length} moves. Each is held to the best.{/if}
+					</p>
+				</div>
 			{:else if anticipation}
 				{#key anticipation.name}
 					<div class="discovery" data-kind="entered" role="status">
@@ -544,13 +585,13 @@
 						{/each}
 					</span>
 				</div>
-			{:else if explore && !explore.inOpening}
+			{:else if explore && !explore.inOpening && !explore.round}
 				<div class="discovery" data-kind="idle" role="status">
 					<p class="kicker">{explore.inBook ? 'In the book' : 'Past the known lines'}</p>
 					<p class="name">{explore.inBook ? (explore.name ?? bundle.name) : 'Free play'}</p>
 					<p class="sub">{explore.inBook ? 'Established lines continue from here.' : 'The book ends here. Play on, or start a new game.'}</p>
 				</div>
-			{:else if explore}
+			{:else if explore && !explore.round}
 				<div class="discovery" data-kind="idle" role="status">
 					<p class="kicker">The opening</p>
 					<p class="name">{bundle.name}</p>
@@ -570,6 +611,17 @@
 						<button type="button" class="btn" onclick={() => startPractice()}>Back to practice</button>
 					</div>
 				{:else if explore}
+					{#if tally && explore.phase === 'over'}
+						{@render roundPips()}
+						{#if tally.precise < tally.played}
+							<!-- The round is over, so nothing is secret: each miss with the move that beat it. -->
+							<ul class="review num" aria-label="Moves that fell short">
+								{#each tally.moves.filter((m) => !m.precise) as m (m.ply)}
+									<li><b>{moveLabel(m)}</b> {m.better ? `→ ${m.better}` : '· hint'}</li>
+								{/each}
+							</ul>
+						{/if}
+					{/if}
 					<div class="actions">
 						{#if explore.phase === 'your-move' && !explore.inOpening}
 							<button type="button" class="btn" onclick={() => explore?.hint()} disabled={explore.hintLevel >= 2}>
@@ -582,7 +634,7 @@
 						{#if explore.canTakeBack}
 							<button type="button" class="btn" onclick={() => explore?.takeBack()}>Take back <kbd>B</kbd></button>
 						{/if}
-						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => startExplore()}>New game <kbd>N</kbd></button>
+						<button type="button" class="btn" class:primary={explore.phase === 'over'} onclick={() => restart()}>{explore.round ? 'New round' : 'New game'} <kbd>N</kbd></button>
 					</div>
 					{#if explore.explanation}
 						<p class="text why">
@@ -663,7 +715,8 @@
 
 
 {#snippet referenceBlocks()}
-			{#if !freeplay && node && node.candidates.length}
+			<!-- How exact a position is would say a trap was just set: a round keeps it to itself. -->
+			{#if !freeplay && mode !== 'open' && node && node.candidates.length}
 		<div class="position">
 			{#if node.sharpness !== undefined}
 				<div class="stat">
@@ -756,6 +809,25 @@
 			</p>
 			{@render saveStatus()}
 		</div>
+	{:else if mode === 'open'}
+		<div class="prof">
+			<p class="label">{bundle.name} — The Open</p>
+			<p class="label small">One round is {ROUND_MOVES} of your moves from the defining position. The first move you play at each turn is the one that counts; Hint gives the move away and the move stops counting.</p>
+			{@render saveStatus()}
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet roundPips()}
+	{#if tally}
+		<span class="pips round-pips" aria-hidden="true">
+			{#each tally.moves as m (m.ply)}
+				<i class:on={m.precise} class:miss={!m.precise}></i>
+			{/each}
+			{#each { length: Math.max(0, tally.length - tally.played) } as _, i (i)}
+				<i></i>
+			{/each}
+		</span>
 	{/if}
 {/snippet}
 
@@ -1085,12 +1157,47 @@
 		display: none;
 	}
 
-	.discovery[data-kind='idle'] {
+	.discovery[data-kind='idle'],
+	.discovery[data-kind='round'] {
 		--disc-tone: var(--text-2);
 		border-color: var(--border);
 		background: var(--surface-1);
 		box-shadow: none;
 		animation: none;
+	}
+
+	/* The round's pips are its score: lit for a precise move, warm for one that fell short. */
+	.round-pips i {
+		--disc-tone: var(--text-2);
+	}
+
+	.round-pips i.on {
+		background: var(--ok);
+	}
+
+	.round-pips i.miss {
+		background: var(--soft);
+	}
+
+	.notice .round-pips {
+		margin-top: 0.6rem;
+	}
+
+	/* One chip per miss, wrapping: eight of them must still leave the phone room for the buttons. */
+	.review {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem 1rem;
+		margin: 0.5rem 0 0;
+		padding: 0;
+		list-style: none;
+		font-size: 0.9rem;
+		color: var(--text-2);
+	}
+
+	.review b {
+		color: var(--text);
+		font-weight: 600;
 	}
 
 	.discovery .tag {

@@ -82,7 +82,7 @@ describe('statusOf', () => {
 		expect(statusOf('practice', base, now)).toBe('Nothing to replay yet — explore first.');
 		expect(statusOf('practice', { ...base, discovered: 5, due: 1 }, now)).toBe('1 line due now.');
 		expect(statusOf('practice', { ...base, discovered: 5, nextDue: new Date('2026-09-18T12:00:00Z') }, now)).toBe('All caught up — the next comes back in 2 days.');
-		expect(statusOf('open', base, now)).toBe('Not built yet. Your readiness rating in this opening will come from here.');
+		expect(statusOf('open', base, now)).toBe('One round of eight moves, each held to the best. Anyone can enter.');
 	});
 });
 

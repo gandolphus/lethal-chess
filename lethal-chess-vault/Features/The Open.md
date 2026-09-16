@@ -1,11 +1,78 @@
 ---
-tags: [feature, idea, design, gameplay]
+tags: [feature, idea, design, gameplay, built]
 aliases: [Boss fight, The gauntlet, Rated rounds, Opening rating]
 ---
 
 # The Open
 
-**Status: idea, raised by the owner 2026-09-16, sharpened the same day. Not built.**
+**Status: the atom is built (2026-09-16) — one round against a human-shaped opponent, at
+`/openings/[id]/open`. Everything below "What is built" is design on hold until that round has been
+played enough to know what it wants around it.**
+
+## What is built, and why only this
+
+The owner, after reading the whole design: "I'm not super convinced we've found it just yet. But what we
+could do is start out with something simple. Basically the idea of 'The Open' is to simply get a chance to
+use the opening in situations which don't feel like playing against an engine. You don't know which moves
+will show up. But the goal is to play *precisely* against whatever move shows up. Maybe it will be a line,
+but maybe it will be something completely stupid, or *maybe* it will be a move which is not too shabby but
+against a grand master it would be devastating." So the mode is the opponent and a standard, and nothing
+else — see the [[Decision Log]], 2026-09-16.
+
+**The round.** Eight learner moves from the opening's defining position, which is played for both sides at
+the start. The round ends on the learner's eighth move (or earlier if the game does), not when the book runs
+out — against this opponent the book runs out almost at once. The third card on the [[Opening dashboard]]
+(`O`) and the third tab on the playing screen. **No competency gate**: anyone can enter, at the owner's
+request, because the feature has to be tested.
+
+**The opponent** (`humanReply` and friends in `src/lib/coach/opponent.ts`). Every move is drawn from a
+flavour, then a move of that flavour from a list of scored candidates:
+
+| Flavour | Win chance given away | What it is |
+| --- | --- | --- |
+| theory | < 0.06 | A sound move. Inside the book it is the book's own reply, steered toward unfound lines exactly as in [[Exploration Mode]], so discovery works the same here |
+| middle | 0.08 – 0.3 | "Not too shabby, but against a grandmaster devastating": survives ordinary play, punished only by precise play. The category the mode exists for |
+| junk | ≥ 0.3 | Plainly bad, but still a move from the engine's own list, weighted toward the mild blunder over the hung queen — plausible-and-bad, never absurd |
+
+The mix drifts with the round: with `n` learner moves played, theory is `0.75 × 0.8^n`, junk is
+`0.05 + 0.03 n`, the middle is the rest. So move 1 is 75 / 20 / 5, move 4 is 31 / 52 / 17, move 8 is
+16 / 58 / 26 — a person follows theory for a few moves and improvises after. Over a round that is about
+three theory moves, four middle ones and one piece of junk. A flavour the list cannot supply falls down to
+the next milder one. The list is the book's candidates while it has them (five at most, and sound ones
+first, so junk is rarely on it), else the engine's; when the drawn flavour is missing from the book's short
+list the engine is asked for ten lines instead of Explore's six. **No control.** The mix is the feature;
+a slider would be a persona, and personas are on hold.
+
+**The standard.** Precision: within 0.05 win chance of the best move, which is about 25 centipawns near
+equality — stricter than Explore's "sound" (0.1). A move that falls short never stops the game; the notice
+says what it was ("Playable, but not the precise move", "Inaccurate", the play-on line for a mistake) and
+never what to play instead. Hint is the only route, at two presses, and a move shown that way does not
+count. A missed punishment is rewound once, as in Explore — finding the punishment *is* the exercise. The
+**first decision at each turn is the one that counts**: a take-back or the retry after a rewind does not
+rewrite the tally. When the round is over, nothing is secret: "6 of 8 precise", one pip per decision, and
+each miss with the move that beat it.
+
+**What is kept from Explore and what is hidden.** Grading, hints, take-back, browsing, the move tree and
+discovery are all `ExploreSession` — the Open is two options on it, `opponent: 'human'` and `roundMoves`,
+not a second class. Hidden during a round because each would say what the opponent's move was: the
+evaluation bar, the line card's name and the header's variation (they only move on theory), the "how exact
+you must be" meter, and the quality mark on the opponent's move, which appears once it has been answered.
+
+**Fun, honestly** (the builder's read after two rounds of the Ruy Lopez). The opponent does what was asked:
+in one round it played a6, Nf6 (theory), Bb4?!, Bf8?!, Be7, then h6? — natural-looking and losing a pawn to
+9.dxe5 — then b5?, then Bf8?? with a bishop hanging. Working out *whether* the move just played is
+punishable, with no bar and no mark to lean on, is a real and different feeling from Explore, and the
+"Punished!" line lands. Two things are missing. First, once the opponent has blundered the rest of the round
+is dead time: at +5 every move is "precise" and the position stops asking anything — a round should
+probably end when the position is decided, not at eight. Second, eight moves with no result is not yet a
+thing you want to press *Again* on; the count is fair but it is not a stake. That is exactly what the design
+below is for, and now there is something to attach it to.
+
+Screenshots: `Design/Round 4/shots/open-*.png`.
+
+---
+
+## The design as it stood before the pull-back (on hold)
 
 > "You can initiate a *BOSS FIGHT* or something like that. It's basically like a roguelike such as Slay
 > the Spire where you fight against increasingly stronger opponents while always starting from the

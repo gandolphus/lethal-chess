@@ -1,9 +1,9 @@
 import { Chess, type Square } from 'chess.js';
-import type { Analysis, EngineScore } from '$lib/chess/engine';
+import type { Analysis, AnalysisLine, EngineScore } from '$lib/chess/engine';
 import { Game, parseUci, toUci } from '$lib/chess/game.svelte';
 import { scoreOfEnded, type AnalysisEngine, type Message } from '$lib/coach/freeplay.svelte';
 import { isSound, lossFor, verdictFor, winChance, type Side, type Verdict } from '$lib/coach/judge';
-import { chooseReply } from '$lib/coach/opponent';
+import { chooseReply, drawFlavour, humanReply, pickFlavoured } from '$lib/coach/opponent';
 import type { Arrow, SquareMarks } from '$lib/components/board';
 import type { Bundle, BundleNode } from '$lib/drill/bundle';
 import { toEpd } from '$lib/drill/tree';
@@ -39,6 +39,21 @@ export type LineProgress = {
 	played: number;
 };
 
+/** One decision of a round: the first move the learner played at that ply, held to the best. */
+export type RoundMove = {
+	ply: number;
+	san: string;
+	loss: number;
+	precise: boolean;
+	/** The best move, when the learner's was not it. */
+	better: string | null;
+	/** The move was shown by the hint, so it was not the learner's find. */
+	shown: boolean;
+};
+
+/** A round of The Open: a fixed number of learner moves from the defining position. */
+export type Round = { length: number; moves: RoundMove[] };
+
 export type ExploreOptions = {
 	bundle: Bundle;
 	book: Book;
@@ -47,6 +62,17 @@ export type ExploreOptions = {
 	/** Loads the engine on first need; positions inside the book never need it. */
 	engine: () => Promise<AnalysisEngine>;
 	onDiscovery?: (discovery: Discovery) => void;
+	/**
+	 * Who answers. The book: replies steered toward unfound lines, natural engine moves past it, the odd
+	 * planted mistake. A human: theory, junk and the dangerous middle, in a mix that drifts from theory
+	 * as the game goes on — The Open's opponent.
+	 */
+	opponent?: 'book' | 'human';
+	/**
+	 * Ends the game after this many learner moves past the opening, with a tally of how precise each was.
+	 * The defining moves are played for both sides at the start: a round begins where the opening does.
+	 */
+	roundMoves?: number;
 	mistakeRate?: number;
 	moveTimeMs?: number;
 	opponentDelayMs?: number;
@@ -62,6 +88,11 @@ const OPPORTUNITY_MIN_GAIN = 0.15;
 const CONFIDENT_MS = 4000;
 // Undiscovered lines pull the computer's book replies; discovered ones keep a little weight.
 const KNOWN_LINE_WEIGHT = 0.2;
+// The Open's standard: the best move, or within engine noise of it. Stricter than Explore's "sound".
+const PRECISE = 0.05;
+// The human opponent's bad flavours need a list with bad moves on it. The book keeps five candidates at
+// most, sound ones first, so the engine is asked for a wider list than Explore's when the book's has none.
+const HUMAN_MULTIPV = 10;
 
 const defaultWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -123,6 +154,8 @@ export class ExploreSession {
 	 * the learner missed a chance to punish the computer, the move they missed.
 	 */
 	explanation = $state<{ kind: 'refutation'; uci: string; san: string; line: string[]; stage: 'shown' } | null>(null);
+	/** The round being played, when the session is one; its moves are first decisions, in ply order. */
+	round = $state<Round | null>(null);
 
 	readonly openingMoves: string[];
 
@@ -232,6 +265,15 @@ export class ExploreSession {
 	#mistake = $state<string | null>(null);
 	/** A punishable mistake is offered once; a second miss simply plays on. */
 	#missed = 0;
+	/**
+	 * The human opponent's move is marked only once the learner has answered it: a "?" in the move list
+	 * before that would say what the learner is meant to find out.
+	 */
+	#pending: { node: MoveNode; quality: MoveQuality } | null = null;
+
+	get #human() {
+		return this.#options.opponent === 'human';
+	}
 
 	constructor(options: ExploreOptions) {
 		this.#options = options;
@@ -264,6 +306,18 @@ export class ExploreSession {
 		this.game.load([]);
 		this.root = createRoot();
 		this.current = this.root;
+		this.round = this.#options.roundMoves ? { length: this.#options.roundMoves, moves: [] } : null;
+		// A round starts where the opening does: the defining moves are the opening's, not decisions.
+		if (this.round) {
+			let node = this.root;
+			for (const uci of this.openingMoves) {
+				const legal = this.game.find(parseUci(uci));
+				if (!legal) break;
+				this.game.move(legal);
+				node = addMove(node, uci, legal.san, 'book');
+			}
+			this.current = node;
+		}
 		this.revision++;
 		this.#reset();
 		this.#shown.clear();
@@ -307,6 +361,9 @@ export class ExploreSession {
 		const best = before?.lines[0];
 		if (!before || !best) return null;
 		const wasInBook = this.inBook;
+		const fenBefore = this.game.fen;
+		const ply = this.game.uciHistory.length;
+		const shown = this.hintLevel >= 2;
 
 		this.phase = 'thinking';
 		this.game.move(legal);
@@ -315,11 +372,14 @@ export class ExploreSession {
 		const node = this.#played(uci, legal.san, book ? 'book' : undefined);
 		const played = await this.#scoreOfMove(before, uci);
 		if (generation !== this.#generation || (this.phase as ExplorePhase) === 'over') return null;
-		const verdict = verdictFor(lossFor(best, played, this.side), uci === best.move);
+		const loss = lossFor(best, played, this.side);
+		const verdict = verdictFor(loss, uci === best.move);
 		if (!book) {
 			node.quality = verdict;
 			this.revision++;
 		}
+		const precise = loss < PRECISE && !shown;
+		this.#tally({ ply, san: legal.san, loss, precise, better: uci === best.move ? null : sanOf(fenBefore, best.move), shown });
 		const serious = verdict === 'mistake' || verdict === 'blunder';
 		const wrong = !book && (serious || (this.opportunity && !isSound(verdict)));
 
@@ -336,16 +396,56 @@ export class ExploreSession {
 			return verdict;
 		}
 
-		this.flash = { from, to, kind: isSound(verdict) ? 'correct' : wrong ? 'wrong' : 'soft' };
-		this.message = wrong ? this.#playOnMessage(verdict) : this.#describe(verdict, { book, wasInBook });
+		const correct = this.#human ? precise : isSound(verdict);
+		this.flash = { from, to, kind: correct ? 'correct' : wrong ? 'wrong' : 'soft' };
+		this.message = wrong ? this.#playOnMessage(verdict) : this.#human ? this.#describePrecision(loss, book) : this.#describe(verdict, { book, wasInBook });
 		// The position right after a mistake, so "Why?" can show what it allowed once play has moved on.
 		this.#mistake = wrong ? this.game.fen : null;
 		this.explanation = null;
 		this.opportunity = null;
 		this.#missed = 0;
 		this.#visit();
-		await this.#afterLearnerMove(generation);
+		this.#applyPending();
+		if (this.#checkOver()) return verdict;
+		if (this.round && this.#learnerMoves() >= this.round.length) {
+			this.#endRound();
+			return verdict;
+		}
+		await this.#computerMove(generation);
 		return verdict;
+	}
+
+	/** The first decision at a ply is the one that counts: a take-back or a retry does not rewrite it. */
+	#tally(entry: RoundMove) {
+		if (!this.round || this.round.moves.some((m) => m.ply === entry.ply)) return;
+		this.round = { ...this.round, moves: [...this.round.moves, entry].sort((a, b) => a.ply - b.ply) };
+	}
+
+	/** Learner moves played past the defining ones. */
+	#learnerMoves() {
+		let count = 0;
+		for (let ply = this.openingMoves.length; ply < this.game.uciHistory.length; ply++) {
+			if ((ply % 2 === 0) === (this.side === 'w')) count++;
+		}
+		return count;
+	}
+
+	#applyPending() {
+		if (!this.#pending) return;
+		this.#pending.node.quality = this.#pending.quality;
+		this.#pending = null;
+		this.revision++;
+	}
+
+	/** The round is over, so nothing is secret any more: the page spoils what was better. */
+	#endRound() {
+		const moves = this.round?.moves ?? [];
+		const precise = moves.filter((m) => m.precise).length;
+		this.phase = 'over';
+		this.message =
+			precise === moves.length
+				? { tone: 'best', text: 'Every move the best, or as good as.' }
+				: { tone: 'info', text: 'Nothing is secret now. What was better:' };
 	}
 
 	/**
@@ -379,7 +479,9 @@ export class ExploreSession {
 	}
 
 	get canTakeBack() {
-		return ['your-move', 'over'].includes(this.phase) && this.#takeBackPlies() > 0;
+		// A finished round stays finished; a finished game may be picked back up.
+		const allowed = this.phase === 'your-move' || (this.phase === 'over' && !this.round);
+		return allowed && this.#takeBackPlies() > 0;
 	}
 
 	// ── browsing: past the book this is an analysis board, not a one-way street ──────────────────
@@ -534,6 +636,7 @@ export class ExploreSession {
 		this.#after = null;
 		this.hintLevel = 0;
 		this.#hintMove = null;
+		this.#applyPending();
 	}
 
 	/** Plays the computer's moves until it's the learner's turn, then prepares that turn. */
@@ -544,11 +647,6 @@ export class ExploreSession {
 			return;
 		}
 		await this.#prepareLearnerTurn(generation);
-	}
-
-	async #afterLearnerMove(generation: number) {
-		if (this.#checkOver()) return;
-		await this.#computerMove(generation);
 	}
 
 	async #prepareLearnerTurn(generation: number) {
@@ -589,6 +687,12 @@ export class ExploreSession {
 
 		if (ply < this.openingMoves.length) {
 			move = this.openingMoves[ply];
+		} else if (this.#human) {
+			const choice = await this.#humanMove(fen, epd, opponent, generation);
+			if (!choice) return;
+			move = choice.move;
+			// Every human move is measured: any of them might be the one to punish.
+			chanceBefore = choice.chanceBefore;
 		} else if (this.#book.continuations(epd).length) {
 			// Book replies include dubious theory: the learner's chance to punish it.
 			move = this.#bookReply(epd);
@@ -625,10 +729,44 @@ export class ExploreSession {
 		const bestNow = this.#before?.lines[0];
 		const gain = chanceBefore !== null && bestNow ? winChance(bestNow.score, this.side) - chanceBefore : 0;
 		if (chanceBefore !== null) {
-			played.quality = qualityOfLoss(gain);
-			this.revision++;
+			if (this.#human) this.#pending = { node: played, quality: qualityOfLoss(gain) };
+			else {
+				played.quality = qualityOfLoss(gain);
+				this.revision++;
+			}
 		}
 		this.opportunity = gain >= OPPORTUNITY_MIN_GAIN ? { san } : null;
+	}
+
+	/**
+	 * The human opponent's move. A flavour is drawn for this point in the round, then a move of that
+	 * flavour from the list at hand: the book's candidates while there are any, else the analysis already
+	 * made of this position. Theory inside the book is the book's own reply, steered toward unfound lines
+	 * exactly as in Explore, so discovery works the same here. When the list has nothing of the flavour
+	 * drawn — the book's few candidates are sound ones first — the engine supplies a wide one.
+	 */
+	async #humanMove(fen: string, epd: string, mover: Side, generation: number): Promise<{ move: string; chanceBefore: number } | null> {
+		const random = this.#options.random ?? Math.random;
+		const move = this.#learnerMoves();
+		const flavour = drawFlavour(move, random);
+		const node = this.bundle.nodes[epd];
+		let lines: AnalysisLine[] = node?.candidates.length ? fromNode(fen, node).lines : this.#after?.fen === fen ? this.#after.lines : [];
+		const chanceBefore = (best: AnalysisLine) => winChance(best.score, this.side);
+		if (flavour === 'theory' && lines.length && this.#book.continuations(epd).length) {
+			return { move: this.#bookReply(epd), chanceBefore: chanceBefore(lines[0]) };
+		}
+		let choice = lines.length ? pickFlavoured(lines, mover, flavour, random) : null;
+		if (!choice) {
+			const analysis = await this.#analyse(fen, flavour === 'theory' ? undefined : HUMAN_MULTIPV);
+			if (generation !== this.#generation || !analysis) return null;
+			if (!analysis.lines.length) {
+				if (!this.#checkOver()) this.#stall();
+				return null;
+			}
+			lines = analysis.lines;
+			choice = humanReply(lines, mover, { move, random, flavour });
+		}
+		return { move: choice.line.move, chanceBefore: chanceBefore(lines[0]) };
 	}
 
 	/**
@@ -702,6 +840,22 @@ export class ExploreSession {
 		}
 		const what = verdict === 'blunder' ? 'A blunder — that can lose the game' : 'A mistake — it gives your opponent real chances';
 		return { tone: 'bad', text: `${what}. See what it allows, or take it back — Hint is there if you want it.` };
+	}
+
+	/**
+	 * The Open's verdicts hold the move to the best one. Like Explore's they say what the move was and
+	 * never what to play instead; that waits for the end of the round.
+	 */
+	#describePrecision(loss: number, book: boolean): Message {
+		const opportunity = this.opportunity;
+		if (loss < PRECISE) {
+			return opportunity
+				? { tone: 'best', text: `Punished! ${opportunity.san} was a mistake — and you found the answer.` }
+				: { tone: 'best', text: book ? 'Precise — and an established move.' : 'Precise.' };
+		}
+		if (loss < 0.1) return { tone: 'warn', text: `Playable, but not the precise move — there was better.${book ? ' Established, even so.' : ''}` };
+		if (loss < 0.2) return { tone: 'warn', text: `Inaccurate — there was clearly better.${book ? ' It is established, though.' : ''}` };
+		return { tone: 'warn', text: 'An established move, but a dubious one — there is better here.' };
 	}
 
 	#describe(verdict: Verdict, { book, wasInBook }: { book: boolean; wasInBook: boolean }): Message {
@@ -807,13 +961,13 @@ export class ExploreSession {
 		return scored[0]?.uci ?? best;
 	}
 
-	async #analyse(fen: string): Promise<Analysis | null> {
+	async #analyse(fen: string, multipv = 6): Promise<Analysis | null> {
 		try {
 			if (!this.#engine) {
 				this.loadingEngine = true;
 				this.#engine = await this.#options.engine();
 			}
-			return await this.#engine.analyse(fen, { multipv: 6, moveTimeMs: this.#options.moveTimeMs ?? 700 });
+			return await this.#engine.analyse(fen, { multipv, moveTimeMs: this.#options.moveTimeMs ?? 700 });
 		} catch (error) {
 			this.phase = 'over';
 			this.message = { tone: 'bad', text: `The engine couldn't run: ${(error as Error).message}` };

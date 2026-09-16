@@ -4,7 +4,7 @@
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { swayPhase } from '$lib/theme/scene';
 	import Piece from './Piece.svelte';
-	import { noNotes, toggleArrow, toggleSquare, type Arrow, type Notes, type SquareMarks } from './board';
+	import { noNotes, penOf, toggleArrow, toggleSquare, type Arrow, type Notes, type Pen, type SquareMarks } from './board';
 	import { movedPieces } from './motion';
 
 	type PieceInfo = { type: string; color: 'w' | 'b' };
@@ -50,8 +50,8 @@
 	 * and go when it changes.
 	 */
 	let notes = $state<Notes>(noNotes());
-	/** The right-button gesture in progress, and the square it is currently over. */
-	let noting = $state<{ from: Square; to: Square } | null>(null);
+	/** The right-button gesture in progress: where it started, where it is now, and which pen is held. */
+	let noting = $state<{ from: Square; to: Square; pen: Pen } | null>(null);
 
 	const position = $derived(parseFen(fen));
 	const sideToMove = $derived(fen.split(' ')[1] === 'b' ? 'b' : 'w');
@@ -142,10 +142,8 @@
 
 	/** The learner's arrows, with the one under the pointer shown as it is dragged. */
 	const drawn = $derived<Arrow[]>([
-		...notes.arrows.map((a) => ({ ...a, kind: 'drawn' as const })),
-		...(noting && noting.from !== noting.to && !notes.arrows.some((a) => a.from === noting!.from && a.to === noting!.to)
-			? [{ ...noting, kind: 'drawn' as const }]
-			: [])
+		...notes.arrows.filter((a) => !(noting && a.from === noting.from && a.to === noting.to)).map((a) => ({ ...a, kind: 'drawn' as const })),
+		...(noting && noting.from !== noting.to ? [{ from: noting.from, to: noting.to, pen: noting.pen, kind: 'drawn' as const }] : [])
 	]);
 
 	/** Centre of a square in board units (0–800), respecting orientation. */
@@ -304,7 +302,7 @@
 			cancelInteraction(event.pointerId);
 			const at = squareFromPoint(event.clientX, event.clientY);
 			if (at) {
-				noting = { from: at, to: at };
+				noting = { from: at, to: at, pen: penOf(event) };
 				boardEl?.setPointerCapture(event.pointerId);
 			}
 			return;
@@ -344,7 +342,9 @@
 	function handlePointerMove(event: PointerEvent) {
 		if (noting) {
 			const at = squareFromPoint(event.clientX, event.clientY);
-			if (at && at !== noting.to) noting = { ...noting, to: at };
+			// The pen follows the modifiers as they are held, so the colour can be chosen mid-drag.
+			const pen = penOf(event);
+			if (at !== noting.to || pen !== noting.pen) noting = { ...noting, to: at ?? noting.to, pen };
 			return;
 		}
 		if (!drag) return;
@@ -364,9 +364,11 @@
 	function handlePointerUp(event: PointerEvent) {
 		if (noting) {
 			const { from, to } = noting;
+			// Whichever modifiers are held when it is let go is the pen it is made with.
+			const pen = penOf(event);
 			noting = null;
 			boardEl?.releasePointerCapture?.(event.pointerId);
-			notes = from === to ? toggleSquare(notes, from) : toggleArrow(notes, from, to);
+			notes = from === to ? toggleSquare(notes, from, pen) : toggleArrow(notes, from, to, pen);
 			return;
 		}
 		if (!drag) return;
@@ -431,9 +433,9 @@
 							</span>
 						{/if}
 
-						{#if notes.squares.includes(square)}
-							<span class="noted" aria-hidden="true"></span>
-						{/if}
+						{#each notes.squares.filter((s) => s.square === square) as note (note.pen)}
+							<span class="noted" data-pen={note.pen} aria-hidden="true"></span>
+						{/each}
 
 						{#if trail.includes(square)}
 							<span class="trail" aria-hidden="true"></span>
@@ -483,9 +485,14 @@
 					{#each [...arrows, ...drawn] as arrow (`${arrow.from}${arrow.to}${arrow.kind}`)}
 						{@const shape = arrowShape(arrow)}
 						{#if shape?.points}
-							<polygon class="arrow {arrow.kind ?? 'hint'}" points={shape.points} style:filter={boardStyle === 'nocturne' ? `url(#${uid}-beam)` : undefined} />
+							<polygon
+								class="arrow {arrow.kind ?? 'hint'}"
+								data-pen={arrow.pen}
+								points={shape.points}
+								style:filter={boardStyle === 'nocturne' && arrow.kind !== 'drawn' ? `url(#${uid}-beam)` : undefined}
+							/>
 						{:else if shape?.d}
-							<path class="arrow {arrow.kind ?? 'hint'}" d={shape.d} />
+							<path class="arrow {arrow.kind ?? 'hint'}" data-pen={arrow.pen} d={shape.d} />
 						{/if}
 					{/each}
 				</svg>
@@ -783,9 +790,9 @@
 	}
 
 	.arrow.drawn {
-		fill: var(--draw);
-		stroke: var(--draw);
-		opacity: 0.78;
+		fill: var(--pen);
+		stroke: var(--pen);
+		opacity: 0.8;
 	}
 
 	polygon.arrow {
@@ -1244,12 +1251,28 @@
 	/* ── exploration: a line's trail, and the moment it is discovered ── */
 	/* The learner's own mark on a square: a ring inside it, out of the way of the piece and of every mark
 	   the coach makes, so the two can never be read for one another. */
+	[data-pen='1'] {
+		--pen: var(--draw-1);
+	}
+
+	[data-pen='2'] {
+		--pen: var(--draw-2);
+	}
+
+	[data-pen='3'] {
+		--pen: var(--draw-3);
+	}
+
+	[data-pen='4'] {
+		--pen: var(--draw-4);
+	}
+
 	.noted {
 		position: absolute;
 		inset: 0;
 		z-index: 3;
 		border-radius: 2px;
-		box-shadow: inset 0 0 0 0.9cqi var(--draw);
+		box-shadow: inset 0 0 0 0.9cqi var(--pen);
 		pointer-events: none;
 	}
 

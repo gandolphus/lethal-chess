@@ -900,10 +900,14 @@ html {
 	scrollbar-gutter: stable;
 }
 
-/* What the learner draws on the board with the right button. A colour of its own: it must never be read
-   as the coach's hint, engine line or refutation, nor as a square's feedback. */
+/* The four pens the learner draws with: none, Shift, Alt, both. Deliberately not the coach's green, red
+   and blue — a square marked as a worry must never read as the engine calling it sound — and far enough
+   apart in hue to tell one from another at a glance. They mean nothing the app knows about. */
 :root {
-	--draw: #ff9f43;
+	--draw-1: #ff9f43;
+	--draw-2: #b388ff;
+	--draw-3: #38d9d9;
+	--draw-4: #ff6fb5;
 }
 
 /* A piece slides to its new square. The curve is an S — slow away, quick across, slow into place — which

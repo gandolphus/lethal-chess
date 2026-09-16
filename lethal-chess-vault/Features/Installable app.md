@@ -47,3 +47,14 @@ change when the engine does.
 - The opening page's sticky board column (`top: 1rem`) can slide under a translucent iOS status bar on
   scroll: it wants `top: calc(1rem + env(safe-area-inset-top))`.
 - Offline, a navigation shows the browser's offline page. Deliberate: no page is ever served from a cache.
+
+## Fits the screen (2026-09-16)
+
+Installed, a page that scrolls to reach its own controls feels wrong, so the two playing screens fit a
+phone without scrolling:
+- the site footer is hidden under `@media (display-mode: standalone)`; its links moved to Settings;
+- on a phone the opening page keeps only the board, the shelf, the line card, the notice and the mode
+  switch. The move tree, "How exact you must be" and the discovery panel move into a **Moves & progress**
+  sheet, the same bottom-sheet pattern as the map;
+- measured at 390×844: the opening page went from 1,379 px of document to 913 with the footer, 825
+  without; Today is 805.

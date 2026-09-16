@@ -149,6 +149,11 @@
 		</div>
 	</section>
 
+	<p class="note about">
+		<a href="https://github.com/gandolphus/lethal-chess" rel="noopener">Source code</a> · AGPL-3.0 ·
+		<a href="/privacy">Privacy</a> · <a href="/credits">Credits &amp; licences</a>
+	</p>
+
 	<p class="note">Preview any look without saving it: <code>?theme=night&amp;pieces=nocturne&amp;font=geometric</code> on any page.</p>
 </main>
 

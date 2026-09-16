@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
 	import { Engine, ignoreDestroyed } from '$lib/chess/engine';
 	import { Game, parseUci } from '$lib/chess/game.svelte';
@@ -45,6 +45,7 @@
 	let stages = $state<Map<string, LineStage>>(new Map());
 	/** The line map, open at a band (or at the top). */
 	let map = $state<{ band: string | null } | null>(null);
+	let sheet = $state(false);
 	let store: ProgressStore | null = null;
 
 	const activeStore = () => (store ??= progressStore(data.user?.id ?? null));
@@ -155,7 +156,14 @@
 
 	const restart = () => (mode === 'explore' ? startExplore() : startPractice());
 
+	// On a phone the reference blocks move into a sheet, so the page itself never has to scroll.
+	let narrow = $state(false);
 	onMount(() => {
+		const phone = matchMedia('(max-width: 860px)');
+		const sync = () => (narrow = phone.matches);
+		sync();
+		phone.addEventListener('change', sync);
+		onDestroy(() => phone.removeEventListener('change', sync));
 		void startExplore();
 		void refreshStats();
 		return () => {
@@ -446,12 +454,16 @@
 		</div>
 
 		<aside class="panel">
-			<header class="track">
-				<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}</p>
+			<header class="track" class:hidden={narrow}>
+				{#if !narrow}
+					<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}</p>
+				{/if}
 				<h1>{bundle.name}</h1>
-				<p class="opening num">{openingSan}</p>
-				{#if variationName && variationName !== bundle.name}
-					<p class="variation">{variationName}</p>
+				{#if !narrow}
+					<p class="opening num">{openingSan}</p>
+					{#if variationName && variationName !== bundle.name}
+						<p class="variation">{variationName}</p>
+					{/if}
 				{/if}
 			</header>
 
@@ -463,6 +475,9 @@
 				<p class="mode-hint">
 					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
 				</p>
+				{#if narrow}
+					<button type="button" class="btn small sheet-button" onclick={() => (sheet = true)}>Moves &amp; progress</button>
+				{/if}
 			</div>
 
 			<div class="line-slot" class:empty={!explore && !review}>
@@ -594,103 +609,24 @@
 				{/if}
 			</div>
 
-			{#if !freeplay && node && node.candidates.length}
-				<div class="position">
-					{#if node.sharpness !== undefined}
-						<div class="stat">
-							<p class="label">How exact you must be</p>
-							<p class="value">{SHARPNESS_WORDS[sharpnessLevel(node.sharpness)]}</p>
-							<Meter level={sharpnessLevel(node.sharpness)} label="How exact you must be" />
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			{#if explore}
-				<MoveTree root={explore.root} current={explore.current} revision={explore.revision} onselect={(node) => explore?.goTo(node)} />
-			{:else}
-			<ol class="moves num" aria-label="Moves">
-				{#each pairs as pair, i (pair.number)}
-					<li>
-						<span class="n">{pair.number}.</span>
-						{#each [pair.white, pair.black] as san, half (half)}
-							<span class="m" class:cur={i * 2 + half + 1 === browsedPly}>{san}</span>
-						{/each}
-					</li>
-				{/each}
-			</ol>
-			{/if}
-
-
-			{#if mode === 'explore' && summary}
-				<div class="prof discoveries">
-					<p class="label">
-						{bundle.name} — {summary.sound.discovered} of {summary.sound.total} lines discovered{#if summary.sound.entered}, {summary.sound.entered} more entered{/if}.
-					</p>
-
-					<button type="button" class="btn map-button" onclick={() => (map = { band: null })}>
-						Open the map <kbd>M</kbd>
-					</button>
-
-					<details class="variations">
-						<summary>By variation <span class="num">{summary.variations.length}</span></summary>
-						<ul>
-							{#each summary.variations as variation (variation.name)}
-								<li>
-									<p class="var-row">
-										<span>{shortVariation(variation.name)}</span>
-										<span class="num">{variation.discovered}/{variation.total}</span>
-									</p>
-									{#if variation.found.length}
-										<ul class="found">
-											{#each variation.found as { line, stage } (line.key)}
-												<li data-stage={stage}>{stage === 'discovered' ? shortLine(line) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
-											{/each}
-										</ul>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					</details>
-
-					{#if summary.dubious.total}
-						<details class="variations">
-							<summary>Dubious lines <span class="num">{summary.dubious.discovered}/{summary.dubious.total}</span></summary>
-							<p class="label small">Established, but they take a move the engine calls a mistake. Worth knowing, not worth playing.</p>
-							<ul class="found">
-								{#each summary.dubious.found as { line, stage } (line.key)}
-									<li data-stage={stage}>{stage === 'discovered' ? shortVariation(line.name) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
-								{/each}
-							</ul>
-							{#if summary.dubious.total - summary.dubious.found.length > 0}
-								<p class="secret">{summary.dubious.total - summary.dubious.found.length} still secret</p>
-							{/if}
-						</details>
-					{/if}
-					{@render saveStatus()}
-				</div>
-			{:else if mode === 'practice' && memory}
-				<div class="prof">
-					<p class="label">{bundle.name} — lines you remember</p>
-					<div class="tally">
-						<p class="count num"><strong>{memory.remembered}</strong> <span>/ {memory.discovered} discovered</span></p>
-						<p class="label small">
-							{#if memory.due}{memory.due} due now.{:else if memory.nextDue}Next review {dueIn(memory.nextDue)}.{:else}Discover lines in Explore to review them here.{/if}
-						</p>
-					</div>
-					<span class="track split" aria-hidden="true">
-						<span class="fill" style="width:{share(memory.discovered ? memory.mastered / memory.discovered : 0)}"></span>
-						<span class="fill entered" style="width:{share(memory.discovered ? (memory.remembered - memory.mastered) / memory.discovered : 0)}"></span>
-					</span>
-					<p class="label small">
-						{memory.mastered} mastered — remembered and stable for three weeks or more.
-					</p>
-					{@render saveStatus()}
-				</div>
+			{#if !narrow}
+				{@render referenceBlocks()}
 			{/if}
 		</aside>
 	</div>
 </main>
+
+<!-- Phone only: everything the game does not need in front of you, one tap away. -->
+{#if sheet}
+	<button type="button" class="map-scrim" aria-label="Close" onclick={() => (sheet = false)}></button>
+	<div class="map-sheet reference" role="dialog" aria-modal="true" aria-label="Moves and progress">
+		<header class="sheet-head">
+			<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'} · <span class="num">{openingSan}</span></p>
+			<button type="button" class="btn small" onclick={() => (sheet = false)}>Close</button>
+		</header>
+		{@render referenceBlocks()}
+	</div>
+{/if}
 
 <!-- The line map: a wide overlay on desktop, a bottom sheet on phones. Built only while open. -->
 {#if map}
@@ -708,6 +644,104 @@
 		/>
 	</div>
 {/if}
+
+
+{#snippet referenceBlocks()}
+			{#if !freeplay && node && node.candidates.length}
+		<div class="position">
+			{#if node.sharpness !== undefined}
+				<div class="stat">
+					<p class="label">How exact you must be</p>
+					<p class="value">{SHARPNESS_WORDS[sharpnessLevel(node.sharpness)]}</p>
+					<Meter level={sharpnessLevel(node.sharpness)} label="How exact you must be" />
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	{#if explore}
+		<MoveTree root={explore.root} current={explore.current} revision={explore.revision} onselect={(node) => explore?.goTo(node)} />
+	{:else}
+	<ol class="moves num" aria-label="Moves">
+		{#each pairs as pair, i (pair.number)}
+			<li>
+				<span class="n">{pair.number}.</span>
+				{#each [pair.white, pair.black] as san, half (half)}
+					<span class="m" class:cur={i * 2 + half + 1 === browsedPly}>{san}</span>
+				{/each}
+			</li>
+		{/each}
+	</ol>
+	{/if}
+
+
+	{#if mode === 'explore' && summary}
+		<div class="prof discoveries">
+			<p class="label">
+				{bundle.name} — {summary.sound.discovered} of {summary.sound.total} lines discovered{#if summary.sound.entered}, {summary.sound.entered} more entered{/if}.
+			</p>
+
+			<button type="button" class="btn map-button" onclick={() => (map = { band: null })}>
+				Open the map <kbd>M</kbd>
+			</button>
+
+			<details class="variations">
+				<summary>By variation <span class="num">{summary.variations.length}</span></summary>
+				<ul>
+					{#each summary.variations as variation (variation.name)}
+						<li>
+							<p class="var-row">
+								<span>{shortVariation(variation.name)}</span>
+								<span class="num">{variation.discovered}/{variation.total}</span>
+							</p>
+							{#if variation.found.length}
+								<ul class="found">
+									{#each variation.found as { line, stage } (line.key)}
+										<li data-stage={stage}>{stage === 'discovered' ? shortLine(line) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
+									{/each}
+								</ul>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</details>
+
+			{#if summary.dubious.total}
+				<details class="variations">
+					<summary>Dubious lines <span class="num">{summary.dubious.discovered}/{summary.dubious.total}</span></summary>
+					<p class="label small">Established, but they take a move the engine calls a mistake. Worth knowing, not worth playing.</p>
+					<ul class="found">
+						{#each summary.dubious.found as { line, stage } (line.key)}
+							<li data-stage={stage}>{stage === 'discovered' ? shortVariation(line.name) : `${shortVariation(line.entryName ?? line.variation)} …`}</li>
+						{/each}
+					</ul>
+					{#if summary.dubious.total - summary.dubious.found.length > 0}
+						<p class="secret">{summary.dubious.total - summary.dubious.found.length} still secret</p>
+					{/if}
+				</details>
+			{/if}
+			{@render saveStatus()}
+		</div>
+	{:else if mode === 'practice' && memory}
+		<div class="prof">
+			<p class="label">{bundle.name} — lines you remember</p>
+			<div class="tally">
+				<p class="count num"><strong>{memory.remembered}</strong> <span>/ {memory.discovered} discovered</span></p>
+				<p class="label small">
+					{#if memory.due}{memory.due} due now.{:else if memory.nextDue}Next review {dueIn(memory.nextDue)}.{:else}Discover lines in Explore to review them here.{/if}
+				</p>
+			</div>
+			<span class="track split" aria-hidden="true">
+				<span class="fill" style="width:{share(memory.discovered ? memory.mastered / memory.discovered : 0)}"></span>
+				<span class="fill entered" style="width:{share(memory.discovered ? (memory.remembered - memory.mastered) / memory.discovered : 0)}"></span>
+			</span>
+			<p class="label small">
+				{memory.mastered} mastered — remembered and stable for three weeks or more.
+			</p>
+			{@render saveStatus()}
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet saveStatus()}
 	<p class="label small save" data-status={sync.status ?? 'local'} role="status">
@@ -1217,9 +1251,52 @@
 		overflow: hidden;
 	}
 
+	.sheet-button {
+		margin-left: auto;
+	}
+
+	.track.hidden {
+		display: none;
+	}
+
+	.map-sheet.reference {
+		display: grid;
+		align-content: start;
+		gap: 0.5rem;
+		padding: 0.9rem 1rem 2rem;
+		overflow-y: auto;
+	}
+
+	/* The sheet is already a panel: the blocks inside it don't need their own rules and air. */
+	.map-sheet.reference :global(.tree) {
+		max-height: none;
+	}
+
+	.sheet-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		font-size: 0.85rem;
+		color: var(--text-2);
+	}
+
 	@media (max-width: 860px) {
 		main {
-			padding: 0.75rem 0.75rem 2.5rem;
+			padding: 0.6rem 0.75rem 0.5rem;
+		}
+
+		/* The mode names say it; the sentence under them is a line the phone cannot spare. */
+		.mode-hint {
+			display: none;
+		}
+
+		.notice {
+			padding: 0.7rem 0.85rem;
+		}
+
+		.actions {
+			margin-top: 0.6rem;
 		}
 
 		/* Thumb-sized, and the sentence goes: the buttons say what they do. */
@@ -1234,7 +1311,7 @@
 
 		.layout {
 			grid-template-columns: 1fr;
-			gap: 0.9rem;
+			gap: 0.65rem;
 		}
 
 		.board-column {
@@ -1251,7 +1328,7 @@
 		.panel {
 			display: grid;
 			grid-template-columns: 1fr;
-			gap: 0.9rem;
+			gap: 0.65rem;
 		}
 
 		.line-slot {

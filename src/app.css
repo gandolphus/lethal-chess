@@ -615,6 +615,13 @@ kbd {
 	initial-value: 0turn;
 }
 
+/* Installed, the app should not scroll to reach its own controls: the footer's links live in Settings. */
+@media (display-mode: standalone) {
+	.site-footer {
+		display: none;
+	}
+}
+
 /* A phone has no keyboard, so the shortcut hints are noise there. */
 @media (hover: none) and (pointer: coarse) {
 	kbd {

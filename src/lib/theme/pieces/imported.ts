@@ -14,6 +14,16 @@ export type ImportedSet = (typeof IMPORTED_SETS)[number];
 // Body colour is the flat equivalent of the custom sets' gradient bottom, so a
 // black piece reads as one dark shape; strokes take the stroke token; the light
 // detail lines on black pieces take the highlight token.
+/**
+ * The edge of a black piece. Chessnut draws much heavier outlines than Cburnett, so on themes whose
+ * `--pbs` is a *light* edge (Night, Graphite) its silhouette came out ringed and bright. It keeps more of
+ * the body colour, cooled slightly, so the outline reads as shadow rather than a stroke.
+ */
+const BLACK_EDGE: Record<ImportedSet, string> = {
+	chessnut: 'color-mix(in srgb, var(--pb2) 82%, color-mix(in srgb, var(--pbs) 55%, #7d92b6))',
+	cburnett: 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))'
+};
+
 const TINT: Record<'w' | 'b', { body: string; fill: Record<string, string>; stroke: Record<string, string> }> = {
 	w: {
 		// `body` stands in for SVG's default fill, which is black. In a white piece, shapes with no
@@ -31,8 +41,8 @@ const TINT: Record<'w' | 'b', { body: string; fill: Record<string, string>; stro
 		// used here it turned the whole piece white. Keep the outline dark, nudged slightly toward
 		// the theme's edge colour so it still separates from very dark squares.
 		stroke: {
-			'#000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))',
-			'#000000': 'color-mix(in srgb, var(--pb2) 66%, var(--pbs))',
+			'#000': BLACK_EDGE.cburnett,
+			'#000000': BLACK_EDGE.cburnett,
 			'#ececec': 'var(--pbh)',
 			'#f2f2f2': 'var(--pbh)',
 			'#fff': 'var(--pbh)',
@@ -41,8 +51,9 @@ const TINT: Record<'w' | 'b', { body: string; fill: Record<string, string>; stro
 	}
 };
 
-function tint(svg: string, color: 'w' | 'b'): string {
-	const { fill, stroke } = TINT[color];
+function tint(svg: string, color: 'w' | 'b', set: ImportedSet): string {
+	const { fill } = TINT[color];
+	const stroke = color === 'b' ? { ...TINT.b.stroke, '#000': BLACK_EDGE[set], '#000000': BLACK_EDGE[set] } : TINT.w.stroke;
 	return svg.replace(/<(path|g|circle|ellipse|rect|polygon|line)\b([^>]*?)(\/?)>/g, (_m, tag, attrs: string, close) => {
 		const style: string[] = [];
 		attrs = attrs.replace(/\s(fill|stroke)="([^"]*)"/g, (_a, prop: 'fill' | 'stroke', val: string) => {
@@ -62,7 +73,7 @@ export async function importedSprite(set: ImportedSet): Promise<string> {
 			const viewBox = raw.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 100 100';
 			const inner = raw.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
 			// Paths with no fill attribute would otherwise fall back to SVG's default black.
-			defs += `<symbol id="lp-${set}-${color}${type}" viewBox="${viewBox}"><g style="fill:${TINT[color].body}">${tint(inner, color)}</g></symbol>`;
+			defs += `<symbol id="lp-${set}-${color}${type}" viewBox="${viewBox}"><g style="fill:${TINT[color].body}">${tint(inner, color, set)}</g></symbol>`;
 		}
 	}
 	return `<defs>${defs}</defs>`;

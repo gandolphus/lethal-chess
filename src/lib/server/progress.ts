@@ -2,6 +2,7 @@ import type { Attempt } from '$lib/drill/session.svelte';
 import type { Discovery } from '$lib/explore/book';
 import type { LineReview } from '$lib/explore/mastery';
 import type { Database, Statement } from './db';
+import { assertWithinQuota } from './quota';
 import type { CardEntry, CardJson } from './validate';
 
 // Rows go in as one JSON array parameter per statement, unpacked with json_each: D1 caps bound
@@ -77,12 +78,14 @@ function cardStatements(db: Database, userId: string, cards: CardEntry[], now: D
 /** Appends attempts; ones already recorded (same natural key) are skipped. Returns how many were new. */
 export async function recordAttempts(db: Database, userId: string, attempts: Attempt[], now: Date): Promise<number> {
 	if (!attempts.length) return 0;
+	await assertWithinQuota(db, userId, attempts.length);
 	return changes(await db.batch(attemptStatements(db, userId, attempts, now)));
 }
 
 /** Last write wins: the client that just reviewed the card is authoritative. */
 export async function saveCards(db: Database, userId: string, cards: CardEntry[], now: Date): Promise<void> {
 	if (!cards.length) return;
+	await assertWithinQuota(db, userId, cards.length);
 	await db.batch(cardStatements(db, userId, cards, now, false));
 }
 
@@ -97,6 +100,8 @@ export async function importProgress(
 	data: { attempts: Attempt[]; cards: CardEntry[]; discoveries?: Discovery[]; reviews?: LineReview[] },
 	now: Date
 ): Promise<{ attempts: number }> {
+	const adding = data.attempts.length + data.cards.length + (data.discoveries?.length ?? 0) + (data.reviews?.length ?? 0);
+	await assertWithinQuota(db, userId, adding);
 	const attempts = attemptStatements(db, userId, data.attempts, now);
 	const statements = [
 		...attempts,

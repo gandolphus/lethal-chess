@@ -4,10 +4,12 @@ import { importProgress } from '$lib/server/progress';
 import { parseAttempt, parseCardEntry, parseDiscovery, parseLineReview, parseList, requireRecord } from '$lib/server/validate';
 import type { RequestHandler } from './$types';
 
-const MAX_ATTEMPTS = 20_000;
-const MAX_CARDS = 10_000;
-const MAX_DISCOVERIES = 10_000;
-const MAX_REVIEWS = 20_000;
+// The outbox sends 500 of each at a time, and a first import of a long signed-out history is many such
+// calls rather than one enormous one. Room to spare, without a single request that costs seconds.
+const MAX_ATTEMPTS = 2_000;
+const MAX_CARDS = 2_000;
+const MAX_DISCOVERIES = 2_000;
+const MAX_REVIEWS = 2_000;
 
 /**
  * Body `{ attempts: Attempt[], cards: { bundleId, epd, state }[], discoveries?: Discovery[], reviews?: LineReview[] }` — a signed-out learner's
@@ -15,7 +17,7 @@ const MAX_REVIEWS = 20_000;
  * account's copy if it was reviewed more recently. Larger histories can be sent in several calls.
  */
 export const POST: RequestHandler = authed(async ({ request }, { user, db }) => {
-	const body = requireRecord(await readJson(request, 8 * 1024 * 1024));
+	const body = requireRecord(await readJson(request, 1024 * 1024));
 	const attempts = parseList(body.attempts ?? [], 'attempts', MAX_ATTEMPTS, parseAttempt);
 	const cards = parseList(body.cards ?? [], 'cards', MAX_CARDS, parseCardEntry);
 	const discoveries = parseList(body.discoveries ?? [], 'discoveries', MAX_DISCOVERIES, parseDiscovery);

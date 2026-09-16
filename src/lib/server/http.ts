@@ -30,6 +30,13 @@ export function authed<E extends RequestEvent>(handler: (event: E, ctx: Context)
 		if (!user) return apiError(401, 'Not signed in');
 		const db = event.platform?.env.DB;
 		if (!db) return apiError(503, 'Database unavailable');
+		// Keyed by the account, not the address: one account cannot spend everyone else's budget, and a
+		// household or a school behind one address is not punished for sharing it. 429 because the client
+		// already knows to keep its rows and back off on that, where any other 4xx makes it drop them.
+		const limiter = event.platform?.env.API_LIMIT;
+		if (limiter && !(await limiter.limit({ key: user.id })).success) {
+			return apiError(429, 'Too many requests — try again shortly.');
+		}
 		try {
 			const response = await handler(event, { user, db });
 			for (const [key, value] of Object.entries(NO_STORE)) response.headers.set(key, value);

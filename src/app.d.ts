@@ -19,6 +19,11 @@ declare global {
 				DB: Database;
 				/** Static assets (wrangler.jsonc `assets`). Absent under `vite dev`. */
 				ASSETS?: { fetch(input: Request | URL | string): Promise<Response> };
+				/**
+				 * Per-user cap on write API calls (wrangler.jsonc `ratelimits`). Absent under `vite dev` and
+				 * in tests, where there is nothing to protect.
+				 */
+				API_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> };
 				/** Secrets: `wrangler secret put`, locally .dev.vars. Absent until configured. */
 				GOOGLE_CLIENT_ID?: string;
 				GOOGLE_CLIENT_SECRET?: string;

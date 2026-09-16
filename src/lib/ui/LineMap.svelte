@@ -133,7 +133,8 @@
 		const frame = panel.getBoundingClientRect();
 		const px = ((event.clientX - box.left) / box.width) * chart.width;
 		const py = ((event.clientY - box.top) / box.height) * chart.height;
-		const reach = touch ? 16 : 12;
+		// Never wider than half a row, so two nodes can never both be the nearest.
+		const reach = touch ? 15 : 9;
 		let best: LayoutMove | null = null;
 		let bestDistance = reach;
 		for (const move of chart.moves) {
@@ -151,7 +152,8 @@
 	const peek = $derived.by(() => {
 		if (!hover?.move.line) return null;
 		const { line, ply } = hover.move;
-		return { epd: line.epds[ply], san: sanOf(line)[ply - 1], ply, name: line.name };
+		// At a band's root there is no move into the position; the opening's own last move names it.
+		return { epd: line.epds[ply], san: sanOf(line)[ply - 1] ?? sanOf(line)[ply] ?? '', ply, name: hover.move.name };
 	});
 
 	/** "12." before a white move, "12…" before a black one. */
@@ -160,7 +162,7 @@
 	/** Every bead of one state on a single path: a zero-length subpath draws a dot under a round cap. */
 	const beads = (state: string) =>
 		chart.moves
-			.filter((m) => m.state === state && !m.end)
+			.filter((m) => m.state === state && m.bead)
 			.map((m) => `M${m.x} ${m.y}h0`)
 			.join('');
 
@@ -207,6 +209,7 @@
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<div
 		class="scroll"
+		class:hovering={!!hover}
 		class:panning
 		role="region"
 		aria-label="Chart"
@@ -266,6 +269,7 @@
 				{#if node.line && onplay}
 					<g
 						class="pick"
+						class:hot={hover?.move.x === node.x && hover?.move.y === node.y}
 						class:asked={asked === node.line}
 						role="button"
 						tabindex="0"
@@ -279,7 +283,7 @@
 							}
 						}}
 					>
-						<circle class="hit" cx={node.x} cy={node.y} r={touch ? 18 : 11} />
+						<circle class="hit" cx={node.x} cy={node.y} r={touch ? 15 : 9} />
 						<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
 					</g>
 				{:else}
@@ -409,6 +413,11 @@
 	.scroll:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: -2px;
+	}
+
+	/* Over something that answers to the pointer, the pointer says so. */
+	.scroll.hovering {
+		cursor: pointer;
 	}
 
 	.scroll.panning {
@@ -557,7 +566,7 @@
 		fill: transparent;
 	}
 
-	.pick:hover .node,
+	.pick.hot .node,
 	.pick:focus-visible .node,
 	.pick.asked .node {
 		stroke: var(--text);

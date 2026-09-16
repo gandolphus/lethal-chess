@@ -6,6 +6,7 @@ import { bandsOf, DUBIOUS, edgeState, elementCount, layout, place, sanOf, SIDELI
 
 const OPENING = ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5'];
 
+
 const line = (name: string, moves: string[], extra: Partial<BookLine> = {}): BookLine => ({
 	name,
 	variation: name.split(',')[0],
@@ -119,19 +120,32 @@ describe('layout', () => {
 		// Fog: Bc5, Ba4, Ne7, Nd4, f5. The entered Exchange line's Bxc6 is dim ember, not fog.
 		expect(l.edges.filter((e) => e.state === 'fog')).toHaveLength(5);
 		expect(l.edges.filter((e) => e.state === 'ember-dim')).toHaveLength(1);
-		// Here: the position after 3...a6, one ply right of the root.
+		// Here: the position after 3...a6, one ply right of the root, inside the Morphy band. Asserted as
+		// a column and a band rather than an exact y, which is a function of the row height.
 		const morphy = l.bands[1];
-		expect(l.here).toEqual({ x: 180 + 46, y: morphy.y + 16 });
+		expect(l.here?.x).toBe(180 + 46);
+		expect(l.here!.y).toBeGreaterThanOrEqual(morphy.y);
+		expect(l.here!.y).toBeLessThanOrEqual(morphy.y + morphy.height);
 	});
 
 	it('beads every move, and only names the ones the learner has been down', () => {
 		const found = new Map<string, LineStage>([[book.lines[0].key, 'discovered']]);
 		const l = layout(book.lines, found, options);
-		// One move per edge, and the ends among them — they carry no bead but are still hoverable.
-		expect(l.moves.length).toBe(l.edges.length);
-		expect(l.moves.filter((m) => m.end).length).toBe(l.nodes.filter((n) => n.kind !== 'branch').length);
+		// One move per edge, plus one per band for its root; the ends and the roots carry no bead of their
+		// own — something is already drawn there — but they are still hoverable.
+		expect(l.moves.length).toBe(l.edges.length + l.bands.length);
+		expect(l.moves.filter((m) => !m.bead).length).toBe(l.nodes.filter((n) => n.kind !== 'branch').length + l.bands.length);
+		// A band's root is the opening's own position, which is never secret — and it is named after the
+		// band, never after a line through it, which would give away a line the learner has not found.
+		const roots = l.moves.filter((m) => m.ply === options.opening);
+		expect(roots).toHaveLength(l.bands.length);
+		for (const root of roots) {
+			expect(root.line).toBeTruthy();
+			expect(l.bands.some((b) => b.label === root.name || b.name === root.name)).toBe(true);
+		}
 		// The spoiler rule the edge labels follow: a secret move has no line to draw a diagram from.
 		for (const move of l.moves) {
+			if (move.ply === options.opening) continue;
 			if (move.state === 'fog' || move.state === 'ember-dim') expect(move.line).toBeNull();
 			else expect(move.line).not.toBeNull();
 		}

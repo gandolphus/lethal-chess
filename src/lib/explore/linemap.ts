@@ -188,8 +188,10 @@ export type LayoutMove = {
 	ply: number;
 	state: EdgeState;
 	line: IndexedLine | null;
-	/** A line's last move. It carries its own, larger node, so no bead is drawn — but it is still hoverable. */
-	end: boolean;
+	/** What to call this position. A band's root is called after the band, never after a line through it. */
+	name: string;
+	/** Whether to draw a bead here. A line's end and a band's root already have a node of their own. */
+	bead: boolean;
 };
 
 export type LayoutNode = {
@@ -212,8 +214,9 @@ export type Layout = {
 	here: { x: number; y: number } | null;
 };
 
-const ROW: Record<Zoom, number> = { detail: 16, overview: 7 };
-const TOUCH_ROW: Record<Zoom, number> = { detail: 28, overview: 12 };
+// Rows are far enough apart that a node's hit area cannot reach the row above or below it.
+const ROW: Record<Zoom, number> = { detail: 20, overview: 7 };
+const TOUCH_ROW: Record<Zoom, number> = { detail: 32, overview: 12 };
 const HEAD: Record<Zoom, number> = { detail: 34, overview: 14 };
 const GAP: Record<Zoom, number> = { detail: 20, overview: 10 };
 // Just enough air above the first band; there is no longer a ruler up there to clear.
@@ -253,6 +256,20 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 			here: bandHere
 		});
 
+		// The first node of a band is the opening's own position. It is drawn, so it is hoverable — and the
+		// defining moves are never secret, so it can always show what it is.
+		out.moves.push({
+			x: x(opening),
+			y: root.y,
+			ply: opening,
+			state: 'fog',
+			line: band.lines[0],
+			// The band's own name. Any line through the root would do for the diagram, but naming one would
+			// hand over a line the learner has not found.
+			name: band.kind === 'variation' ? shortVariation(band.name) : band.name,
+			bead: false
+		});
+
 		const draw = (node: TrieNode, parent: TrieNode | null) => {
 			if (parent) {
 				const state = edgeState(node, stages, here);
@@ -277,7 +294,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 					state === 'lit' || state === 'ember'
 						? (node.lines.find((l) => stages.get(l.key) === 'discovered' || stages.get(l.key) === 'entered' || isHere(l, here)) ?? null)
 						: null;
-				out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known, end: node.ends.length > 0 });
+				out.moves.push({ x: x2, y: node.y, ply: node.ply, state, line: known, name: known?.name ?? '', bead: node.ends.length === 0 });
 			}
 			for (const child of node.children) draw(child, node);
 			if (node.ends.length) {

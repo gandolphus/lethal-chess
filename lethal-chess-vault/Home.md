@@ -56,6 +56,8 @@ only; rating-based strategy is at the bottom of the backlog.
   redesigned picker and drill page.
 - [[Opening Classification]] — **designed, catalog imported, second priority**. Objective cost,
   precision burden, weaknesses; drill the punishment.
+- [[Installable app]] — **built**. Home-screen install (manifest, icons, service worker) that never
+  serves a stale page.
 
 ## Research
 

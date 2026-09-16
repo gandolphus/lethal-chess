@@ -29,6 +29,7 @@ pre-drill MVP.
 ```
 src/
   hooks.server.ts             Canonical host/HTTPS redirects, session, security headers, cache-control, analytics
+  service-worker.ts           Installability + fast repeat loads; never a page ([[Installable app]])
   lib/
     chess/                    engine.ts (Stockfish wrapper), game.svelte.ts (reactive chess.js)
     components/               Board.svelte (own board: drag/click, marks, arrows, promotion), Piece.svelte
@@ -58,6 +59,7 @@ pipeline/
                               bundles.test.ts (checks the shipped bundles), inspect.ts
 migrations/                   0001 users/sessions/attempts/cards, 0002 discoveries, 0003 line_reviews
 static/openings/              catalog.json (3,810 named lines), repertoires/*.json (one bundle per opening)
+static/icons/, manifest.webmanifest, favicon.*   The installable app's mark and manifest
 lethal-chess-vault/           This vault
 ```
 

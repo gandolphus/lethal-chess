@@ -407,6 +407,8 @@ body {
 	font-family: var(--font-ui);
 	font-feature-settings: 'tnum' 1;
 	-webkit-font-smoothing: antialiased;
+	/* Installed on a phone the page runs under the notch and the home indicator; keep the content out. */
+	padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 button {

@@ -2,12 +2,25 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- viewport-fit=cover: installed on a phone the page runs edge to edge; app.css pads the safe areas. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
 		<!-- The site ships its own dark and light themes; ask colour-rewriting extensions (Dark Reader)
 		     and forced browser dark modes not to recolour it, which broke piece outlines. -->
 		<meta name="darkreader-lock" />
 		<meta name="color-scheme" content="dark light" />
+		<!-- Obsidian's background; the layout re-points it at whichever theme is active. -->
+		<meta name="theme-color" content="#131316" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+		<!-- iOS reads the manifest's display mode, but still wants these for the home-screen app's
+		     name and for letting the page show through the status bar. -->
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Lethal" />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

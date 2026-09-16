@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { page, updated } from '$app/state';
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { progressStore } from '$lib/drill/account.svelte';
@@ -16,6 +15,10 @@
 		// "Match the theme" means no attribute, so the theme's own pairing stands.
 		if (appearance.font === 'theme') delete document.documentElement.dataset.font;
 		else document.documentElement.dataset.font = appearance.font;
+		// The installed app's status bar and title bar take their colour from here.
+		document
+			.querySelector('meta[name="theme-color"]')
+			?.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
 	});
 
 	const user = $derived(
@@ -73,7 +76,6 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link rel="stylesheet" href={FONTS} />

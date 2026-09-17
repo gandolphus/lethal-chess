@@ -453,7 +453,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<main>
+<main data-shell>
 	<div class="layout">
 		<div class="board-column" bind:this={boardColumn}>
 			{#if analysing}
@@ -1454,7 +1454,6 @@
 			--chrome: 23rem;
 			display: flex;
 			flex-direction: column;
-			max-height: calc(100dvh - 3.25rem);
 			padding: 0.6rem 0.75rem 0.5rem;
 		}
 

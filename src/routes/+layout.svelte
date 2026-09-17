@@ -196,6 +196,13 @@
 		letter-spacing: -0.01em;
 		color: var(--text);
 		text-decoration: none;
+		/* The bar has a fixed height, so anything it cannot fit goes sideways — and a row wider than the
+		   window makes the browser zoom the whole page out, which turns into a page that scrolls. The
+		   wordmark is the one part that may give. */
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
 	}
 
 	.brand span {
@@ -351,6 +358,13 @@
 
 		.account {
 			margin-left: 0;
+		}
+	}
+
+	/* Narrower than an iPhone SE: the wordmark drops its second half rather than elbowing the bar wider. */
+	@media (max-width: 380px) {
+		.brand span {
+			display: none;
 		}
 	}
 </style>

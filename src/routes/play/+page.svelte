@@ -28,7 +28,7 @@
 	<title>Play — Lethal Chess</title>
 </svelte:head>
 
-<main>
+<main data-shell>
 	<div class="layout">
 		<div class="board-column">
 			<Board
@@ -241,7 +241,6 @@
 			--chrome: 22rem;
 			display: flex;
 			flex-direction: column;
-			max-height: calc(100dvh - 3.25rem);
 			padding: 0.75rem 0.75rem 0.6rem;
 		}
 

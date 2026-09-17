@@ -84,7 +84,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<main>
+<main data-shell>
 	<div class="layout">
 		<!-- The territory: the opening as a map, lit where this learner has been. On a phone it is a sheet. -->
 		{#if !narrow}
@@ -488,18 +488,25 @@
 
 	@media (max-width: 860px) {
 		main {
+			display: flex;
+			flex-direction: column;
 			padding: 0.6rem 0.75rem 0.5rem;
 		}
 
 		.layout {
 			grid-template-columns: 1fr;
+			grid-template-rows: minmax(0, 1fr);
+			align-items: stretch;
+			flex: 1;
+			min-height: 0;
 			gap: 0.65rem;
 		}
 
+		/* On a screen too short to hold it all — an SE at 568px — the panel scrolls, not the window. */
 		.panel {
 			gap: 0.7rem;
+			min-height: 0;
 			max-height: none;
-			overflow: visible;
 		}
 
 		h1 {

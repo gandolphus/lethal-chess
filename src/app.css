@@ -860,6 +860,18 @@ body {
 	user-select: none;
 }
 
+/**
+ * A screen that holds itself to the window says so, and the shell stops growing for it: `height` rather
+ * than `min-height`, so `main` gets exactly what the nav, any banner, the footer and the safe-area
+ * padding leave it. Screens that are lists — the openings, Settings — say nothing and scroll as before.
+ *
+ * It replaces a `max-height: calc(100dvh - 3.25rem)` on each such screen, which had to know how tall the
+ * chrome above it was and was wrong the moment anything else appeared there.
+ */
+body:has(main[data-shell]) {
+	height: 100dvh;
+}
+
 /* Worth taking: names, notation, and prose. `.prose` turns a whole page on; `.pick-text` one thing. */
 .prose,
 .pick-text,

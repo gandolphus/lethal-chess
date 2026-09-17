@@ -3,7 +3,7 @@
  * sees four per cent of it — these are the rules that make it a map instead.
  */
 import { describe, expect, it } from 'vitest';
-import { clampScale, FLOOR_SCALE, MAX_SCALE, scaleBounds, zoomAnchor } from './linemap';
+import { centerOffset, clampScale, contentPoint, FLOOR_SCALE, MAX_SCALE, scaleBounds, scrollFor } from './linemap';
 
 const PHONE = { width: 388, height: 595 };
 const CHART = { width: 1422, height: 3688 };
@@ -12,8 +12,8 @@ describe('scaleBounds', () => {
 	it('opens on the whole breadth of the opening, which is the axis that means something', () => {
 		const { fit } = scaleBounds(PHONE, CHART);
 		expect(fit).toBeCloseTo(388 / 1422, 5);
-		// The full width, and most of the height — "most of the map", not a corner of it.
 		expect(CHART.width * fit).toBeCloseTo(PHONE.width, 5);
+		// The full width, and most of the height — "most of the map", not a corner of it.
 		expect((PHONE.height / (CHART.height * fit)) * 100).toBeGreaterThan(50);
 	});
 
@@ -30,9 +30,7 @@ describe('scaleBounds', () => {
 	});
 
 	it('does not zoom past 1 to fill a frame bigger than the chart', () => {
-		const { min, fit } = scaleBounds({ width: 3000, height: 3000 }, { width: 800, height: 600 });
-		expect(fit).toBe(1);
-		expect(min).toBe(1);
+		expect(scaleBounds({ width: 3000, height: 3000 }, { width: 800, height: 600 })).toEqual({ min: 1, fit: 1 });
 	});
 
 	it('is inert before the frame has been measured', () => {
@@ -42,7 +40,6 @@ describe('scaleBounds', () => {
 
 describe('clampScale', () => {
 	const bounds = scaleBounds(PHONE, CHART);
-
 	it('holds a pinch between "the whole chart" and "as close as is useful"', () => {
 		expect(clampScale(99, bounds)).toBe(MAX_SCALE);
 		expect(clampScale(0.0001, bounds)).toBe(bounds.min);
@@ -50,33 +47,87 @@ describe('clampScale', () => {
 	});
 });
 
-describe('zoomAnchor', () => {
-	it('keeps the point under the fingers under the fingers', () => {
-		const from = 0.273;
-		const to = from * 2.5;
+describe('centerOffset', () => {
+	it('centres a chart narrower than its frame', () => {
+		expect(centerOffset(388, 200)).toBe(94);
+	});
+
+	it('is nothing once the chart is the wider of the two, so no part of it sits left of the origin', () => {
+		// The bug this replaced: a flex container centring 1164px of chart in a 388px frame put 388px of
+		// it left of the scroll origin, where no scroll position could reach it.
+		expect(centerOffset(388, 1164)).toBe(0);
+	});
+});
+
+describe('zooming holds the point it was aimed at', () => {
+	const frame = PHONE;
+	const chart = CHART;
+	const held = (px: number, py: number, scale: number, scrollLeft = 0, scrollTop = 0) =>
+		contentPoint({ scrollLeft, scrollTop, px, py, scale, frameWidth: frame.width, chartWidth: chart.width });
+
+	/** Where a chart point lands in the frame, given a scroll offset — the inverse of the two helpers. */
+	const screenX = (x: number, scale: number, left: number) => x * scale + centerOffset(frame.width, chart.width * scale) - left;
+	const screenY = (y: number, scale: number, top: number) => y * scale - top;
+
+	it('keeps the grabbed point under the fingers while zooming in', () => {
+		const from = 388 / 1422;
 		const px = 194;
 		const py = 300;
-		const scrollLeft = 120;
-		const scrollTop = 900;
-		// The chart point that was under (px, py) before the pinch.
-		const cx = (scrollLeft + px) / from;
-		const cy = (scrollTop + py) / from;
-
-		const at = zoomAnchor({ scrollLeft, scrollTop, px, py, from, to });
-
-		// After the pinch the same chart point must land on the same place in the frame.
-		expect(cx * to - at.left).toBeCloseTo(px, 6);
-		expect(cy * to - at.top).toBeCloseTo(py, 6);
+		// A scroll position the scroller can really be at: at `fit` the chart is 1006 tall in a 595 frame.
+		const anchor = held(px, py, from, 0, 300);
+		const to = from * 2.5;
+		const at = scrollFor({ anchor, px, py, scale: to, frame, chart });
+		expect(screenX(anchor.x, to, at.left)).toBeCloseTo(px, 6);
+		expect(screenY(anchor.y, to, at.top)).toBeCloseTo(py, 6);
+		// Zooming in about a point never lands on an end, so the clamp had nothing to say here.
+		expect(at.left).toBeGreaterThan(0);
+		expect(at.top).toBeGreaterThan(0);
 	});
 
-	it('is an identity when the scale does not change', () => {
-		const at = zoomAnchor({ scrollLeft: 40, scrollTop: 80, px: 10, py: 20, from: 0.5, to: 0.5 });
-		expect(at).toEqual({ left: 40, top: 80 });
+	it('keeps it under the fingers while zooming out, through the point where centring starts', () => {
+		const from = 1;
+		const px = 100;
+		const py = 400;
+		const anchor = held(px, py, from, 700, 2000);
+		// Far enough out that the chart is narrower than the frame and the centre offset is non-zero.
+		const to = scaleBounds(frame, chart).min * 0.999;
+		expect(centerOffset(frame.width, chart.width * to)).toBeGreaterThan(0);
+		const at = scrollFor({ anchor, px, py, scale: to, frame, chart });
+		// At the far end there is nothing to scroll, so the answer is the clamp, not the anchor.
+		expect(at).toEqual({ left: 0, top: 0 });
 	});
 
-	it('pulls the chart back towards its origin when zooming out', () => {
-		const at = zoomAnchor({ scrollLeft: 500, scrollTop: 1200, px: 194, py: 300, from: 1, to: 0.5 });
-		expect(at.left).toBeLessThan(500);
-		expect(at.top).toBeLessThan(1200);
+	it('a gesture that only moves the fingers pans without zooming', () => {
+		const scale = 0.5;
+		const anchor = held(200, 300, scale, 120, 800);
+		const moved = scrollFor({ anchor, px: 120, py: 220, scale, frame, chart });
+		// The fingers went 80 left and 80 up, so the chart follows them: scroll increases by 80 in each.
+		expect(moved.left).toBeCloseTo(200, 6);
+		expect(moved.top).toBeCloseTo(880, 6);
+	});
+
+	it('never asks the scroller for a position it does not have', () => {
+		const scale = 1;
+		const at = scrollFor({ anchor: { x: 99_999, y: 99_999 }, px: 0, py: 0, scale, frame, chart });
+		expect(at.left).toBe(chart.width - frame.width);
+		expect(at.top).toBe(chart.height - frame.height);
+
+		const back = scrollFor({ anchor: { x: -99_999, y: -99_999 }, px: 0, py: 0, scale, frame, chart });
+		expect(back).toEqual({ left: 0, top: 0 });
+	});
+
+	it('the whole chart is reachable at every scale — nothing is cropped', () => {
+		for (const scale of [scaleBounds(frame, chart).min, 0.4, 1, 2, MAX_SCALE]) {
+			const drawnWidth = chart.width * scale;
+			const drawnHeight = chart.height * scale;
+			// Aim at the far bottom-right corner and ask to put it in the top-left of the frame.
+			const at = scrollFor({ anchor: { x: chart.width, y: chart.height }, px: 0, py: 0, scale, frame, chart });
+			// Which is exactly the scroller's own maximum: every pixel of the chart can be brought into view.
+			expect(at.left).toBeCloseTo(Math.max(0, drawnWidth - frame.width), 6);
+			expect(at.top).toBeCloseTo(Math.max(0, drawnHeight - frame.height), 6);
+			// And the left edge is always reachable, which the flex-centred version could not manage.
+			const origin = scrollFor({ anchor: { x: 0, y: 0 }, px: 0, py: 0, scale, frame, chart });
+			expect(origin).toEqual({ left: 0, top: 0 });
+		}
 	});
 });

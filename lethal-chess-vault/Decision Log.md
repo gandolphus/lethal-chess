@@ -23,8 +23,11 @@ keeps its shape, nothing reflows under the fingers, and text stays vector-crisp 
   60% of the height. Not fit-to-both, which for a phone would be 0.16 and unreadable.
 - **A pinch reaches exactly `min`** — the scale at which the whole chart is in the frame. "Show me
   everything" is one gesture and never overshoots into nothing. Floor of 0.06 for a very tall chart.
-- **Zoom is anchored**: whatever is under the fingers stays under them (`zoomAnchor`). This is the whole
-  difference between a pinch that feels like a map and one that feels like a slider.
+- **Zoom is anchored**: whatever is under the fingers stays under them. This is the whole difference
+  between a pinch that feels like a map and one that feels like a slider. A pinch grabs **one chart
+  point** at the start and every event of the gesture is measured against that same point, rather than
+  re-derived from the last frame's scroll offset — which is what stops a hundred events drifting. The
+  point is held against wherever the fingers are *now*, so two fingers pan as well as zoom.
 - **A trackpad pinch is `ctrl`+wheel**, which is what the browser sends — so the laptop gesture is the
   same gesture, exponential so a stream of small deltas is smooth and one mouse notch is a step.
 
@@ -35,6 +38,25 @@ which loses the browser's flick momentum. Worth revisiting if it is missed.
 **Caught on the way**, and older than this change: a drag or pinch ended by arming a one-shot capture
 listener to swallow the click it would produce. A pinch usually produces no click, so the listener stayed
 armed and ate the *next real tap* instead. Now a flag, cleared when the next gesture starts.
+
+### The centring bug, and what it teaches
+
+First version shipped and the owner reported the map "cropped": *"after having zoomed in it seems the
+panning can't reach the edges"*, and zoom not holding its point. One cause for both.
+
+The scroller centred its chart with `display: flex; justify-content: center`. **A flex container that
+centres content wider than itself splits the overflow to both sides, and the half that goes left of the
+scroll origin cannot be reached at any scroll position.** Measured: 1164px of chart in a 388px frame gave
+a scroll range of 388 instead of 776, with the chart's left edge pinned at −388. The same offset also
+made the anchor arithmetic wrong, because it assumed the chart's origin was at `scrollLeft: 0`.
+
+Centring is now `margin-inline: auto` on a block chart, which **resolves to zero once the child is the
+wider of the two** — so it centres when the chart is small and adds no offset when it is large. The
+offset is a term in the maths either way (`centerOffset`), rather than something the layout does behind
+the arithmetic's back.
+
+Rule worth keeping: **never centre a scroll container's overflowing content with flex or grid
+centring.** `margin: auto` on a block child, or `justify-content: safe center`.
 
 ## 2026-09-17 — A shell states that it is one; it does not measure its own chrome
 

@@ -413,13 +413,50 @@ export function scaleBounds(frame: { width: number; height: number }, chart: { w
 export const clampScale = (n: number, bounds: ScaleBounds) => Math.min(MAX_SCALE, Math.max(bounds.min, n));
 
 /**
- * Where the scroller must be left so that the chart point under (px, py) — given in the scroller's own
- * client box — is still under it at the new scale. This is the whole difference between a pinch that
- * feels like a map and one that feels like a slider.
+ * When the chart is narrower than its frame it sits in the middle of it, and that offset is part of every
+ * sum below. It must come from a margin on the chart rather than from centring the scroller's content:
+ * a flex container that centres something wider than itself splits the overflow to both sides, and the
+ * left half of it cannot be scrolled to at all.
  */
-export function zoomAnchor(o: { scrollLeft: number; scrollTop: number; px: number; py: number; from: number; to: number }) {
+export const centerOffset = (frame: number, drawn: number) => Math.max(0, (frame - drawn) / 2);
+
+/** The chart point under (px, py), which is given in the scroller's own client box. */
+export function contentPoint(o: {
+	scrollLeft: number;
+	scrollTop: number;
+	px: number;
+	py: number;
+	scale: number;
+	frameWidth: number;
+	chartWidth: number;
+}) {
 	return {
-		left: ((o.scrollLeft + o.px) / o.from) * o.to - o.px,
-		top: ((o.scrollTop + o.py) / o.from) * o.to - o.py
+		x: (o.scrollLeft + o.px - centerOffset(o.frameWidth, o.chartWidth * o.scale)) / o.scale,
+		y: (o.scrollTop + o.py) / o.scale
+	};
+}
+
+/**
+ * Where to leave the scroller so that `anchor` — a point in chart coordinates — lands under (px, py) at
+ * the given scale. Holding one chart point for a whole pinch, rather than re-deriving it from the last
+ * frame's scroll offset, is what stops the error compounding across a gesture's hundred events.
+ *
+ * Negative or over-long values are what the browser would clamp to the ends anyway; clamping here as
+ * well keeps the function's answer the same as the scroller's.
+ */
+export function scrollFor(o: {
+	anchor: { x: number; y: number };
+	px: number;
+	py: number;
+	scale: number;
+	frame: { width: number; height: number };
+	chart: { width: number; height: number };
+}) {
+	const drawnWidth = o.chart.width * o.scale;
+	const drawnHeight = o.chart.height * o.scale;
+	const bound = (n: number, drawn: number, frame: number) => Math.min(Math.max(0, n), Math.max(0, drawn - frame));
+	return {
+		left: bound(o.anchor.x * o.scale + centerOffset(o.frame.width, drawnWidth) - o.px, drawnWidth, o.frame.width),
+		top: bound(o.anchor.y * o.scale - o.py, drawnHeight, o.frame.height)
 	};
 }

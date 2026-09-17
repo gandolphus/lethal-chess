@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { IndexedLine, LineStage } from '$lib/explore/book';
-	import { clampScale, layout, sanOf, scaleBounds, zoomAnchor, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
+	import { tick } from 'svelte';
+	import { clampScale, contentPoint, layout, sanOf, scaleBounds, scrollFor, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 
 	let {
@@ -78,27 +79,51 @@
 		scale = bounds.fit;
 	});
 
+	/** The chart point currently under a position in the scroller's client box. */
+	function chartPointAt(px: number, py: number) {
+		if (!scroller) return { x: 0, y: 0 };
+		return contentPoint({
+			scrollLeft: scroller.scrollLeft,
+			scrollTop: scroller.scrollTop,
+			px,
+			py,
+			scale,
+			frameWidth: scroller.clientWidth,
+			chartWidth: chart.width
+		});
+	}
+
 	/**
-	 * Zooms about a point given in the scroller's own client box, so whatever is under the fingers stays
-	 * under them — the thing that makes a pinch feel like the map and not like a slider.
+	 * Zooms so that `hold` — a point in chart coordinates — stays under (px, py) in the frame. A pinch
+	 * passes the point it grabbed at the start and keeps passing the same one, so a hundred events cannot
+	 * drift; a wheel has no gesture to belong to and takes whatever is under the cursor now.
 	 */
-	function zoomAbout(next: number, px: number, py: number) {
+	async function zoomTo(next: number, px: number, py: number, hold?: { x: number; y: number }) {
 		if (!scroller) return;
 		const to = clampScale(next, bounds);
-		if (to === scale) return;
-		const at = zoomAnchor({ scrollLeft: scroller.scrollLeft, scrollTop: scroller.scrollTop, px, py, from: scale, to });
-		scale = to;
-		// The new size is applied by Svelte after this tick; scroll once the box has taken it.
-		requestAnimationFrame(() => {
-			if (!scroller) return;
-			scroller.scrollLeft = at.left;
-			scroller.scrollTop = at.top;
+		const anchor = hold ?? chartPointAt(px, py);
+		if (to !== scale) {
+			scale = to;
+			// The chart is not its new size until Svelte has written the attributes.
+			await tick();
+		}
+		if (!scroller) return;
+		const at = scrollFor({
+			anchor,
+			px,
+			py,
+			scale: to,
+			frame: { width: scroller.clientWidth, height: scroller.clientHeight },
+			chart
 		});
+		scroller.scrollLeft = at.left;
+		scroller.scrollTop = at.top;
 	}
 
 	/** Live pointers, so two of them can be told apart and measured against each other. */
 	const touches = new Map<number, { x: number; y: number }>();
-	let pinch: { distance: number; scale: number } | null = null;
+	/** `hold` is the chart point the fingers grabbed; it is what the whole gesture is measured against. */
+	let pinch: { distance: number; scale: number; hold: { x: number; y: number } } | null = null;
 
 	const spread = () => {
 		const [a, b] = [...touches.values()];
@@ -145,7 +170,7 @@
 			event.preventDefault();
 			const box = scroller.getBoundingClientRect();
 			// Exponential, so a trackpad's stream of small deltas is smooth and one mouse notch is a step.
-			zoomAbout(scale * Math.exp(-event.deltaY / 400), event.clientX - box.left, event.clientY - box.top);
+			void zoomTo(scale * Math.exp(-event.deltaY / 400), event.clientX - box.left, event.clientY - box.top);
 			return;
 		}
 		const canX = scroller.scrollWidth - scroller.clientWidth > 1;
@@ -181,7 +206,9 @@
 				pan = null;
 				panning = false;
 				hover = null;
-				pinch = { distance: spread().distance, scale };
+				const { distance, x, y } = spread();
+				const box = scroller.getBoundingClientRect();
+				pinch = { distance, scale, hold: chartPointAt(x - box.left, y - box.top) };
 				return;
 			}
 			if (touches.size > 2) return;
@@ -195,7 +222,11 @@
 			if (pinch && touches.size >= 2 && scroller) {
 				const { distance, x, y } = spread();
 				const box = scroller.getBoundingClientRect();
-				if (pinch.distance > 0) zoomAbout((pinch.scale * distance) / pinch.distance, x - box.left, y - box.top);
+				// The same held point throughout, against wherever the fingers are now — so the gesture
+				// pans as well as zooms, which is what two fingers on a map are expected to do.
+				if (pinch.distance > 0) {
+					void zoomTo((pinch.scale * distance) / pinch.distance, x - box.left, y - box.top, pinch.hold);
+				}
 				return;
 			}
 		}
@@ -539,14 +570,17 @@
 		/* Panning and pinching are both ours — the browser would otherwise answer a two-finger gesture
 		   here by zooming the whole page. */
 		touch-action: none;
-		/* Zoomed out past its width the chart is narrower than the frame; it sits in the middle of it. */
-		display: flex;
-		justify-content: center;
-		align-items: flex-start;
 	}
 
+	/**
+	 * Zoomed out past its width the chart is narrower than the frame and sits in the middle of it — by an
+	 * auto margin, which resolves to zero once the chart is the wider of the two. Centring it with a flex
+	 * container instead splits the overflow to *both* sides, and the half that goes left of the scroll
+	 * origin cannot be reached at any scroll position: the map looks cropped exactly as it is zoomed in.
+	 */
 	.map {
-		flex: none;
+		display: block;
+		margin-inline: auto;
 	}
 
 	.scroll:focus-visible {

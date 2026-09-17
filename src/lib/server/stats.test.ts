@@ -32,6 +32,22 @@ describe('isAdmin', () => {
 });
 
 describe('siteStats', () => {
+	it('reports what the row quota bounds, per table and for the heaviest account', async () => {
+		const db = createTestDb();
+		const ann = await upsertGoogleUser(db, { sub: 'ann', email: 'ann@example.com', name: 'Ann', picture: null }, daysAgo(2));
+		const bob = await upsertGoogleUser(db, { sub: 'bob', email: 'bob@example.com', name: 'Bob', picture: null }, daysAgo(1));
+		await recordAttempts(db, ann.id, [attempt('ruy-lopez', 'a1'), attempt('ruy-lopez', 'a2'), attempt('ruy-lopez', 'a3')], now);
+		await recordAttempts(db, bob.id, [attempt('sicilian', 'b1')], now);
+
+		const stats = await siteStats(db, now);
+		expect(stats.storage.rows).toBe(4);
+		expect(stats.storage.byTable.find((t) => t.table === 'attempts')?.rows).toBe(4);
+		expect(stats.storage.byTable.map((t) => t.table)).toEqual(['attempts', 'cards', 'discoveries', 'line_reviews']);
+		// The heaviest account, not the total: the quota is per account.
+		expect(stats.storage.largestAccount).toBe(3);
+		expect(stats.storage.quota).toBeGreaterThan(0);
+	});
+
 	it('aggregates learners, activity windows, openings and first-try precision', async () => {
 		const db = createTestDb();
 		const ann = await upsertGoogleUser(db, { sub: 'ann', email: 'ann@example.com', name: 'Ann', picture: null }, daysAgo(20));

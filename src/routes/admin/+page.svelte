@@ -5,6 +5,9 @@
 	const s = $derived(data.stats);
 	const maxAttempts = $derived(Math.max(1, ...s.attemptsPerDay.map((d) => d.attempts)));
 	const name = (id: string) => id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+	const num = (n: number) => n.toLocaleString('en');
+	// The audit measured ~400 bytes a row with its indexes; near enough to read "how full is it".
+	const megabytes = (rows: number) => ((rows * 400) / 1_000_000).toFixed(1);
 </script>
 
 <svelte:head>
@@ -62,9 +65,33 @@
 			<p class="empty">Nothing yet.</p>
 		{/if}
 	</section>
+
+	<section>
+		<h2>Storage</h2>
+		<p class="lede">
+			What the per-account row quota bounds. The heaviest account is at
+			<b>{Math.round((s.storage.largestAccount / s.storage.quota) * 100)}%</b> of its
+			{num(s.storage.quota)}-row ceiling.
+		</p>
+		<table>
+			<thead><tr><th>Table</th><th>Rows</th></tr></thead>
+			<tbody>
+				{#each s.storage.byTable as t (t.table)}
+					<tr><td>{t.table.replace('_', ' ')}</td><td class="num">{num(t.rows)}</td></tr>
+				{/each}
+				<tr class="total"><td>all accounts</td><td class="num">{num(s.storage.rows)} · ~{megabytes(s.storage.rows)} MB</td></tr>
+			</tbody>
+		</table>
+	</section>
 </main>
 
 <style>
+	.total td {
+		border-top: 1px solid var(--border);
+		font-weight: 600;
+		color: var(--text);
+	}
+
 	main {
 		max-width: 860px;
 		margin: 0 auto;

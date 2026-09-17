@@ -1,4 +1,5 @@
 import type { Database } from './db';
+import { ROW_QUOTA } from './quota';
 import type { User } from './users';
 
 /**
@@ -17,6 +18,8 @@ export type SiteStats = {
 	attemptsPerDay: { day: string; attempts: number; learners: number }[];
 	topOpenings: { bundleId: string; learners: number; attempts: number }[];
 	practice: { firstTries: number; passRate: number | null };
+	/** How much of the database is in use, and how close the heaviest account is to its ceiling. */
+	storage: { rows: number; byTable: { table: string; rows: number }[]; largestAccount: number; quota: number };
 };
 
 /** Aggregate numbers only — no individual user's data leaves this function. */
@@ -61,6 +64,22 @@ export async function siteStats(db: Database, now: Date): Promise<SiteStats> {
 		)
 		.first<{ n: number; passes: number | null }>();
 
+	// What the row quota is there to bound. Every count is over a user-leading index.
+	const TABLES = ['attempts', 'cards', 'discoveries', 'line_reviews'];
+	const byTable = await Promise.all(
+		TABLES.map(async (table) => ({ table, rows: await count(`SELECT COUNT(*) AS n FROM ${table}`) }))
+	);
+	const largestAccount = await count(
+		`SELECT COALESCE(MAX(kept), 0) AS n FROM (
+			SELECT user_id, COUNT(*) AS kept FROM (
+				SELECT user_id FROM attempts
+				UNION ALL SELECT user_id FROM cards
+				UNION ALL SELECT user_id FROM discoveries
+				UNION ALL SELECT user_id FROM line_reviews
+			) GROUP BY user_id
+		)`
+	);
+
 	return {
 		users: {
 			total: await count('SELECT COUNT(*) AS n FROM users'),
@@ -73,6 +92,7 @@ export async function siteStats(db: Database, now: Date): Promise<SiteStats> {
 		},
 		attemptsPerDay: perDay.results,
 		topOpenings: top.results,
+		storage: { rows: byTable.reduce((n, t) => n + t.rows, 0), byTable, largestAccount, quota: ROW_QUOTA },
 		practice: {
 			firstTries: firstTries?.n ?? 0,
 			passRate: firstTries?.n ? (firstTries.passes ?? 0) / firstTries.n : null

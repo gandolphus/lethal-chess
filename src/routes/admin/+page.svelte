@@ -6,6 +6,23 @@
 	const maxAttempts = $derived(Math.max(1, ...s.attemptsPerDay.map((d) => d.attempts)));
 	const name = (id: string) => id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 	const num = (n: number) => n.toLocaleString('en');
+
+	/** "4 min ago", "yesterday", "12 Sep" — close enough to answer "is this person still coming back". */
+	function when(ms: number | null) {
+		if (!ms) return 'never';
+		const mins = Math.round((Date.now() - ms) / 60_000);
+		if (mins < 1) return 'just now';
+		if (mins < 60) return `${mins} min ago`;
+		const hours = Math.round(mins / 60);
+		if (hours < 24) return `${hours} h ago`;
+		const days = Math.round(hours / 24);
+		if (days === 1) return 'yesterday';
+		if (days < 30) return `${days} days ago`;
+		return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+	}
+
+	/** Active in the last two days: the dot that says "yes, they are using it". */
+	const isLive = (ms: number | null) => Boolean(ms && Date.now() - ms < 2 * 86_400_000);
 	// The audit measured ~400 bytes a row with its indexes; near enough to read "how full is it".
 	const megabytes = (rows: number) => ((rows * 400) / 1_000_000).toFixed(1);
 </script>
@@ -31,6 +48,48 @@
 			<span class="n num">{s.practice.passRate === null ? '—' : `${Math.round(s.practice.passRate * 100)}%`}</span>
 			<span>right first time</span><small>{s.practice.firstTries} practice moves</small>
 		</div>
+	</section>
+
+	<section>
+		<h2>Accounts</h2>
+		<p class="lede">Most recently active first. How much each person has done and when — never what they played.</p>
+		{#if s.accounts.length}
+			<table class="accounts">
+				<thead>
+					<tr>
+						<th>Who</th><th>Last seen</th><th class="r">Found</th><th class="r">Openings</th>
+						<th class="r">Moves</th><th class="r">Reviews</th><th class="r">Joined</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each s.accounts as a (a.id)}
+						<tr>
+							<td>
+								<span class="who">
+									<i class="dot" class:live={isLive(a.lastActive)} aria-hidden="true"></i>
+									<span>
+										<b>{a.name}</b>
+										<small class="pick-text">{a.email}</small>
+									</span>
+								</span>
+							</td>
+							<td class:dim={!a.lastActive}>{when(a.lastActive)}</td>
+							<td class="r num">{num(a.discovered)}{#if a.entered}<small> +{a.entered}</small>{/if}</td>
+							<td class="r num">{a.openings || '—'}</td>
+							<td class="r num">{num(a.attempts)}</td>
+							<td class="r num">{num(a.reviews)}</td>
+							<td class="r num dim">{when(a.joined)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+			<p class="foot">
+				<b>Found</b> is lines discovered, with lines entered but not finished after the <b>+</b>.
+				<b>Moves</b> counts drilled moves in Practice; exploring records discoveries instead.
+			</p>
+		{:else}
+			<p class="empty">Nobody has signed in yet.</p>
+		{/if}
 	</section>
 
 	<section>
@@ -193,5 +252,72 @@
 	th {
 		color: var(--text-2);
 		font-weight: 500;
+	}
+
+	.r {
+		text-align: right;
+	}
+
+	.dim {
+		color: var(--text-3);
+	}
+
+	.accounts td {
+		color: var(--text-2);
+		vertical-align: top;
+	}
+
+	.who {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+	}
+
+	.who b {
+		display: block;
+		color: var(--text);
+		font-weight: 600;
+	}
+
+	.who small {
+		color: var(--text-3);
+		font-size: 0.8rem;
+	}
+
+	/* Lit for anyone who did something in the last two days — the answer at a glance. */
+	.dot {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--surface-2);
+		box-shadow: 0 0 0 1px var(--border) inset;
+	}
+
+	.dot.live {
+		background: var(--ok);
+		box-shadow: none;
+	}
+
+	.foot {
+		margin: 0.6rem 0 0;
+		font-size: 0.8rem;
+		color: var(--text-3);
+	}
+
+	.foot b {
+		color: var(--text-2);
+		font-weight: 500;
+	}
+
+	@media (max-width: 620px) {
+		.accounts :is(th, td):nth-child(5),
+		.accounts :is(th, td):nth-child(7) {
+			display: none;
+		}
+
+		.who small {
+			display: none;
+		}
 	}
 </style>

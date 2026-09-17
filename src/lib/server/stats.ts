@@ -20,9 +20,62 @@ export type SiteStats = {
 	practice: { firstTries: number; passRate: number | null };
 	/** How much of the database is in use, and how close the heaviest account is to its ceiling. */
 	storage: { rows: number; byTable: { table: string; rows: number }[]; largestAccount: number; quota: number };
+	/** One row per account: who signed up, and whether they are actually using it. */
+	accounts: Account[];
 };
 
-/** Aggregate numbers only — no individual user's data leaves this function. */
+export type Account = {
+	id: string;
+	name: string;
+	email: string;
+	joined: number;
+	/** The last of anything they did, or null if they have only ever signed in. */
+	lastActive: number | null;
+	discovered: number;
+	entered: number;
+	attempts: number;
+	reviews: number;
+	openings: number;
+	rows: number;
+};
+
+/**
+ * Every account, most recently active first. Counts and timestamps only — how much someone has done and
+ * when, never *what*: no position, move or line leaves this query. It is the administrator's answer to
+ * "has anyone signed up, and is anyone coming back", which the aggregate numbers above cannot give.
+ *
+ * At this size one query with four grouped joins is cheaper than a round trip per account, and every
+ * subquery groups by the user-leading primary key or index.
+ */
+const ACCOUNTS = `
+	SELECT
+		u.id, u.name, u.email, u.created_at AS joined,
+		COALESCE(d.discovered, 0) AS discovered,
+		COALESCE(d.entered, 0) AS entered,
+		COALESCE(a.n, 0) AS attempts,
+		COALESCE(r.n, 0) AS reviews,
+		COALESCE(o.n, 0) AS openings,
+		COALESCE(a.n, 0) + COALESCE(c.n, 0) + COALESCE(d.n, 0) + COALESCE(r.n, 0) AS rows,
+		NULLIF(MAX(COALESCE(a.last, 0), COALESCE(d.last, 0), COALESCE(r.last, 0)), 0) AS lastActive
+	FROM users u
+	LEFT JOIN (SELECT user_id, COUNT(*) AS n, MAX(created_at) AS last FROM attempts GROUP BY user_id) a ON a.user_id = u.id
+	LEFT JOIN (
+		SELECT user_id, COUNT(*) AS n, MAX(created_at) AS last,
+			SUM(stage = 'discovered') AS discovered, SUM(stage = 'entered') AS entered
+		FROM discoveries GROUP BY user_id
+	) d ON d.user_id = u.id
+	LEFT JOIN (SELECT user_id, COUNT(*) AS n, MAX(created_at) AS last FROM line_reviews GROUP BY user_id) r ON r.user_id = u.id
+	LEFT JOIN (SELECT user_id, COUNT(*) AS n FROM cards GROUP BY user_id) c ON c.user_id = u.id
+	LEFT JOIN (
+		SELECT user_id, COUNT(*) AS n FROM (
+			SELECT user_id, bundle_id FROM attempts
+			UNION SELECT user_id, bundle_id FROM discoveries
+		) GROUP BY user_id
+	) o ON o.user_id = u.id
+	ORDER BY lastActive DESC NULLS LAST, joined DESC
+	LIMIT 200`;
+
+/** Aggregates, plus one row per account — counts and timestamps, never anyone's drill content. */
 export async function siteStats(db: Database, now: Date): Promise<SiteStats> {
 	const t = now.getTime();
 	const count = async (query: string, ...values: number[]) =>
@@ -80,7 +133,10 @@ export async function siteStats(db: Database, now: Date): Promise<SiteStats> {
 		)`
 	);
 
+	const accounts = await db.prepare(ACCOUNTS).all<Account>();
+
 	return {
+		accounts: accounts.results,
 		users: {
 			total: await count('SELECT COUNT(*) AS n FROM users'),
 			newLast7Days: await count('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?', t - 7 * DAY)

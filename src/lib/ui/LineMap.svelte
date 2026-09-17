@@ -1,7 +1,18 @@
 <script lang="ts">
 	import type { IndexedLine, LineStage } from '$lib/explore/book';
 	import { tick } from 'svelte';
-	import { clampScale, contentPoint, layout, sanOf, scaleBounds, scrollFor, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
+	import {
+		clampScale,
+		contentPoint,
+		layout,
+		openingScale,
+		sanOf,
+		scaleBounds,
+		scrollFor,
+		type Here,
+		type LayoutMove,
+		type Zoom
+	} from '$lib/explore/linemap';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 
 	let {
@@ -61,9 +72,10 @@
 	 * it is computed once for the panel's width, and zooming only scales what is drawn — so the tree keeps
 	 * its shape and nothing reflows under the fingers.
 	 *
-	 * A phone's map is around 1400 × 3700 in a 390 × 600 window: at 1 you see four per cent of it. So it
-	 * opens fitted to the width, which is the whole breadth of the opening and most of its height, and
-	 * pinching takes it from "everything at once" to reading the moves.
+	 * A phone's map is around 1400 × 3700 in a 390 × 600 window: at 1 you see four per cent of it. So on a
+	 * phone it opens fitted to the width, which is the whole breadth of the opening and most of its
+	 * height, and pinching takes it from "everything at once" to reading the moves. A desktop window
+	 * already holds enough to read, so it opens at its natural size and zoom is asked for, not imposed.
 	 */
 	let scale = $state(1);
 	let height = $state(0);
@@ -76,7 +88,7 @@
 		const key = `${title}:${Math.round(width)}x${Math.round(height)}:${Math.round(chart.width)}x${Math.round(chart.height)}`;
 		if (!width || !height || key === fittedFor) return;
 		fittedFor = key;
-		scale = bounds.fit;
+		scale = openingScale(bounds, touch);
 	});
 
 	/** The chart point currently under a position in the scroller's client box. */

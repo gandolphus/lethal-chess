@@ -460,3 +460,11 @@ export function scrollFor(o: {
 		top: bound(o.anchor.y * o.scale - o.py, drawnHeight, o.frame.height)
 	};
 }
+
+/**
+ * Where the map opens. A phone shows four per cent of the chart at scale 1, so it opens fitted to the
+ * width — the full breadth of the opening, and most of its height. A desktop window already holds enough
+ * of the chart to read it, and fitting there only made it smaller than it needed to be, so it opens at
+ * its natural size and zoom is something the reader asks for.
+ */
+export const openingScale = (bounds: ScaleBounds, touch: boolean) => (touch ? bounds.fit : clampScale(1, bounds));

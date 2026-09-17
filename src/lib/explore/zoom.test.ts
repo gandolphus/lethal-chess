@@ -3,10 +3,33 @@
  * sees four per cent of it — these are the rules that make it a map instead.
  */
 import { describe, expect, it } from 'vitest';
-import { centerOffset, clampScale, contentPoint, FLOOR_SCALE, MAX_SCALE, scaleBounds, scrollFor } from './linemap';
+import { centerOffset, clampScale, contentPoint, FLOOR_SCALE, MAX_SCALE, openingScale, scaleBounds, scrollFor } from './linemap';
 
 const PHONE = { width: 388, height: 595 };
+const DESKTOP = { width: 1116, height: 798 };
 const CHART = { width: 1422, height: 3688 };
+
+describe('where the map opens', () => {
+	it('fits a phone to the width, because at 1 it would show four per cent of the chart', () => {
+		const bounds = scaleBounds(PHONE, CHART);
+		expect(openingScale(bounds, true)).toBe(bounds.fit);
+		expect(openingScale(bounds, true)).toBeLessThan(1);
+	});
+
+	it('leaves a desktop at its natural size, where zoom is asked for rather than imposed', () => {
+		const bounds = scaleBounds(DESKTOP, CHART);
+		// `fit` would shrink it to 0.78 for no reason: a desktop window already holds enough to read.
+		expect(bounds.fit).toBeLessThan(1);
+		expect(openingScale(bounds, false)).toBe(1);
+	});
+
+	it('still never opens outside what a pinch could reach', () => {
+		// A frame bigger than the chart cannot go below 1, so "natural size" and the floor agree.
+		const bounds = scaleBounds({ width: 3000, height: 5000 }, CHART);
+		expect(openingScale(bounds, false)).toBe(clampScale(1, bounds));
+		expect(openingScale(bounds, true)).toBeGreaterThanOrEqual(bounds.min);
+	});
+});
 
 describe('scaleBounds', () => {
 	it('opens on the whole breadth of the opening, which is the axis that means something', () => {

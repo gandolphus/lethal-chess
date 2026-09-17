@@ -51,6 +51,32 @@
 	</section>
 
 	<section>
+		<h2>Reports <span class="tag">{data.reports.length}</span></h2>
+		<p class="lede">What testers wrote on <a href="/report">/report</a>, newest first.</p>
+		{#if data.reports.length}
+			<ol class="reports">
+				{#each data.reports as r (r.id)}
+					<li data-kind={r.kind}>
+						<p class="head">
+							<b>{r.kind === 'bug' ? 'Bug' : r.kind === 'idea' ? 'Idea' : 'Other'}</b>
+							<span>{r.name ?? r.contact ?? 'anonymous'}</span>
+							<span class="dim">{when(r.createdAt)}</span>
+						</p>
+						<p class="body pick-text">{r.body}</p>
+						<p class="meta">
+							{#if r.path}<code>{r.path}</code>{/if}
+							{r.browser}{#if r.viewport} · {r.viewport}{/if}{#if r.appVersion} · build {r.appVersion.slice(0, 8)}{/if}
+							{#if r.email}· <span class="pick-text">{r.email}</span>{/if}
+						</p>
+					</li>
+				{/each}
+			</ol>
+		{:else}
+			<p class="empty">Nothing reported yet.</p>
+		{/if}
+	</section>
+
+	<section>
 		<h2>Accounts</h2>
 		<p class="lede">Most recently active first. How much each person has done and when — never what they played.</p>
 		{#if s.accounts.length}
@@ -297,6 +323,75 @@
 	.dot.live {
 		background: var(--ok);
 		box-shadow: none;
+	}
+
+	.tag {
+		display: inline-block;
+		margin-left: 0.3rem;
+		padding: 0 0.4rem;
+		border-radius: 999px;
+		background: var(--surface-2);
+		color: var(--text-2);
+		font-size: 0.8rem;
+		font-weight: 500;
+	}
+
+	.reports {
+		display: grid;
+		gap: 0.6rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.reports li {
+		padding: 0.7rem 0.9rem;
+		border: 1px solid var(--border);
+		border-left: 3px solid var(--border);
+		border-radius: 10px;
+		background: var(--surface-1);
+	}
+
+	.reports li[data-kind='bug'] {
+		border-left-color: var(--bad);
+	}
+
+	.reports li[data-kind='idea'] {
+		border-left-color: var(--accent);
+	}
+
+	.reports .head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin: 0;
+		font-size: 0.85rem;
+		color: var(--text-2);
+	}
+
+	.reports .head b {
+		color: var(--text);
+	}
+
+	/* The reporter's own words, exactly as they typed them, line breaks and all. */
+	.reports .body {
+		margin: 0.4rem 0 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.reports .meta {
+		margin: 0.45rem 0 0;
+		font-size: 0.78rem;
+		color: var(--text-3);
+	}
+
+	.reports code {
+		padding: 0.05rem 0.3rem;
+		border-radius: 4px;
+		background: var(--surface-2);
+		font-size: 0.95em;
 	}
 
 	.foot {

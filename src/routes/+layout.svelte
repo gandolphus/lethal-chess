@@ -169,6 +169,8 @@
 {@render children?.()}
 
 <footer class="site-footer">
+	<a href="/report?from={page.url.pathname}">Report a bug</a>
+	<span aria-hidden="true">·</span>
 	<a href="https://github.com/gandolphus/lethal-chess" target="_blank" rel="noopener">Source code</a>
 	<span aria-hidden="true">·</span>
 	<span>AGPL-3.0</span>

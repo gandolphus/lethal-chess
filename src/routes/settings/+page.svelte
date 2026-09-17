@@ -177,6 +177,14 @@
 		<p class="note"><a href="/privacy">What we store and why</a></p>
 	</section>
 
+	<section>
+		<h2>Something wrong?</h2>
+		<p class="note">
+			Anything that looked wrong, felt wrong, or got in your way — half a sentence is worth more than nothing.
+		</p>
+		<p><a class="btn" href="/report?from=/settings">Report a bug</a></p>
+	</section>
+
 	<p class="note about">
 		<a href="https://github.com/gandolphus/lethal-chess" target="_blank" rel="noopener">Source code</a> · AGPL-3.0 ·
 		<a href="/privacy">Privacy</a> · <a href="/credits">Credits &amp; licences</a>

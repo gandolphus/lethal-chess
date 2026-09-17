@@ -1544,12 +1544,16 @@
 			overflow-y: auto;
 		}
 
-		/* On a phone the map is a bottom sheet, in Overview. */
+		/* On a phone the map takes the whole screen: it is the one view that wants every pixel, and a
+		   sheet with the page showing round it reads as a window rather than a map. Fixed positioning
+		   escapes the body's safe-area padding, so it keeps clear of the notch itself. */
 		.map-sheet {
-			inset: auto 0 0 0;
-			height: 82dvh;
-			border-radius: 14px 14px 0 0;
-			border-bottom: 0;
+			inset: 0;
+			max-width: none;
+			margin: 0;
+			border: 0;
+			border-radius: 0;
+			padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 		}
 	}
 </style>

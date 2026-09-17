@@ -473,16 +473,15 @@
 		cursor: default;
 	}
 
+	/* The whole screen: the map is the one view that wants every pixel, and a sheet with the page showing
+	   round it reads as a window rather than a map. Fixed positioning escapes the body's safe-area
+	   padding, so it keeps clear of the notch and the home indicator itself. */
 	.map-sheet {
 		position: fixed;
-		inset: auto 0 0 0;
-		height: 82dvh;
+		inset: 0;
 		z-index: 41;
-		border: 1px solid var(--border);
-		border-bottom: 0;
-		border-radius: 14px 14px 0 0;
 		background: var(--surface-1);
-		box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+		padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 		overflow: hidden;
 	}
 

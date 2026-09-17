@@ -43,6 +43,20 @@
 	</section>
 
 	<section>
+		<h2>If you report a bug</h2>
+		<p>
+			Sending a report from <a href="/report">Report a bug</a> stores what you wrote, together with the page you
+			were on, your window size, your browser's name and version, and which build of the site you were using. If
+			you are signed in it is linked to your account; if you are not, it keeps whatever contact detail you chose
+			to give, and nothing if you gave none. The form lists all of this before you send it.
+		</p>
+		<p>
+			It is kept until the problem is dealt with, and read only by us. Deleting your account unlinks your reports
+			from it rather than deleting them, so a fixed bug stays fixed — after that they no longer identify you.
+		</p>
+	</section>
+
+	<section>
 		<h2>Visit statistics</h2>
 		<p>
 			We count visits with <strong>Cloudflare Web Analytics</strong>: which pages are viewed, the referring website, country

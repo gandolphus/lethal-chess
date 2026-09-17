@@ -361,7 +361,9 @@
 		</span>
 		<span class="spacer"></span>
 		{#if onclose}
-			<button type="button" class="btn close" onclick={onclose} bind:this={closeButton}>Close <kbd>Esc</kbd></button>
+			<button type="button" class="btn close" onclick={onclose} bind:this={closeButton}>
+				<span class="cross" aria-hidden="true">✕</span>Close<kbd>Esc</kbd>
+			</button>
 		{/if}
 	</header>
 
@@ -568,8 +570,37 @@
 	}
 
 	.close {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		padding: 0.3rem 0.65rem;
 		font-size: 0.85rem;
+	}
+
+	.cross {
+		display: none;
+	}
+
+	/**
+	 * Filling the screen, this is the only way out, so a thumb must not have to aim for it: the cross
+	 * makes it legible at a glance and the keyboard hint — which no phone can act on — goes.
+	 */
+	@media (hover: none) and (pointer: coarse) {
+		.close {
+			min-height: 2.5rem;
+			padding-inline: 0.85rem;
+			font-size: 0.95rem;
+		}
+
+		.close kbd {
+			display: none;
+		}
+
+		.cross {
+			display: inline;
+			font-size: 1.05em;
+			line-height: 1;
+		}
 	}
 
 	.scroll {

@@ -386,3 +386,40 @@ export const elementCount = (l: Layout) =>
 	(l.moves.length ? 4 : 0) +
 	l.nodes.reduce((n, e) => n + 1 + (e.label ? 1 : 0), 0) +
 	(l.here ? 2 : 0);
+
+// ── Zoom ─────────────────────────────────────────────────────────────────────
+// The chart is laid out once, for the panel's width, and zooming only scales what is drawn. The layout
+// never changes, so the tree keeps its shape and nothing reflows under the fingers.
+
+/** As far in as a pinch may go. Past this the beads are further apart than they are informative. */
+export const MAX_SCALE = 3;
+/** However tall the chart, it never shrinks past this: an overview, not a smudge. */
+export const FLOOR_SCALE = 0.06;
+
+export type ScaleBounds = { min: number; fit: number };
+
+/**
+ * `fit` is where the map opens: the whole breadth of the opening, which is the axis that carries meaning,
+ * and as much of the height as that leaves. `min` is as far out as a pinch may go — exactly far enough to
+ * put the entire chart in the frame, so "show me everything" is always one gesture away and never
+ * overshoots into nothing.
+ */
+export function scaleBounds(frame: { width: number; height: number }, chart: { width: number; height: number }): ScaleBounds {
+	if (!frame.width || !frame.height || !chart.width || !chart.height) return { min: FLOOR_SCALE, fit: 1 };
+	const min = Math.max(FLOOR_SCALE, Math.min(1, frame.width / chart.width, frame.height / chart.height));
+	return { min, fit: Math.max(min, Math.min(1, frame.width / chart.width)) };
+}
+
+export const clampScale = (n: number, bounds: ScaleBounds) => Math.min(MAX_SCALE, Math.max(bounds.min, n));
+
+/**
+ * Where the scroller must be left so that the chart point under (px, py) — given in the scroller's own
+ * client box — is still under it at the new scale. This is the whole difference between a pinch that
+ * feels like a map and one that feels like a slider.
+ */
+export function zoomAnchor(o: { scrollLeft: number; scrollTop: number; px: number; py: number; from: number; to: number }) {
+	return {
+		left: ((o.scrollLeft + o.px) / o.from) * o.to - o.px,
+		top: ((o.scrollTop + o.py) / o.from) * o.to - o.py
+	};
+}

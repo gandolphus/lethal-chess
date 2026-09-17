@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { IndexedLine, LineStage } from '$lib/explore/book';
-	import { layout, sanOf, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
+	import { clampScale, layout, sanOf, scaleBounds, zoomAnchor, type Here, type LayoutMove, type Zoom } from '$lib/explore/linemap';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 
 	let {
@@ -56,6 +56,56 @@
 	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
 
 	/**
+	 * How big the chart is drawn, as a multiple of its laid-out size. The layout itself never changes —
+	 * it is computed once for the panel's width, and zooming only scales what is drawn — so the tree keeps
+	 * its shape and nothing reflows under the fingers.
+	 *
+	 * A phone's map is around 1400 × 3700 in a 390 × 600 window: at 1 you see four per cent of it. So it
+	 * opens fitted to the width, which is the whole breadth of the opening and most of its height, and
+	 * pinching takes it from "everything at once" to reading the moves.
+	 */
+	let scale = $state(1);
+	let height = $state(0);
+	/** Refitted when a different opening or a different frame arrives — never mid-gesture. */
+	let fittedFor = $state('');
+
+	const bounds = $derived(scaleBounds({ width, height }, chart));
+
+	$effect(() => {
+		const key = `${title}:${Math.round(width)}x${Math.round(height)}:${Math.round(chart.width)}x${Math.round(chart.height)}`;
+		if (!width || !height || key === fittedFor) return;
+		fittedFor = key;
+		scale = bounds.fit;
+	});
+
+	/**
+	 * Zooms about a point given in the scroller's own client box, so whatever is under the fingers stays
+	 * under them — the thing that makes a pinch feel like the map and not like a slider.
+	 */
+	function zoomAbout(next: number, px: number, py: number) {
+		if (!scroller) return;
+		const to = clampScale(next, bounds);
+		if (to === scale) return;
+		const at = zoomAnchor({ scrollLeft: scroller.scrollLeft, scrollTop: scroller.scrollTop, px, py, from: scale, to });
+		scale = to;
+		// The new size is applied by Svelte after this tick; scroll once the box has taken it.
+		requestAnimationFrame(() => {
+			if (!scroller) return;
+			scroller.scrollLeft = at.left;
+			scroller.scrollTop = at.top;
+		});
+	}
+
+	/** Live pointers, so two of them can be told apart and measured against each other. */
+	const touches = new Map<number, { x: number; y: number }>();
+	let pinch: { distance: number; scale: number } | null = null;
+
+	const spread = () => {
+		const [a, b] = [...touches.values()];
+		return { distance: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+	};
+
+	/**
 	 * A click anywhere on the chart plays whatever the pointer is on — every move of a route the learner
 	 * has been down, not only its end. `line` is set only where the position was actually reached, so the
 	 * ply under the pointer is always one they have earned. Ends carry their own button and handle their
@@ -90,6 +140,14 @@
 	 */
 	function onWheel(event: WheelEvent) {
 		if (!scroller) return;
+		// A trackpad pinch arrives as a wheel with ctrlKey — this *is* the pinch, on a laptop.
+		if (event.ctrlKey || event.metaKey) {
+			event.preventDefault();
+			const box = scroller.getBoundingClientRect();
+			// Exponential, so a trackpad's stream of small deltas is smooth and one mouse notch is a step.
+			zoomAbout(scale * Math.exp(-event.deltaY / 400), event.clientX - box.left, event.clientY - box.top);
+			return;
+		}
 		const canX = scroller.scrollWidth - scroller.clientWidth > 1;
 		const canY = scroller.scrollHeight - scroller.clientHeight > 1;
 		if (!canX && !canY) return;
@@ -104,16 +162,43 @@
 		}
 	}
 
-	/** Dragging the chart moves it, the way a map is moved. Touch already does this natively. */
+	/**
+	 * Dragging the chart moves it, the way a map is moved — with a finger as well as a cursor. Touch used
+	 * to be left to the browser, but a pinch has to be ours (`touch-action: none`), and taking one gesture
+	 * means taking both.
+	 */
 	let panning = $state(false);
 	let pan: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
 
 	function panStart(event: PointerEvent) {
-		if (event.pointerType === 'touch' || event.button !== 0 || !scroller) return;
+		if (!scroller) return;
+		// A fresh gesture: whatever the last one left armed does not apply to this one.
+		swallow = false;
+		if (event.pointerType === 'touch') {
+			touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+			if (touches.size === 2) {
+				// A second finger ends the pan it interrupted and starts a pinch from where they are now.
+				pan = null;
+				panning = false;
+				hover = null;
+				pinch = { distance: spread().distance, scale };
+				return;
+			}
+			if (touches.size > 2) return;
+		} else if (event.button !== 0) return;
 		pan = { x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop, moved: false };
 	}
 
 	function panMove(event: PointerEvent) {
+		if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
+			touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+			if (pinch && touches.size >= 2 && scroller) {
+				const { distance, x, y } = spread();
+				const box = scroller.getBoundingClientRect();
+				if (pinch.distance > 0) zoomAbout((pinch.scale * distance) / pinch.distance, x - box.left, y - box.top);
+				return;
+			}
+		}
 		if (!pan || !scroller) return;
 		const dx = event.clientX - pan.x;
 		const dy = event.clientY - pan.y;
@@ -130,13 +215,34 @@
 	}
 
 	function panEnd(event: PointerEvent) {
+		touches.delete(event.pointerId);
+		if (pinch && touches.size < 2) {
+			pinch = null;
+			swallow = true;
+			pan = null;
+			panning = false;
+			return;
+		}
 		if (pan?.moved) {
 			scroller?.releasePointerCapture?.(event.pointerId);
-			// Swallow the click a drag ends with, so panning off a node never plays its line.
-			scroller?.addEventListener('click', (click) => click.stopPropagation(), { capture: true, once: true });
+			swallow = true;
 		}
 		pan = null;
 		panning = false;
+	}
+
+	/**
+	 * A drag or a pinch is not a tap, so the click it ends with must not play a line. A flag rather than a
+	 * one-shot listener, because a gesture does not always end in a click — a pinch usually does not — and
+	 * a listener left armed would eat the *next* real tap instead.
+	 */
+	let swallow = false;
+
+	function swallowClick(event: MouseEvent) {
+		if (!swallow) return;
+		swallow = false;
+		event.stopPropagation();
+		event.preventDefault();
 	}
 
 	function track(event: PointerEvent) {
@@ -188,7 +294,8 @@
 		const found = chart.bands.find((b) => b.name === target);
 		if (!found) return;
 		const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-		scroller.scrollTo({ top: Math.max(0, found.y - 12), behavior: smooth ? 'smooth' : 'auto' });
+		// The band's y is in chart units; what scrolls is the drawn chart.
+		scroller.scrollTo({ top: Math.max(0, found.y * scale - 12), behavior: smooth ? 'smooth' : 'auto' });
 	});
 
 	function onKey(event: KeyboardEvent) {
@@ -228,7 +335,9 @@
 		tabindex="0"
 		bind:this={scroller}
 		bind:clientWidth={width}
+		bind:clientHeight={height}
 		onwheel={onWheel}
+		onclickcapture={swallowClick}
 		onpointerdown={panStart}
 		onpointermove={panMove}
 		onpointerup={panEnd}
@@ -241,8 +350,8 @@
 		<svg
 			class="map"
 			bind:this={svg}
-			width={chart.width}
-			height={chart.height}
+			width={chart.width * scale}
+			height={chart.height * scale}
 			viewBox="0 0 {chart.width} {chart.height}"
 			role="img"
 			aria-label="{title}: each variation's lines as a tree, lit where discovered"
@@ -427,6 +536,17 @@
 		overscroll-behavior: contain;
 		/* The chart is a map: the background offers to be dragged. */
 		cursor: grab;
+		/* Panning and pinching are both ours — the browser would otherwise answer a two-finger gesture
+		   here by zooming the whole page. */
+		touch-action: none;
+		/* Zoomed out past its width the chart is narrower than the frame; it sits in the middle of it. */
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+	}
+
+	.map {
+		flex: none;
 	}
 
 	.scroll:focus-visible {

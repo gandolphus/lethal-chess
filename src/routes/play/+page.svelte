@@ -235,17 +235,36 @@
 	}
 
 	@media (max-width: 860px) {
+		/* The same app shell as the drill screens: the window is the frame, and the controls column is
+		   what scrolls if a short phone leaves it too little room. */
 		main {
-			padding: 0.75rem;
+			--chrome: 22rem;
+			display: flex;
+			flex-direction: column;
+			max-height: calc(100dvh - 3.25rem);
+			padding: 0.75rem 0.75rem 0.6rem;
 		}
 
 		.layout {
 			grid-template-columns: 1fr;
-			gap: 0.9rem;
+			grid-template-rows: auto minmax(0, 1fr);
+			align-items: stretch;
+			flex: 1;
+			min-height: 0;
+			gap: 0.7rem;
+		}
+
+		.board-column {
+			width: min(100%, calc(100dvh - var(--chrome)));
+			margin: 0 auto;
 		}
 
 		.panel {
 			display: grid;
+			align-content: start;
+			min-height: 0;
+			overflow-y: auto;
+			gap: 0.7rem;
 		}
 
 		.notice {

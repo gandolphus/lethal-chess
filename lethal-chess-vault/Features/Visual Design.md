@@ -217,6 +217,31 @@ Settings. It was *supposed* to be hidden when installed already — but a scoped
 `.site-footer.svelte-x { display: flex }` outranked the global rule that tried, so that rule had never once
 applied. Component-scoped styles win: a global override of a scoped property has to live in the component.
 
+## …and on a phone the panel is what scrolls (2026-09-17)
+
+Sizing the board from `--chrome` was only half of it: below it the panel still grew to its own content and
+pushed the window taller. Measured at 390×844 the owner's Explore screen spilled 15px — the mode row and
+the sheet button — and 20–125px at 390×740 and 390×667 across Today, The Open and Play. Every screen with a
+board now carries the same shell under `max-width: 860px`:
+
+| | |
+|---|---|
+| `main` | `display: flex; flex-direction: column; max-height: calc(100dvh - 3.25rem)` |
+| `.layout` | `grid-template-rows: auto minmax(0, 1fr)`; **`align-items: stretch`** |
+| board | `width: min(100%, calc(100dvh - var(--chrome)))` |
+| panel | `min-height: 0; overflow-y: auto` |
+
+Three traps, each found by measuring rather than reading — the `align-items: start` inherited from the
+desktop two-column layout (a start-aligned grid item takes its content height and overflows its row), grid
+rather than a column flex (a stretched flex item's cross size is not definite, so the board's `100%`
+resolved against min-content and came out 97px), and a per-screen `--chrome`: 23rem in a session, 24rem on
+Today, 22rem on Play. Zero page overflow on all six board screens at 844, 740 and 667. See [[Decision Log]].
+
+**The site bar is one row on a phone** (82px → 52px): a glyph per destination, the word kept in a span
+hidden with `clip-path` so each link still has an accessible name. **The openings list was zooming the
+whole page out** — 94 spine segments at 3px + 2px is a 468px row in a 390px window, and Chrome answers that
+by widening the layout viewport and shrinking everything; capped at 40 in `src/lib/ui/spine.ts`.
+
 ## Pending
 
 The user's hands-on reaction; favourite theme as default; self-hosting the Google Fonts faces. The previous Catppuccin Mocha palette in `src/app.css` came from the planning vault

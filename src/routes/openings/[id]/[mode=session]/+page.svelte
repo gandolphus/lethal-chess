@@ -272,7 +272,8 @@
 					};
 				case 'your-move': {
 					if (explore.inOpening) {
-						return { tone, title: `Play the ${bundle.name}`, text: message?.text ?? `It starts ${openingSan}. The lines after that are yours to discover.` };
+						// The name and the moves are the header's, right above: this says what to do, not what it is.
+						return { tone, title: 'Play the opening', text: message?.text ?? 'Play through its first moves. What comes after them is yours to discover.' };
 					}
 					// The title is about now, the text about the last move; where the game stands is the line card's job.
 					const prompt = explore.round
@@ -511,7 +512,8 @@
 		</div>
 
 		<aside class="panel">
-			<header class="track" class:hidden={narrow}>
+			<!-- The opening's name and its moves are written once on this screen, here. -->
+			<header class="track">
 				{#if !narrow}
 					<p class="side">
 						<i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'}
@@ -519,27 +521,19 @@
 					</p>
 				{/if}
 				<h1 class="pick-text">{bundle.name}</h1>
-				{#if !narrow}
-					<p class="opening num pick-text">{openingSan}</p>
-					{#if variationName && variationName !== bundle.name}
-						<p class="variation">{variationName}</p>
-					{/if}
+				<p class="opening num pick-text">{openingSan}</p>
+				{#if !narrow && variationName && variationName !== bundle.name}
+					<p class="variation">{variationName}</p>
+				{/if}
+				{#if narrow}
+					<!-- The phone's two ways off this screen: back to the dashboard, where the modes are, or
+					     down to everything the game itself does not need in front of you. -->
+					<div class="phone-actions">
+						<a class="btn small" href="/openings/{bundle.id}">← Dashboard</a>
+						<button type="button" class="btn small" onclick={() => (sheet = true)}>Moves &amp; progress</button>
+					</div>
 				{/if}
 			</header>
-
-			<div class="modes">
-				<div class="segmented" role="tablist" aria-label="Mode">
-					<button type="button" role="tab" aria-selected={mode === 'explore'} onclick={() => switchTo('explore')}>Explore</button>
-					<button type="button" role="tab" aria-selected={mode === 'practice'} onclick={() => switchTo('practice')}>Practice</button>
-					<button type="button" role="tab" aria-selected={mode === 'open'} onclick={() => switchTo('open')}>The Open</button>
-				</div>
-				<p class="mode-hint">
-					{#if mode === 'explore'}The lines are secret. Play good moves to discover them.{:else if mode === 'open'}They might play anything. Answer each move precisely — the best, or as good as.{:else}Replay the lines you found, from memory. They come back when you're about to forget.{/if}
-				</p>
-				{#if narrow}
-					<button type="button" class="btn small sheet-button" onclick={() => (sheet = true)}>Moves &amp; progress</button>
-				{/if}
-			</div>
 
 			<!-- A finished round's card would repeat the notice, which carries the score and the pips itself. -->
 			<div class="line-slot" class:empty={(!explore && !review) || (tally && explore?.phase === 'over')}>
@@ -612,12 +606,6 @@
 					<p class="kicker">{explore.inBook ? 'In the book' : 'Past the known lines'}</p>
 					<p class="name pick-text">{explore.inBook ? (explore.name ?? bundle.name) : 'Free play'}</p>
 					<p class="sub">{explore.inBook ? 'Established lines continue from here.' : 'The book ends here. Play on, or start a new game.'}</p>
-				</div>
-			{:else if explore && !explore.round}
-				<div class="discovery" data-kind="idle" role="status">
-					<p class="kicker">The opening</p>
-					<p class="name pick-text">{bundle.name}</p>
-					<p class="sub num">{openingSan}</p>
 				</div>
 			{/if}
 			</div>
@@ -706,7 +694,7 @@
 	<div class="map-sheet reference" role="dialog" aria-modal="true" aria-label="Moves and progress">
 		<header class="sheet-head">
 			<p class="side"><i class="stone" class:black={bundle.side === 'b'}></i>You play {bundle.side === 'w' ? 'White' : 'Black'} · <span class="num">{openingSan}</span></p>
-			<!-- The phone's way back: the mode row has no room for another button, and an installed app has no Back. -->
+			<!-- A second way back, for a reader who opened the sheet to get here; an installed app has no Back. -->
 			<a class="btn small" href="/openings/{bundle.id}">← Dashboard</a>
 			<button type="button" class="btn small" onclick={() => (sheet = false)}>Close</button>
 		</header>
@@ -963,17 +951,10 @@
 		color: var(--text-2);
 	}
 
-	.modes {
+	.phone-actions {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.4rem 0.8rem;
-	}
-
-	.mode-hint {
-		margin: 0;
-		font-size: 0.85rem;
-		color: var(--text-2);
+		gap: 0.4rem;
+		margin-top: 0.5rem;
 	}
 
 	.notice .title {
@@ -1189,7 +1170,10 @@
 		min-height: 6.4rem;
 	}
 
-	.line-slot.empty {
+	/* …and it goes when there is no card at all: inside the opening the header has already said the
+	   only thing this slot could, so its reserved space would read as a hole. */
+	.line-slot.empty,
+	.line-slot:not(:has(.discovery)) {
 		display: none;
 	}
 
@@ -1421,10 +1405,6 @@
 		overflow: hidden;
 	}
 
-	.sheet-button {
-		margin-left: auto;
-	}
-
 	.back {
 		margin-left: auto;
 		font-size: 0.8rem;
@@ -1435,10 +1415,6 @@
 	.back:hover,
 	.back:focus-visible {
 		color: var(--accent);
-	}
-
-	.track.hidden {
-		display: none;
 	}
 
 	.map-sheet.reference {
@@ -1472,13 +1448,14 @@
 	}
 
 	@media (max-width: 860px) {
+		/* A phone screen is the window, not a page: the board and what hangs under it share one viewport,
+		   and if a round ever needs more room than that, the panel scrolls — never the window. */
 		main {
+			--chrome: 23rem;
+			display: flex;
+			flex-direction: column;
+			max-height: calc(100dvh - 3.25rem);
 			padding: 0.6rem 0.75rem 0.5rem;
-		}
-
-		/* The mode names say it; the sentence under them is a line the phone cannot spare. */
-		.mode-hint {
-			display: none;
 		}
 
 		.notice {
@@ -1499,42 +1476,68 @@
 			display: none;
 		}
 
+		/* Two rows: the board at its natural size, the panel in whatever is left. Grid rather than a
+		   column flex because the board's width is a percentage of its track, which a grid track fixes
+		   and a stretched flex item does not. */
 		.layout {
 			grid-template-columns: 1fr;
+			grid-template-rows: auto minmax(0, 1fr);
+			/* Not the `start` of the two-column layout: a panel that aligned to its own content height
+			   would grow past its row and take the window with it. */
+			align-items: stretch;
+			flex: 1;
+			min-height: 0;
 			gap: 0.65rem;
 		}
 
 		.board-column {
 			position: static;
+			flex: none;
 			flex-direction: column;
 			gap: 0.5rem;
 		}
 
+		/* As wide as the screen, but never taller than what the rest of the column leaves: on a short
+		   phone the board gives up width rather than pushing the panel off the bottom. */
 		.board-slot {
-			width: 100%;
+			width: min(100%, calc(100dvh - var(--chrome)));
 		}
 
-		/* On a phone the verdict sits right under the board, before anything else. */
+		/* The verdict sits right under the board and the opening's name goes last: by then the reader has
+		   chosen it twice over. Still the desktop's column rather than a grid — grid rows here were sized
+		   to the panel's own height, so a tall card was squeezed into what was left and spilled silently
+		   over the notice under it. Children that refuse to shrink overflow honestly, and the panel scrolls. */
 		.panel {
-			display: grid;
-			grid-template-columns: 1fr;
 			gap: 0.65rem;
+			min-height: 0;
+			max-height: none;
 		}
 
+		.panel > * {
+			flex: none;
+		}
+
+		/* No reserved height on a phone: the card takes what it needs, and what it needs is all it takes. */
 		.line-slot {
 			order: -3;
+			min-height: 0;
 		}
 
 		.notice {
 			order: -2;
 		}
 
-		.modes {
+		.track {
 			order: -1;
 		}
 
 		.track h1 {
-			font-size: 1.5rem;
+			font-size: 1.2rem;
+		}
+
+		/* Name and moves on one line each, tight: this block is a reminder, not a title. */
+		.track .opening {
+			margin-top: 0.1rem;
 		}
 
 		.moves {

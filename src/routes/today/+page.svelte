@@ -319,22 +319,38 @@
 	}
 
 	@media (max-width: 860px) {
+		/* The same app shell as a session screen: the window is the frame, and if what hangs under the
+		   board needs more room than is left, that column scrolls rather than the page. */
 		main {
-			padding: 0.75rem 0.75rem 2.5rem;
+			--chrome: 24rem;
+			display: flex;
+			flex-direction: column;
+			max-height: calc(100dvh - 3.25rem);
+			padding: 0.75rem 0.75rem 0.6rem;
 		}
 
 		.layout {
 			grid-template-columns: 1fr;
-			gap: 0.9rem;
+			grid-template-rows: auto minmax(0, 1fr);
+			align-items: stretch;
+			flex: 1;
+			min-height: 0;
+			gap: 0.7rem;
 		}
 
 		.board-slot {
 			position: static;
-			width: 100%;
+			width: min(100%, calc(100dvh - var(--chrome)));
+		}
+
+		.panel {
+			min-height: 0;
+			overflow-y: auto;
+			gap: 0.7rem;
 		}
 
 		h1 {
-			font-size: 1.5rem;
+			font-size: 1.4rem;
 		}
 	}
 </style>

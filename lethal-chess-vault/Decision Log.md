@@ -9,6 +9,71 @@ Dated, rationale-bearing record of locked decisions. See [[System Map]] for the 
 
 ---
 
+## 2026-09-17 — A screen with a board on it is an app shell, and the panel is what scrolls
+
+The owner, testing [[Exploration Mode]] on a phone: *"The view is still too big so let's take a look at
+how to fit everything in order to not need scrolling on the page."* The standing rule — *"a chess
+interface shouldn't feel like a website"* — had been applied per-screen and had drifted. Explore spilled
+15px at 390×844 (the mode row and the sheet button were the part below the fold) and 20px at 390×667.
+
+**The shape, now the same on `/today`, `/play` and every `/openings/[id]/[mode]`:**
+
+```
+main    display: flex; flex-direction: column; max-height: calc(100dvh - 3.25rem)
+.layout display: grid; grid-template-rows: auto minmax(0, 1fr); align-items: stretch
+board   width: min(100%, calc(100dvh - var(--chrome)))
+panel   min-height: 0; overflow-y: auto
+```
+
+The board yields width before the panel yields room, and past that the **panel** scrolls — never the
+window. Three things had to be right and each was found by measuring, not by reading:
+
+- **`align-items: start`** is inherited from the two-column desktop layout. A grid item aligned to start
+  takes its own content height, overflows its `1fr` row, and takes the window with it. It must be
+  `stretch` on a phone. This alone was the whole 20px at 667.
+- **Grid, not a column flex.** A stretched flex item's cross size is not definite while it is being
+  sized, so the board's `width: min(100%, …)` resolved `100%` against *min-content* — a 97px board. A
+  grid track is definite, so the percentage resolves.
+- **`--chrome` is per-screen** (23rem in a session, 24rem on `/today`, 22rem on `/play`), because what
+  hangs under the board differs. At 844 nothing shrinks; the budget only bites on short phones.
+
+## 2026-09-17 — The site bar is glyphs on a phone, and the words stay for screen readers
+
+*"Perhaps we can compress it to just one if we instead of displaying the titles for the routes we show
+suitable icons."* Below 560px the bar was two rows (82px); it is now one (52px), with an inline SVG per
+destination and the label kept in a `<span class="word">` hidden by `clip-path`, **not** `display: none`
+— which would leave each link with no accessible name. `nav.test.ts` asserts both halves: every glyph is
+followed by its word, and the phone rule never turns to `display: none` or `visibility: hidden`.
+
+## 2026-09-17 — An opening's name and its first moves appear once per screen
+
+*"Underneath the board there are two cards, both of which inform the user of the opening and its opening
+moves, obviously redundant… having the name of the opening and it's first moves might be good to keep
+nonetheless but only in one place."* Explore had them **three** times: the panel header, the idle line
+card ("The opening / Italian Game / 1.e4 e5 2.Nf3 Nc6 3.Bc4"), and the notice ("Play the Italian Game /
+It starts 1.e4 e5…").
+
+**The header keeps them.** It is the screen's identity, it carries "You play White" and the way back, and
+it is now rendered on phones too (compact, and last in the column — by then the reader has chosen the
+opening twice). The idle line card is gone and the notice says what to do, not what this is: *"Play the
+opening / Play through its first moves. What comes after them is yours to discover."*
+
+Consequence: inside the opening the line slot has no card at all, and its reserved `min-height: 6.4rem`
+read as a hole. `.line-slot:not(:has(.discovery))` collapses it. The slot still holds its place once a
+game is under way, which is what the reservation was for.
+
+## 2026-09-17 — Mode switching belongs to the dashboard, not the session screen
+
+*"Also the toggling between modes isn't important to have on this page. Instead the user can return to the
+opening's dashboard and click from there instead."* The Explore / Practice / The Open tablist is gone from
+`/openings/[id]/[mode]`; the [[Opening dashboard]] already presents the three as cards with their state
+("103 lines to find", "Nothing to replay yet"), which is a better place to choose from than three tabs
+that cannot say why. The `E` / `P` / `O` keyboard shortcuts stay — they cost no pixels.
+
+This freed the phone's only wrapping row. In its place: **← Dashboard** and **Moves & progress**, which
+also fixes an old workaround — the back link used to live in the bottom sheet *because* "the mode row has
+no room for another button".
+
 ## 2026-09-16 — "Trippy" is a family (Prism), and what makes it possible is a capability of the contract (a scene)
 
 The owner's [[Eye candy themes]] brief left one question open: is the LSD theme a family like the other

@@ -6,6 +6,7 @@
 	import type { OpeningIndexEntry } from '$lib/drill/bundle';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
 	import { fenAfter } from '$lib/ui/position';
+	import { spine } from '$lib/ui/spine';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -68,22 +69,6 @@
 		const recent = data.openings.filter((o) => found[o.id]?.last).sort((a, b) => found[b.id].last.localeCompare(found[a.id].last))[0];
 		return recent ? { opening: recent, progress: found[recent.id] } : null;
 	});
-
-	/**
-	 * An opening's shape: one segment per variation, as wide as its lines. The found and entered counts are
-	 * laid in from the largest variation, since the picker doesn't know which variation each line is in.
-	 */
-	function spine(sizes: number[], { discovered, entered }: Pick<Progress, 'discovered' | 'entered'>) {
-		let d = discovered;
-		let e = entered;
-		return sizes.map((n) => {
-			const lit = Math.min(n, d);
-			d -= lit;
-			const warm = Math.min(n - lit, e);
-			e -= warm;
-			return { n, lit: lit / n, warm: warm / n };
-		});
-	}
 
 	const tally = (openings: OpeningIndexEntry[]) =>
 		openings.reduce((t, o) => ({ found: t.found + (found[o.id]?.discovered ?? 0), lines: t.lines + (o.lines ?? 0) }), { found: 0, lines: 0 });

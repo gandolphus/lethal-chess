@@ -83,11 +83,12 @@
 		});
 	});
 
+	// `icon` is what the phone shows in place of the label: one row of glyphs instead of two rows of words.
 	const links = [
-		{ href: '/', label: 'Openings', current: (path: string) => path === '/' || path.startsWith('/openings') },
-		{ href: '/today', label: 'Today', current: (path: string) => path.startsWith('/today') },
-		{ href: '/play', label: 'Play', current: (path: string) => path.startsWith('/play') },
-		{ href: '/settings', label: 'Settings', current: (path: string) => path.startsWith('/settings') }
+		{ href: '/', label: 'Openings', icon: 'board', current: (path: string) => path === '/' || path.startsWith('/openings') },
+		{ href: '/today', label: 'Today', icon: 'calendar', current: (path: string) => path.startsWith('/today') },
+		{ href: '/play', label: 'Play', icon: 'play', current: (path: string) => path.startsWith('/play') },
+		{ href: '/settings', label: 'Settings', icon: 'sliders', current: (path: string) => path.startsWith('/settings') }
 	];
 
 	// The themes' typefaces (all OFL). Only the faces the active theme uses are downloaded.
@@ -101,14 +102,39 @@
 	<link rel="stylesheet" href={FONTS} />
 </svelte:head>
 
+<!-- One glyph per destination, drawn with the text colour so a theme needs to know nothing about them. -->
+{#snippet glyph(name: string)}
+	<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+		{#if name === 'board'}
+			<rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+			<path d="M12 3.5v17M3.5 12h17" />
+		{:else if name === 'calendar'}
+			<rect x="3.5" y="5.5" width="17" height="15" rx="2" />
+			<path d="M3.5 10.5h17M8.5 3v4M15.5 3v4" />
+		{:else if name === 'play'}
+			<path d="M8 5.6v12.8L19 12z" fill="currentColor" stroke-linejoin="round" />
+		{:else if name === 'sliders'}
+			<path d="M4 8h9M17 8h3M4 16h3M11 16h9" />
+			<circle cx="15" cy="8" r="2" />
+			<circle cx="9" cy="16" r="2" />
+		{:else if name === 'shield'}
+			<path d="M12 3.2l7 2.8v5c0 4.4-2.9 7.4-7 8.8-4.1-1.4-7-4.4-7-8.8V6z" />
+		{/if}
+	</svg>
+{/snippet}
+
 <nav class="site" aria-label="Site">
 	<a class="brand" href="/">Lethal<span>chess</span></a>
 	<div class="links">
 		{#each links as link (link.href)}
-			<a href={link.href} aria-current={link.current(page.url.pathname) ? 'page' : undefined}>{link.label}</a>
+			<a href={link.href} aria-current={link.current(page.url.pathname) ? 'page' : undefined}>
+				{@render glyph(link.icon)}<span class="word">{link.label}</span>
+			</a>
 		{/each}
 		{#if (data as { isAdmin?: boolean }).isAdmin}
-			<a href="/admin" aria-current={page.url.pathname.startsWith('/admin') ? 'page' : undefined}>Admin</a>
+			<a href="/admin" aria-current={page.url.pathname.startsWith('/admin') ? 'page' : undefined}>
+				{@render glyph('shield')}<span class="word">Admin</span>
+			</a>
 		{/if}
 	</div>
 	<div class="account">
@@ -185,10 +211,19 @@
 	}
 
 	.links a {
+		display: flex;
+		align-items: center;
 		padding: 0.35rem 0.6rem;
 		border-radius: 6px;
 		color: var(--text-2);
 		text-decoration: none;
+	}
+
+	/* Words above 560px, glyphs below it; neither is ever drawn twice. */
+	.icon {
+		display: none;
+		width: 1.35rem;
+		height: 1.35rem;
 	}
 
 	.links a:hover {
@@ -277,21 +312,37 @@
 
 	@media (max-width: 560px) {
 		.site {
-			flex-wrap: wrap;
-			gap: 0.5rem 0.75rem;
-			/* Two rows on a phone, so the bar grows instead of clipping. */
-			height: auto;
-			min-height: 3.25rem;
-			padding: 0.5rem 0.9rem;
+			gap: 0.6rem;
+			padding: 0 0.7rem;
+		}
+
+		.brand {
+			font-size: 1.2rem;
+		}
+
+		/* One row: the destinations become glyphs, and their words stay for a screen reader only. */
+		.icon {
+			display: block;
+		}
+
+		.word {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			padding: 0;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
 		}
 
 		.links {
-			order: 3;
-			flex-basis: 100%;
+			justify-content: flex-end;
+			gap: 0.1rem;
 		}
 
 		.links a {
-			padding: 0.3rem 0.5rem;
+			padding: 0.4rem 0.45rem;
 		}
 
 		.who {
@@ -299,7 +350,7 @@
 		}
 
 		.account {
-			margin-left: auto;
+			margin-left: 0;
 		}
 	}
 </style>

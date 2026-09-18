@@ -10,6 +10,14 @@
 	const game = new Game();
 	game.load(['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'g8f6']);
 
+	/**
+	 * A second position, for the captured rows: the Ruy Lopez Exchange and a pawn after it, so both sides
+	 * have taken something and White is a pawn ahead — a row of nothing, and a lead of nothing, tell a
+	 * reviewer nothing.
+	 */
+	const traded = new Game();
+	traded.load(['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'a7a6', 'b5c6', 'd7c6', 'f3e5']);
+
 	const marks: SquareMarks = {
 		b5: ['last-move'],
 		f1: ['last-move'],
@@ -51,6 +59,12 @@
 			<li>Click Nf3 for dark-square targets and a capture; Bb5 for light ones.</li>
 		</ul>
 
+		<!-- The captured rows: what each side has taken, and the lead. -->
+		<h2>Captured material</h2>
+		<div class="traded">
+			<Board fen={traded.fen} legalTargets={() => []} interactive={false} onMove={() => {}} />
+		</div>
+
 		<!-- Every piece of the active set on both square colours: the sheet for judging a set. -->
 		<div class="sheet">
 			{#each ['w', 'b'] as const as color (color)}
@@ -65,6 +79,16 @@
 </main>
 
 <style>
+	h2 {
+		margin: 1.5rem 0 0.5rem;
+		font-size: 0.95rem;
+		font-weight: 600;
+	}
+
+	.traded {
+		width: 17rem;
+	}
+
 	main {
 		display: flex;
 		gap: 2rem;

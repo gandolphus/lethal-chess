@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Square } from 'chess.js';
 	import { PROMOTION_PIECES } from '$lib/chess/pieces';
+	import { leadFor, materialOf, type Color } from '$lib/chess/material';
 	import { appearance } from '$lib/theme/settings.svelte';
 	import { swayPhase } from '$lib/theme/scene';
 	import Piece from './Piece.svelte';
@@ -19,6 +20,7 @@
 		arrows = [],
 		trail = [],
 		celebration = null,
+		material = true,
 		onMove
 	}: {
 		fen: string;
@@ -33,8 +35,23 @@
 		trail?: Square[];
 		/** A discovered line's route, traced once over the board with a light around its edge. New id, new moment. */
 		celebration?: { id: number; path: { from: Square; to: Square }[] } | null;
+		/** The captured rows above and below. Off for a board that illustrates rather than records a game. */
+		material?: boolean;
 		onMove: (from: Square, to: Square, promotion?: string) => void;
 	} = $props();
+
+	/**
+	 * What is missing from the position, shown as a row of small pieces above and below the board: each
+	 * side's row holds what *it* has taken, and the one who is ahead carries the difference.
+	 *
+	 * The space is kept whether or not anything has been captured. A row that appeared on the first
+	 * exchange would resize the board under the player mid-game, and the board is the one thing on the
+	 * screen that must never move while a game is going on.
+	 */
+	const taken = $derived(materialOf(fen));
+	/** The player at the foot of the board is whoever it is oriented for. */
+	const foot = $derived(orientation);
+	const head = $derived<Color>(orientation === 'w' ? 'b' : 'w');
 
 	const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
@@ -389,7 +406,24 @@
 	}
 </script>
 
-<div class="board-wrap" data-board={boardStyle} data-scene={scene} role="group" aria-label="Board" oncontextmenu={handleContextMenu}>
+{#snippet captured(color: Color)}
+	<!-- What this side has taken, most valuable first, and the lead if it is theirs. `aria-hidden`: the
+	     pieces are a picture of the position, and the position is not something this element narrates. -->
+	<p class="taken" class:empty={!taken.taken[color].length}>
+		{#each taken.taken[color] as group (group.type)}
+			<span class="group" aria-hidden="true">
+				{#each { length: group.count } as _, i (i)}
+					<span class="gone"><Piece type={group.type} color={color === 'w' ? 'b' : 'w'} lit={false} /></span>
+				{/each}
+			</span>
+		{/each}
+		{#if leadFor(taken, color)}<span class="lead">{leadFor(taken, color)}</span>{/if}
+	</p>
+{/snippet}
+
+<div class="board-stack" style="--rows: {material ? '2.3rem' : '0px'}">
+	{#if material}{@render captured(head)}{/if}
+	<div class="board-wrap" data-board={boardStyle} data-scene={scene} role="group" aria-label="Board" oncontextmenu={handleContextMenu}>
 	<div class="frame">
 		<div class="area">
 			<!-- TODO: real keyboard/screen-reader support (roving focus over a role="grid")
@@ -541,13 +575,73 @@
 			</div>
 		</div>
 	{/if}
+	</div>
+	{#if material}{@render captured(foot)}{/if}
 </div>
 
 <style>
 	/* ── structure: wrap (sizing, container) → frame (padding, chrome) → area → grid ── */
+	/* ── Captured material ───────────────────────────────────────────────────
+	   A row above the board and a row below it: each holds what that side has taken, and the one who is
+	   ahead carries the difference. The rows keep their height when they are empty, so the board never
+	   resizes under a player because somebody took a pawn. */
+	.board-stack {
+		display: flex;
+		flex-direction: column;
+		/* The rows are the board's own, so the board pays for them: `--chrome` is what the *page* puts
+		   above and below, and a caller should not have to know this component grew two lines. Without
+		   this the panel under a board gave up the space instead, and started scrolling on a short phone. */
+		width: min(calc(100dvh - var(--chrome) - var(--rows, 0px)), 100%);
+		margin-inline: auto;
+	}
+
+	.taken {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		/* Kept whatever it holds: a row that appeared on the first exchange would move the board. */
+		min-height: 1.15rem;
+		margin: 0;
+		padding: 0 0.15rem;
+		line-height: 1;
+	}
+
+	.group {
+		display: flex;
+		/* Overlapped, the way a hand of cards is: eight pawns in the width of four. */
+		margin-right: 0.3rem;
+	}
+
+	.group:last-of-type {
+		margin-right: 0;
+	}
+
+	.gone {
+		display: block;
+		width: 1.05rem;
+		height: 1.05rem;
+		margin-right: -0.42rem;
+		opacity: 0.62;
+	}
+
+	.group .gone:last-child {
+		margin-right: 0;
+	}
+
+	/* The pieces are context; the number is the fact, so it is the one thing here drawn at full strength. */
+	.lead {
+		margin-left: 0.1rem;
+		font-size: 0.85rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		color: var(--text);
+	}
+
+	/* The board is square; the stack around it is not, so the wrap takes the width it is given. */
+
 	.board-wrap {
 		position: relative;
-		width: min(calc(100dvh - var(--chrome)), 100%);
+		width: 100%;
 		aspect-ratio: 1;
 		container-type: inline-size;
 		user-select: none;

@@ -3,6 +3,7 @@
 import type { Database } from '$lib/server/db';
 import type { Session } from '$lib/server/session';
 import type { User } from '$lib/server/users';
+import type { Layer } from '$lib/ui/layer';
 
 declare global {
 	namespace App {
@@ -12,7 +13,10 @@ declare global {
 			session: Session | null;
 		}
 		// interface PageData {}
-		// interface PageState {}
+		/** Shallow-routing state: a layer drawn over the page, if one is open ($lib/ui/layer). */
+		interface PageState {
+			layer?: Layer;
+		}
 		interface Platform {
 			env: {
 				/** D1 (wrangler.jsonc `d1_databases`). */

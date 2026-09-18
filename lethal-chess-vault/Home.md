@@ -62,6 +62,9 @@ only; rating-based strategy is at the bottom of the backlog.
   precision burden, weaknesses; drill the punishment.
 - [[Installable app]] — **built**. Home-screen install (manifest, icons, service worker) that never
   serves a stale page.
+- [[Settings as a layer]] — **built**. Settings opens over whatever you were doing and closes back to it,
+  session and all; the gear sits alone on the right of the bar. Defines *places* and *layers*; Report is
+  the next candidate.
 
 ## Research
 

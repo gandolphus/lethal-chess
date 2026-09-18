@@ -51,13 +51,17 @@ src/
     theme/                    Themes and piece sets, settings persistence; scene.ts (sway phases),
                               palettes.test.ts + palettes.frozen.json (the calm palettes, frozen)
     ui/                       EvalBar, Meter, MiniBoard, LineShelf (variations under the board),
-                              LineMap (the fog-of-war chart), position helpers
+                              LineMap (the fog-of-war chart), position helpers,
+                              layer.ts (which routes are layers) + Layer.svelte (the modal shell they are drawn in)
   routes/
+    +layout.svelte            Site bar, footer, theme attributes; opens a layer over the page for a plain click on a
+                              link to one, and draws it from `page.state.layer` ([[Settings as a layer]])
     +page.svelte              Opening picker
     openings/[id]/            +layout.server.ts loads the bundle once; +page.svelte is the [[Opening dashboard]];
                               [mode=session]/ is the playing screen (explore | practice | open, matcher in src/params/)
     play/                     Play vs computer
-    settings/, privacy/, credits/, admin/ (owner only)
+    settings/                 A layer: Settings.svelte is the content, +page.svelte the page a cold link lands on
+    privacy/, credits/, admin/ (owner only)
     auth/google/…, api/progress, api/attempts, api/cards, api/account/{export,delete}
 pipeline/
   eval-cache/                 Lichess eval db (CC0) → 8.27 GB lookup cache (build artefact, not shipped)
@@ -99,6 +103,12 @@ the session.
 
 **The layering is the point.** `engine.ts` and `game.svelte.ts` know nothing about Svelte components,
 and `Board.svelte` knows nothing about the engine or the drill. Sessions are policies over a `Game`.
+
+**Places and layers.** Every route is a place (its URL replaces the one before) except the ones `layer.ts`
+names, which open over the page you are on by SvelteKit shallow routing and close with `history.back()`;
+the page beneath stays mounted with its session running ([[Settings as a layer]]). A rule that follows:
+an effect that must run once per screen depends on the values a URL carries, never on `page.url` itself —
+SvelteKit hands out a new URL object on every step through history, including a shallow one.
 
 ## Data model (D1)
 

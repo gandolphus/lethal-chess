@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 
 const LAYOUT = readFileSync(new URL('./+layout.svelte', import.meta.url), 'utf8');
 const LAYER = readFileSync(new URL('../lib/ui/Layer.svelte', import.meta.url), 'utf8');
+const REPORT = readFileSync(new URL('./report/Report.svelte', import.meta.url), 'utf8');
 
 /** The declarations of one rule, or '' if it is not there. */
 const rule = (css: string, selector: string) => css.match(new RegExp(`${selector.replace(/[.[\]]/g, '\\$&')} \\{([^}]*)\\}`, 's'))?.[1] ?? '';
@@ -86,5 +87,38 @@ describe('a layer', () => {
 	it('contains its own scrolling and locks the page behind it', () => {
 		expect(rule(LAYER, '.body')).toContain('overscroll-behavior: contain');
 		expect(LAYER).toContain(':global(:root:has(dialog[data-layer][open]))');
+	});
+
+	it('is one dialog whatever is in it, with the page beneath as the report\'s subject', () => {
+		expect(LAYOUT.match(/<Layer /g)?.length).toBe(1);
+		expect(LAYOUT).toContain('<Settings {user} layered />');
+		expect(LAYOUT).toMatch(/<Report from=\{page\.url\.pathname\}[^>]*layered/);
+	});
+});
+
+describe('the report form in a layer', () => {
+	it('posts to its own route, since the address is the page beneath', () => {
+		expect(REPORT).toContain('action="/report"');
+	});
+
+	it('never lets the answer re-run the page beneath or replace it', () => {
+		// A success is kept locally; a server error is a message in the form; only a redirect reaches
+		// SvelteKit, and without invalidating the page's data.
+		expect(REPORT).toContain("if (result.type === 'success')");
+		expect(REPORT).toContain("result.type === 'error'");
+		expect(REPORT).toContain('update({ reset: false, invalidateAll: false })');
+		expect(REPORT).not.toContain('location.reload');
+		expect(REPORT).not.toContain('applyAction');
+	});
+
+	it('keeps a half-written report through a close and clears it on send', () => {
+		expect(REPORT).toContain('writeDraft(storage(), { kind, body, contact })');
+		expect(REPORT).toContain('clearDraft(storage())');
+		expect(REPORT).toContain('readDraft(storage())');
+	});
+
+	it('only ever writes a path within this site on the form', () => {
+		expect(REPORT).toContain('ownPath(from)');
+		expect(REPORT).toContain('name="path" value={page ?? \'\'}');
 	});
 });

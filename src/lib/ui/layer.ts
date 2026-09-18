@@ -7,10 +7,11 @@
 // own worth coming back to, and what it does is either felt on the page behind it (a theme) or over in
 // a moment (a report). Prose you arrive at from a link elsewhere — Privacy, Credits — is a page.
 
-export type Layer = 'settings';
+export type Layer = 'settings' | 'report';
 
 export const LAYERS: Record<Layer, { path: string; title: string }> = {
-	settings: { path: '/settings', title: 'Settings' }
+	settings: { path: '/settings', title: 'Settings' },
+	report: { path: '/report', title: 'Report a bug' }
 };
 
 /** The layer a path names, if it names one. */

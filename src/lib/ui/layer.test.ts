@@ -19,9 +19,10 @@ const link = (href: string, over: Partial<{ target: string; download: string }> 
 });
 
 describe('which screens are layers', () => {
-	it('names Settings and nothing else', () => {
+	it('names Settings and Report, and nothing else', () => {
 		expect(layerAt('/settings')).toBe('settings');
-		for (const page of ['/', '/settings/', '/settings/preview', '/privacy', '/credits', '/report', '/today']) {
+		expect(layerAt('/report')).toBe('report');
+		for (const page of ['/', '/settings/', '/settings/preview', '/privacy', '/credits', '/report/', '/today']) {
 			expect(layerAt(page)).toBeNull();
 		}
 	});
@@ -48,6 +49,10 @@ describe('which links open a layer', () => {
 	it('opens Settings from a link to it, relative or absolute', () => {
 		expect(layerOfLink(link('/settings'), origin)).toBe('settings');
 		expect(layerOfLink(link('https://lethalchess.com/settings'), origin)).toBe('settings');
+	});
+
+	it('opens Report from the footer\'s link, query and all', () => {
+		expect(layerOfLink(link('/report?from=/openings/italian-game/explore'), origin)).toBe('report');
 	});
 
 	it('leaves other pages, other sites, downloads and links aimed at another tab alone', () => {

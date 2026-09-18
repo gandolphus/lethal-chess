@@ -9,6 +9,7 @@
 	import Layer from '$lib/ui/Layer.svelte';
 	import { isPlainClick, LAYERS, layerOfLink } from '$lib/ui/layer';
 	import Settings from './settings/Settings.svelte';
+	import Report from './report/Report.svelte';
 
 	let { children, data } = $props();
 
@@ -36,7 +37,9 @@
 		const next = layerOfLink(anchor, location.origin);
 		if (!next || next === layer || page.route.id === LAYERS[next].path) return;
 		event.preventDefault();
-		opener = anchor;
+		// A layer opened from inside another one (Report from Settings) is one more entry on the same
+		// stack; the way back to the page is still the control that started it.
+		if (!layer) opener = anchor;
 		pushState(anchor.pathname + anchor.search, { layer: next });
 	}
 
@@ -226,10 +229,16 @@
 
 {@render children?.()}
 
-<!-- Over the page, not instead of it: the page and whatever it is running stay exactly as they were. -->
-{#if layer === 'settings'}
-	<Layer title={LAYERS.settings.title} onclose={closeLayer}>
-		<Settings {user} layered />
+<!-- Over the page, not instead of it: the page and whatever it is running stay exactly as they were.
+     One dialog whatever is in it, so a layer opened from inside another swaps the content and keeps
+     the frame, the focus and the history stack. -->
+{#if layer}
+	<Layer title={LAYERS[layer].title} onclose={closeLayer}>
+		{#if layer === 'settings'}
+			<Settings {user} layered />
+		{:else}
+			<Report from={page.url.pathname} signedIn={!!user} name={user?.name ?? null} layered onclose={closeLayer} />
+		{/if}
 	</Layer>
 {/if}
 

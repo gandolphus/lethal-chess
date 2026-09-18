@@ -30,6 +30,7 @@
 		title,
 		band = null,
 		side = 'w',
+		storageKey = null,
 		onclose,
 		onplay
 	}: {
@@ -45,6 +46,8 @@
 		band?: string | null;
 		/** Which way up the tooltip's diagram sits. */
 		side?: 'w' | 'b';
+		/** What folded bands are remembered against — the opening's id. */
+		storageKey?: string | null;
 		onclose?: () => void;
 		/** Picks up a line: the map hands back the line and how far of it the learner has earned. */
 		onplay?: (line: IndexedLine, resumeTo: number) => void;
@@ -71,7 +74,19 @@
 	// Raw: a proxied line would not compare equal to the one the layout holds.
 	let asked = $state.raw<{ line: IndexedLine; resumeTo: number; name: string } | null>(null);
 
-	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch }));
+	/**
+	 * Bands the reader has folded away. A map of sixteen variations is sixteen trees they are not working
+	 * on; folding the rest gives the one they are the screen to itself.
+	 *
+	 * Remembered per opening, because it is a working state rather than a preference: come back to the
+	 * Italian tomorrow and the three you folded are still folded. Browser storage can throw or be empty,
+	 * and a map that fails to open because a folder could not be read would be a poor trade.
+	 */
+	const foldKey = $derived(`lethal:folded:${storageKey ?? title}`);
+	let collapsed = $state.raw<ReadonlySet<string>>(new Set());
+	let loadedFolds = $state('');
+
+	const chart = $derived(layout(lines, stages, { zoom, width: Math.max(320, width), opening, here, touch, collapsed }));
 
 	/**
 	 * How big the chart is drawn, as a multiple of its laid-out size. The layout itself never changes —
@@ -96,6 +111,58 @@
 		fittedFor = key;
 		scale = openingScale(bounds, touch);
 	});
+
+	$effect(() => {
+		const key = foldKey;
+		if (key === loadedFolds) return;
+		loadedFolds = key;
+		try {
+			const saved = localStorage.getItem(key);
+			collapsed = new Set(saved ? (JSON.parse(saved) as string[]) : []);
+		} catch {
+			collapsed = new Set();
+		}
+	});
+
+	function toggleBand(name: string) {
+		stopGlide();
+		const next = new Set(collapsed);
+		if (!next.delete(name)) next.add(name);
+		collapsed = next;
+		try {
+			localStorage.setItem(foldKey, JSON.stringify([...next]));
+		} catch {
+			// Private browsing, or storage full: the fold still applies for as long as the map is open.
+		}
+	}
+
+	const allFolded = $derived(chart.bands.length > 0 && chart.bands.every((b) => b.collapsed));
+
+	function foldAll(fold: boolean) {
+		stopGlide();
+		const next = fold ? new Set(chart.bands.map((b) => b.name)) : new Set<string>();
+		collapsed = next;
+		try {
+			localStorage.setItem(foldKey, JSON.stringify([...next]));
+		} catch {
+			// As above.
+		}
+	}
+
+	/**
+	 * The header's tap target, in chart units. Zoomed out to fit a phone the chart is drawn at about a
+	 * quarter size, which would leave these 9px tall — so the target grows as the scale shrinks and stays
+	 * roughly a thumb's width on screen whatever the zoom. It stays inside the gutter, which is the band
+	 * labels' own space and holds no part of any tree, so nothing it covers was pickable anyway.
+	 */
+	const headHit = $derived(Math.max(32, Math.min(120, 44 / Math.max(scale, 0.05))));
+	const headWidth = $derived(Math.max(120, chart.gutter - 12));
+	/**
+	 * A folded band holds no tree, so its header may take the whole row — which is what makes opening one
+	 * again an easy tap. An open band's header has to stay inside the gutter, because its first move sits
+	 * at the gutter's edge and a target over it would fold the band instead of picking the line.
+	 */
+	const hitWidth = (folded: boolean) => (folded ? chart.width - 8 : headWidth);
 
 	/** The chart point currently under a position in the scroller's client box. */
 	function chartPointAt(px: number, py: number) {
@@ -431,6 +498,11 @@
 			<span><i class="fog"></i>secret</span>
 		</span>
 		<span class="spacer"></span>
+		{#if chart.bands.length > 1}
+			<button type="button" class="btn fold" onclick={() => foldAll(!allFolded)}>
+				{allFolded ? 'Open all' : 'Fold all'}
+			</button>
+		{/if}
 		{#if onclose}
 			<button type="button" class="btn close" onclick={onclose} bind:this={closeButton}>
 				<span class="cross" aria-hidden="true">✕</span>Close<kbd>Esc</kbd>
@@ -476,15 +548,49 @@
 			onclick={onClick}
 		>
 			{#each chart.bands as b (b.name)}
-				<g class="band" class:here={b.here}>
+				<g class="band" class:here={b.here} class:folded={b.collapsed}>
 					<line class="band-line" x1="8" x2={chart.width - 8} y1={b.y - 4} y2={b.y - 4} />
-					<text class="band-name" x="12" y={b.y + 13}>
-						{b.label}
-						{#if zoom === 'overview'}<tspan class="band-count" dx="8">{b.count}</tspan>{/if}
-					</text>
-					{#if zoom === 'detail'}
-						<text class="band-count" x="12" y={b.y + 27}>{b.count}</text>
-					{/if}
+					<!-- The whole header is the toggle: a name and its tally are a bigger target than a
+					     chevron, which is what a thumb needs. -->
+					<g
+						class="band-head pick"
+						role="button"
+						tabindex="0"
+						aria-expanded={!b.collapsed}
+						aria-label="{b.label}, {b.count} found"
+						onclick={(e) => { e.stopPropagation(); toggleBand(b.name); }}
+						onkeydown={(e) => {
+							if (e.key !== 'Enter' && e.key !== ' ') return;
+							e.preventDefault();
+							toggleBand(b.name);
+						}}
+					>
+						<rect
+							class="band-hit"
+							x="4"
+							y={b.y - 4 - (Math.min(headHit, b.height + 16) - 32) / 2}
+							width={hitWidth(b.collapsed)}
+							height={Math.min(headHit, b.height + 16)}
+							rx="6"
+						/>
+						<path class="chev" d={b.collapsed ? 'M0 -4 L5 1 L0 6' : 'M-4 -1 L1 5 L6 -1'} transform="translate(14 {b.y + 8})" />
+						<text class="band-name" x="26" y={b.y + 13}>
+							{b.label}
+							{#if zoom === 'overview'}<tspan class="band-count" dx="8">{b.count}</tspan>{/if}
+						</text>
+						{#if zoom === 'detail'}
+							<text class="band-count" x="26" y={b.y + 27}>{b.count}</text>
+						{/if}
+						<!-- Folded, the tally alone is thin: a spine says how much of it is done at a glance. -->
+						{#if b.collapsed && b.total}
+							<!-- Right of the gutter: a folded band draws no tree there, so the name gets the whole label
+							     column to itself and the spine never has to share it. -->
+							{@const spineX = chart.gutter + 8}
+							{@const spineW = 90}
+							<rect class="spine-track" x={spineX} y={b.y + 5} width={spineW} height="5" rx="2.5" />
+							<rect class="spine-fill" x={spineX} y={b.y + 5} width={Math.max(b.found ? 3 : 0, (b.found / b.total) * spineW)} height="5" rx="2.5" />
+						{/if}
+					</g>
 				</g>
 			{/each}
 
@@ -638,6 +744,63 @@
 
 	.spacer {
 		flex: 1;
+	}
+
+	/* ── Folding ─────────────────────────────────────────────────────────── */
+
+	.band-head {
+		cursor: pointer;
+	}
+
+	.band-hit {
+		fill: transparent;
+	}
+
+	.band-head:hover .band-hit,
+	.band-head:focus-visible .band-hit {
+		fill: color-mix(in srgb, var(--text) 7%, transparent);
+	}
+
+	.band-head:focus-visible {
+		outline: none;
+	}
+
+	.band-head:focus-visible .band-hit {
+		stroke: var(--accent);
+		stroke-width: 1.5;
+	}
+
+	.chev {
+		fill: none;
+		stroke: var(--text-3);
+		stroke-width: 1.6;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.band-head:hover .chev {
+		stroke: var(--text);
+	}
+
+	/* Folded, the header is the band, so it says how much of it is done. */
+	.spine-track {
+		fill: var(--surface-2);
+	}
+
+	.spine-fill {
+		fill: var(--lit);
+	}
+
+	.fold {
+		padding: 0.3rem 0.65rem;
+		font-size: 0.85rem;
+	}
+
+	@media (hover: none) and (pointer: coarse) {
+		.fold {
+			min-height: 2.5rem;
+			padding-inline: 0.8rem;
+		}
 	}
 
 	.close {

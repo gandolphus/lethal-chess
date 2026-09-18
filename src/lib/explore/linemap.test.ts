@@ -180,3 +180,97 @@ describe('layout', () => {
 		}
 	});
 });
+
+describe('folding a band away', () => {
+	const stages = stagesOf([
+		[rio, 'discovered'],
+		[classical, 'discovered'],
+		[exchange, 'entered']
+	]);
+	const chart = (collapsed?: Set<string>) =>
+		layout(book.lines, stages, { zoom: 'detail', width: 1200, opening: OPENING.length, collapsed });
+
+	it('keeps every band’s header, so nothing disappears from the map', () => {
+		const open = chart();
+		const shut = chart(new Set(open.bands.map((b) => b.name)));
+		expect(shut.bands.map((b) => b.name)).toEqual(open.bands.map((b) => b.name));
+		expect(shut.bands.every((b) => b.collapsed)).toBe(true);
+	});
+
+	it('draws none of a folded band’s tree, so nothing inside it can be hovered or picked', () => {
+		const berlin = 'Test: Berlin';
+		const open = chart();
+		const shut = chart(new Set([berlin]));
+		// The Berlin's two lines are lit and pickable when open…
+		expect(open.nodes.some((n) => n.line && [rio.key, classical.key].includes(n.line.key))).toBe(true);
+		// …and gone entirely when folded — not merely hidden.
+		expect(shut.nodes.some((n) => n.line && [rio.key, classical.key].includes(n.line.key))).toBe(false);
+		expect(shut.edges.length).toBeLessThan(open.edges.length);
+		expect(shut.moves.length).toBeLessThan(open.moves.length);
+	});
+
+	it('leaves the other bands untouched', () => {
+		const open = chart();
+		const shut = chart(new Set(['Test: Berlin']));
+		const morphyOpen = open.bands.find((b) => b.name === 'Test: Morphy')!;
+		const morphyShut = shut.bands.find((b) => b.name === 'Test: Morphy')!;
+		expect(morphyShut.height).toBe(morphyOpen.height);
+		expect(morphyShut.collapsed).toBe(false);
+		// The lines it holds are still pickable.
+		expect(shut.nodes.some((n) => n.line?.key === exchange.key)).toBe(true);
+	});
+
+	it('gives the room back: what is below moves up, and the chart gets shorter', () => {
+		const open = chart();
+		const shut = chart(new Set(['Test: Berlin']));
+		const below = (c: ReturnType<typeof chart>) => c.bands.find((b) => b.name === 'Test: Morphy')!.y;
+		expect(below(shut)).toBeLessThan(below(open));
+		expect(shut.height).toBeLessThan(open.height);
+		// Folded to the floor, the chart is exactly a stack of headers: 12 above, then a header and a
+		// gap per band, then 8 below. Nothing is paying for a tree nobody is looking at.
+		const all = chart(new Set(open.bands.map((b) => b.name)));
+		expect(all.height).toBe(12 + open.bands.length * (34 + 20) + 8);
+		expect(all.height).toBeLessThan(open.height);
+	});
+
+	it('gives back as much as the band was worth: a big tree folds to the same header as a small one', () => {
+		// Twenty lines under one variation — the shape a real opening has, where folding earns its keep.
+		// Real moves: the Book replays every line, so an illegal one is not a line.
+		// After 1.e4 e5 2.Nf3 Nc6 3.Bb5 Nf6 4.O-O it is Black to move, and these are all legal.
+		const replies = [
+			'a8b8', 'd8e7', 'e8e7', 'f8e7', 'f8d6', 'f8c5', 'f8b4', 'f8a3', 'h8g8', 'a7a6',
+			'a7a5', 'b7b6', 'd7d6', 'd7d5', 'g7g6', 'g7g5', 'h7h6', 'h7h5', 'c6b8', 'c6d4'
+		];
+		const many = replies.map((reply, i) => line(`Test: Big, Line ${i}`, ['g8f6', 'e1g1', reply]));
+		const big = new Book({ lines: [...lines, ...many] });
+		const chartOf = (collapsed?: Set<string>) =>
+			layout(big.lines, new Map(), { zoom: 'detail', width: 1200, opening: OPENING.length, collapsed });
+		const open = chartOf();
+		const band = open.bands.find((b) => b.name === 'Test: Big')!;
+		expect(band.total).toBe(20);
+		const shut = chartOf(new Set(['Test: Big']));
+		// The whole tree becomes one header row, and everything under it climbs by the difference.
+		expect(open.height - shut.height).toBe(band.height - 34);
+		expect(shut.height).toBeLessThan(open.height * 0.65);
+	});
+
+	it('carries the tally a folded header has to show on its own', () => {
+		const band = chart(new Set(['Test: Berlin'])).bands.find((b) => b.name === 'Test: Berlin')!;
+		expect([band.found, band.total]).toEqual([2, 2]);
+		expect(band.count).toBe('2 of 2');
+	});
+
+	it('is the same chart as before when nothing is folded', () => {
+		expect(JSON.stringify(chart(new Set()))).toBe(JSON.stringify(chart()));
+	});
+
+	it('ignores a fold naming a band that is not there', () => {
+		expect(JSON.stringify(chart(new Set(['Test: Nonexistent'])))).toBe(JSON.stringify(chart()));
+	});
+
+	it('costs fewer elements to draw, which is the point of it', () => {
+		const open = chart();
+		const shut = chart(new Set(open.bands.map((b) => b.name)));
+		expect(elementCount(shut)).toBeLessThan(elementCount(open) / 3);
+	});
+});

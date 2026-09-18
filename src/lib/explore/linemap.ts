@@ -176,6 +176,11 @@ export type LayoutOptions = {
 	here?: Here | null;
 	/** Coarse pointers get taller rows, so a line's end is something a thumb can actually hit. */
 	touch?: boolean;
+	/**
+	 * Bands folded away by name. A collapsed band keeps its header — its name, its tally and its spine —
+	 * and draws none of its tree, so the ones still open have the screen to themselves.
+	 */
+	collapsed?: ReadonlySet<string>;
 };
 
 export type LayoutBand = {
@@ -186,6 +191,10 @@ export type LayoutBand = {
 	height: number;
 	count: string;
 	here: boolean;
+	collapsed: boolean;
+	/** Lines found, of lines there are — what the header's spine draws when the band is folded. */
+	found: number;
+	total: number;
 };
 
 export type LayoutEdge = { d: string; state: EdgeState; label: { x: number; y: number; text: string } | null };
@@ -229,6 +238,8 @@ export type LayoutNode = {
 export type Layout = {
 	width: number;
 	height: number;
+	/** Where the first move's column starts. Left of it is the band labels' own space, and nothing else. */
+	gutter: number;
 	bands: LayoutBand[];
 	edges: LayoutEdge[];
 	moves: LayoutMove[];
@@ -252,7 +263,14 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 	const here = options.here ?? null;
 	const detail = zoom === 'detail';
 	const bands = bandsOf(lines, stages);
-	const maxPly = Math.max(opening + 1, ...lines.map((l) => l.moves.length));
+	const isFolded = (name: string) => options.collapsed?.has(name) ?? false;
+	/**
+	 * How wide the chart has to be is decided by the deepest line still drawn. A folded band pays for no
+	 * width, so folding everything leaves a narrow column of headers rather than a wide one with its
+	 * labels shrunk to fit a tree nobody is looking at.
+	 */
+	const drawn = bands.filter((b) => !isFolded(b.name));
+	const maxPly = Math.max(opening + 1, ...drawn.flatMap((b) => b.lines.map((l) => l.moves.length)));
 	const row = options.touch ? TOUCH_ROW[zoom] : ROW[zoom];
 	const gutter = detail ? 180 : Math.min(150, Math.round(options.width * 0.36));
 	const nameSpace = detail ? 230 : 8;
@@ -260,14 +278,15 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 	const x = (ply: number) => gutter + (ply - opening) * plyW;
 	const width = Math.max(options.width, x(maxPly) + nameSpace);
 
-	const out: Layout = { width, height: 0, bands: [], edges: [], moves: [], nodes: [], here: null };
+	const out: Layout = { width, height: 0, gutter, bands: [], edges: [], moves: [], nodes: [], here: null };
 	let y = TOP;
 
 	for (const band of bands) {
 		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
+		const folded = isFolded(band.name);
 		const root = trie(band.lines, opening);
 		const leaves = place(root, row, y);
-		const height = Math.max(leaves * row, HEAD[zoom]);
+		const height = folded ? HEAD[zoom] : Math.max(leaves * row, HEAD[zoom]);
 		out.bands.push({
 			name: band.name,
 			label: band.kind === 'variation' ? shortVariation(band.name) : band.name,
@@ -275,8 +294,18 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 			y,
 			height,
 			count: `${band.discovered} of ${band.lines.length}`,
-			here: bandHere
+			here: bandHere,
+			collapsed: folded,
+			found: band.discovered,
+			total: band.lines.length
 		});
+
+		// Folded: the header is the whole band. Nothing below it is drawn, so nothing below it can be
+		// hovered, picked or counted against the element budget.
+		if (folded) {
+			y += height + GAP[zoom];
+			continue;
+		}
 
 		// The first node of a band is the opening's own position. It is drawn, so it is hoverable — and the
 		// defining moves are never secret, so it can always show what it is.

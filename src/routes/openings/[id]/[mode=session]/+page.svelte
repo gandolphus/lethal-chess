@@ -708,6 +708,7 @@
 	<div class="map-sheet" role="dialog" aria-modal="true" aria-label="Line map">
 		<LineMap
 			side={bundle.side}
+			storageKey={bundle.id}
 			lines={book.lines}
 			{stages}
 			{here}

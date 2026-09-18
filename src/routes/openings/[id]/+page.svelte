@@ -89,7 +89,7 @@
 		<!-- The territory: the opening as a map, lit where this learner has been. On a phone it is a sheet. -->
 		{#if !narrow}
 			<section class="territory" aria-label="The lines">
-				<LineMap side={bundle.side} lines={book.lines} {stages} here={null} opening={openingLength} title="The lines" onplay={play} />
+				<LineMap side={bundle.side} storageKey={bundle.id} lines={book.lines} {stages} here={null} opening={openingLength} title="The lines" onplay={play} />
 			</section>
 		{/if}
 
@@ -163,6 +163,7 @@
 	<div class="map-sheet" role="dialog" aria-modal="true" aria-label="Line map">
 		<LineMap
 			side={bundle.side}
+			storageKey={bundle.id}
 			lines={book.lines}
 			{stages}
 			here={null}

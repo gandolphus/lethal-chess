@@ -7,10 +7,16 @@
 		layout,
 		openingScale,
 		sanOf,
+		flickVelocity,
+		FLICK_WINDOW_MS,
+		glideStep,
+		GLIDE_STOP,
+		isFlick,
 		scaleBounds,
 		scrollFor,
 		type Here,
 		type LayoutMove,
+		type Track,
 		type Zoom
 	} from '$lib/explore/linemap';
 	import MiniBoard from '$lib/ui/MiniBoard.svelte';
@@ -177,6 +183,8 @@
 	 */
 	function onWheel(event: WheelEvent) {
 		if (!scroller) return;
+		// Any deliberate move of the view takes over from one that is still coasting.
+		stopGlide();
 		// A trackpad pinch arrives as a wheel with ctrlKey — this *is* the pinch, on a laptop.
 		if (event.ctrlKey || event.metaKey) {
 			event.preventDefault();
@@ -207,14 +215,58 @@
 	let panning = $state(false);
 	let pan: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
 
+	/**
+	 * Let go of a map mid-drag and it should keep going, slowing under friction, rather than making the
+	 * reader drag every pixel of a chart four screens tall. Only the last {@link FLICK_WINDOW_MS} of the
+	 * drag decides the throw, so a drag that ends stationary stops dead.
+	 */
+	let trail: Track[] = [];
+	let glide: number | null = null;
+
+	function stopGlide() {
+		if (glide === null) return false;
+		cancelAnimationFrame(glide);
+		glide = null;
+		return true;
+	}
+
+	function throwMap(velocity: { x: number; y: number }) {
+		if (!scroller || !isFlick(velocity) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		// The chart follows the finger, so the scroll offset goes the other way.
+		let vx = -velocity.x;
+		let vy = -velocity.y;
+		let last = performance.now();
+		const step = (now: number) => {
+			glide = null;
+			if (!scroller) return;
+			// A frame the browser took a long time over should not fling the map across the screen.
+			const dt = Math.min(now - last, 64);
+			last = now;
+			const sx = glideStep(vx, dt);
+			const sy = glideStep(vy, dt);
+			const was = { left: scroller.scrollLeft, top: scroller.scrollTop };
+			scroller.scrollLeft = was.left + sx.moved;
+			scroller.scrollTop = was.top + sy.moved;
+			// An axis that did not move has hit its end; spend its velocity rather than pushing at a wall.
+			vx = Math.abs(scroller.scrollLeft - was.left) < 0.01 ? 0 : sx.velocity;
+			vy = Math.abs(scroller.scrollTop - was.top) < 0.01 ? 0 : sy.velocity;
+			if (Math.hypot(vx, vy) < GLIDE_STOP) return;
+			glide = requestAnimationFrame(step);
+		};
+		glide = requestAnimationFrame(step);
+	}
+
 	function panStart(event: PointerEvent) {
 		if (!scroller) return;
-		// A fresh gesture: whatever the last one left armed does not apply to this one.
-		swallow = false;
+		// A touch on a moving map stops it, and stops only it — that press is not a tap on a line.
+		if (stopGlide()) swallow = true;
+		else swallow = false;
+		trail = [{ x: event.clientX, y: event.clientY, t: event.timeStamp }];
 		if (event.pointerType === 'touch') {
 			touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			if (touches.size === 2) {
 				// A second finger ends the pan it interrupted and starts a pinch from where they are now.
+				stopGlide();
 				pan = null;
 				panning = false;
 				hover = null;
@@ -255,6 +307,17 @@
 		}
 		scroller.scrollLeft = pan.left - dx;
 		scroller.scrollTop = pan.top - dy;
+		/**
+		 * The browser delivers at most one `pointermove` per frame and hides the rest inside it. A fast
+		 * flick is three or four frames long, so reading only the delivered events can leave too few
+		 * samples to measure a speed from at all — the coalesced ones are the actual motion.
+		 */
+		for (const point of event.getCoalescedEvents?.() ?? [event]) {
+			trail.push({ x: point.clientX, y: point.clientY, t: point.timeStamp });
+		}
+		// Trimmed by age, not by count: a stale sample would drag the average down however many follow it.
+		const cutoff = event.timeStamp - FLICK_WINDOW_MS * 2;
+		while (trail.length > 2 && trail[0].t < cutoff) trail.shift();
 	}
 
 	function panEnd(event: PointerEvent) {
@@ -269,7 +332,13 @@
 		if (pan?.moved) {
 			scroller?.releasePointerCapture?.(event.pointerId);
 			swallow = true;
+			// Where the pointer actually left, which is not in the trail: a pointer that stops moving
+			// stops sending `pointermove`, so without this a finger held still for half a second before
+			// lifting would throw the map at the speed it was going before it stopped.
+			trail.push({ x: event.clientX, y: event.clientY, t: event.timeStamp });
+			throwMap(flickVelocity(trail));
 		}
+		trail = [];
 		pan = null;
 		panning = false;
 	}
@@ -340,6 +409,8 @@
 		// The band's y is in chart units; what scrolls is the drawn chart.
 		scroller.scrollTo({ top: Math.max(0, found.y * scale - 12), behavior: smooth ? 'smooth' : 'auto' });
 	});
+
+	$effect(() => () => stopGlide());
 
 	function onKey(event: KeyboardEvent) {
 		if (event.key === 'Escape' && onclose) {

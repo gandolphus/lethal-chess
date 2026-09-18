@@ -468,3 +468,51 @@ export function scrollFor(o: {
  * its natural size and zoom is something the reader asks for.
  */
 export const openingScale = (bounds: ScaleBounds, touch: boolean) => (touch ? bounds.fit : clampScale(1, bounds));
+
+// ── The throw ────────────────────────────────────────────────────────────────
+// Letting go of a map mid-drag should keep it moving and let friction stop it, rather than making the
+// reader drag every pixel of a chart four screens tall.
+
+/** A pointer position in time, as the pan records them while a drag is running. */
+export type Track = { x: number; y: number; t: number };
+
+/**
+ * Only the last stretch of a drag decides the throw. A long slow drag that ends in a flick should fly;
+ * one that ends stationary should stop dead, and it will, because nothing moved inside the window.
+ */
+export const FLICK_WINDOW_MS = 90;
+/** Velocity decays by `e` every this long. Distance thrown is `speed × TAU`, so a fast flick ≈ 600px. */
+export const GLIDE_TAU_MS = 325;
+/** px/ms. Below this a drag was a placement, not a throw, and the map stays where it was put. */
+export const FLICK_MIN = 0.12;
+/** px/ms. Below this the glide has visually stopped; carrying on just burns frames. */
+export const GLIDE_STOP = 0.015;
+
+/** How fast the pointer was travelling when it left, from the last `window` of movement only. */
+export function flickVelocity(track: readonly Track[], window = FLICK_WINDOW_MS): { x: number; y: number } {
+	if (track.length < 2) return { x: 0, y: 0 };
+	const last = track[track.length - 1];
+	let first = track[0];
+	for (let i = track.length - 1; i >= 0; i--) {
+		first = track[i];
+		if (last.t - track[i].t >= window) break;
+	}
+	const dt = last.t - first.t;
+	if (dt <= 0) return { x: 0, y: 0 };
+	return { x: (last.x - first.x) / dt, y: (last.y - first.y) / dt };
+}
+
+/**
+ * One frame of the glide: how far it travels, and what is left of the velocity afterwards.
+ *
+ * `moved` is the integral of the decaying velocity across the frame rather than `velocity × dt`, so the
+ * same throw covers the same distance at 60Hz and at 120Hz, and a frame the browser drops does not
+ * shorten it.
+ */
+export function glideStep(velocity: number, dt: number, tau = GLIDE_TAU_MS) {
+	const decay = Math.exp(-dt / tau);
+	return { moved: velocity * tau * (1 - decay), velocity: velocity * decay };
+}
+
+/** Whether a throw is worth starting at all. */
+export const isFlick = (v: { x: number; y: number }) => Math.hypot(v.x, v.y) >= FLICK_MIN;

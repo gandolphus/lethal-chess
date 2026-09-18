@@ -1,22 +1,16 @@
 import { fail } from '@sveltejs/kit';
+import { ownPath } from '$lib/report';
 import { ApiError } from '$lib/server/http';
 import { parseReport, saveReport } from '$lib/server/reports';
 import type { Actions, PageServerLoad } from './$types';
-
-/**
- * `?from=` becomes an `href` on this page, so it may only ever be a path within this site. A bare `/`
- * prefix is not enough: `//evil.example` is a protocol-relative URL, and `/\evil.example` is treated as
- * one by some browsers.
- */
-const ownPath = (value: string | null): string | null =>
-	value && value.length <= 300 && value.startsWith('/') && !/^\/[/\\]/.test(value) ? value : null;
 
 export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	return {
 		signedIn: Boolean(locals.user),
 		name: locals.user?.name ?? null,
-		// `?from=/openings/italian-game/explore` — where the reporter pressed "Report a bug".
+		// `?from=/openings/italian-game/explore` — where the reporter pressed "Report a bug". This is the
+		// page's own arrival; opened as a layer, the form takes the page beneath it instead.
 		from: ownPath(url.searchParams.get('from'))
 	};
 };

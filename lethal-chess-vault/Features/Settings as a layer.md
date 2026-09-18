@@ -5,11 +5,13 @@ aliases: [Settings as a layer, Layers, Settings layer, Utility routes, Places an
 
 # Settings as a layer
 
-**Status: designed and built 2026-09-18 (Fable 5.1).** Settings no longer replaces the screen you were on.
-It opens *over* it — a drawer down the right on a desktop, the whole screen on a phone — and when it closes
-the drill, the round, the game is exactly where you left it. The gear that opens it sits alone at the right
-of the site bar. See [[Decision Log]] (2026-09-18), [[Visual Design]] for what Settings contains,
-[[Exploration Mode]] and [[The Open]] for the sessions it now keeps, [[SvelteKit]] for the routing it rides.
+**Status: designed and built 2026-09-18 (Fable 5.1); Report joined the same day.** Settings no longer
+replaces the screen you were on. It opens *over* it — a drawer down the right on a desktop, the whole screen
+on a phone — and when it closes the drill, the round, the game is exactly where you left it. The gear that
+opens it sits alone at the right of the site bar. The bug report is the second layer: it is about the page
+beneath it, and sending it closes back to that page. See [[Decision Log]] (2026-09-18), [[Visual Design]]
+for what Settings contains, [[Exploration Mode]] and [[The Open]] for the sessions it now keeps,
+[[SvelteKit]] for the routing it rides.
 
 > "If I'm in practice mode and want to change the theme real quick then I have to go to the settings page,
 > but then when coming back to the previous page that page has reset. Maybe for the settings page in
@@ -49,7 +51,7 @@ A screen is one of two kinds.
 | Route | Kind | Why |
 | --- | --- | --- |
 | `/settings` | **Layer** | Reached from the bar mid-task; nothing in it to return to; its effect is the page behind it. The canonical member. |
-| `/report` | **Layer — second member, not yet moved** (see open questions) | Reached mid-task, over in a moment, and its "Back to the app" link today *reloads* the page you came from, which is the very reset the owner described. |
+| `/report` | **Layer** (moved the same day, on the owner's yes) | Reached mid-task, over in a moment, and *about* the page beneath it. Its "Back to the app" used to reload that page — the very reset the owner described — and now closes back to it. See *The report as a layer* below. |
 | `/privacy` | Place | Prose you arrive at cold — from the Google consent screen, the footer, the report page. Long enough to want a scroll position and a bookmark. Changes nothing behind it. |
 | `/credits` | Place | The same: a document with links out, arrived at from a link. |
 
@@ -57,9 +59,9 @@ Two consequences fall out of the definition:
 
 - **A layer never navigates the page it is keeping.** Links inside it to places open in a new tab
   (`target="_blank"`, `rel="noopener"`); the two prose pages are linked from Settings and that is where the
-  rule bites. A layer's own links to other layers would stack — not needed today. The one exception kept as
-  a plain navigation is "Report a bug", because the report is the next layer candidate and a real link there
-  is honest until it moves.
+  rule bites. The owner confirmed this: *"new links always open new page."* A link from one layer to
+  another — "Report a bug" inside Settings — **stacks**: one more history entry, the same dialog with its
+  content swapped, and Back walks down the stack layer by layer to the page.
 - **The bar tells them apart.** Places are words; layers are glyphs. Below.
 
 ## The mechanism: shallow routing under a native modal dialog
@@ -158,6 +160,57 @@ wheeling past the panel's end, 400 after close.
 Forward reopens. All end in `history.back()`; nothing calls `dialog.close()`. Reduced motion: no animation,
 so nothing to wait for (`getAnimations()` is empty and `close()` resolves at once).
 
+## The report as a layer
+
+`/report` is a **form with a server action**, which Settings is not, and a layer that threw away a typed bug
+report would be worse than the reload it replaces. Three decisions, all measured.
+
+**A half-written report is never lost.** Every way out of a layer — Escape, the phone's Back, a tap beside
+the drawer — is too easy to be destructive, and asking "are you sure?" at each of them would punish the
+common case (closing an empty form) to protect the rare one. So closing *keeps the words*: the draft (kind,
+body, contact) is written to `sessionStorage` on every change and read back when the form opens. Session
+storage because it lasts the tab and no longer, which is how long "I was in the middle of saying
+something" lasts; it survives the layer closing, another layer opening over it, and navigating to another
+page in the same tab. It is cleared when the report is sent, and an empty draft is removed rather than
+stored. Storage that is missing or throws keeps nothing and breaks nothing (`readDraft` / `writeDraft` /
+`clearDraft` in `$lib/report.ts`, pure and tested with a fake and a refusing Storage). Rejected: a
+confirm on close (the phone's Back gesture cannot be intercepted reliably, and `confirm()` under a modal
+dialog is a dialog on a dialog); discarding (the failure the owner warned about); keeping the draft in
+`page.state` (dies with the history entry — the opposite of what is wanted).
+
+**The server's answer stays inside the layer.** `use:enhance`'s default is to apply the result to the
+page: a success calls `invalidateAll()` — which would re-run the drill's `load` behind a bug report about
+it — and a thrown action calls `applyAction` with `type: 'error'`, which **replaces the whole page with the
+500 page**. Measured before the fix: a submit against a local D1 with no `reports` table took the drill
+with it. Now the result is kept in the component: success → the thank-you state, draft cleared; `failure`
+(the action's `fail(...)`: a 503 with no database, a 429, a 400) → its message under the form, words kept;
+`error` (the action threw) → *"Something went wrong at our end. Your words are still here — please try
+again in a minute."*, words kept, page beneath untouched; only a `redirect` reaches SvelteKit, and with
+`invalidateAll: false`. The form's `action="/report"` is named because a layer's address is the page
+beneath. Focus goes to "Back to the app" after a send and back to "Send report" after a failure, because
+the disabled-while-sending button drops it. A layer closed after a send and opened again is an **empty
+form**, not a second thank-you — the state is the component's, and the component is new each open
+(`page.form` would have persisted the thank-you until the next navigation).
+
+**`?from=` comes from the page beneath.** Layered, the form's subject is `page.url.pathname` — which
+`pushState` leaves on the page beneath — and the context list says *"The page you are on"*. Cold, it is the
+page's `?from=` and *"The page you came from"*. Both pass through `ownPath()` (moved from the page's server
+file to `$lib/report.ts`, pure, tested): a path within this site or nothing, and `//evil.example` and
+`/\evil.example` are nothing. The footer and Settings still write `?from=` on their links, so a cold
+arrival and a no-JS submit have it, and the address bar shows it while the layer is open. Measured:
+`path` on the form is `/openings/italian-game/explore` when opened over the drill; cold
+`/report?from=/today` gives `path` `/today` and Cancel `href="/today"`; cold `/report?from=//evil.example`
+gives `path` empty and Cancel `href="/"`.
+
+**On a phone** the report is reached through Settings (the footer is hidden there): the same full-screen
+sheet, its content swapped from Settings to Report inside one dialog; Close returns to Settings with the
+draft kept; Back returns to the drill. Measured.
+
+**The submit was measured end to end**, not faked: with the migrations applied to the *local* emulated D1
+(`.wrangler/state`, ignored by git, never production) the row landed with `body` exactly as typed, `path`
+the drill's URL and `viewport` `1400×1000`. The server-error path was faked at `fetch` (an
+`{ type: 'error' }` result), since a healthy local endpoint does not throw.
+
 ## Accessibility
 
 - **Focus trap and inertness**: `showModal()`. Measured: with the layer open, `document.querySelector('.tool').focus()`
@@ -233,18 +286,18 @@ bar's structure); production build clean.
 - Changing the tab's `<title>` while the layer is open. The page beneath owns the tab; two `<title>`s in
   `svelte:head` would fight.
 
-## Open questions for the owner
+## Answered by the owner (2026-09-18)
 
-1. **Move `/report` into the category.** It passes all three tests and its "Back to the app" reload is the
-   owner's complaint in another place: a tester who hits a bug mid-round should report it and carry on. What
-   it takes: `Report.svelte` lifted out of the page as `Settings.svelte` was; `from` becomes
-   `page.url.pathname` (already true for a layer); `use:enhance` with `update({ invalidateAll: false })` so
-   a sent report does not re-run the session's `load`; and `page.form` cleared on close so the next open is
-   an empty form. Half a day. Recommended.
-2. **Links from a layer to a place open a new tab.** The alternative — navigate, and lose the session — is
-   what the feature exists to prevent, but a new tab in the installed app opens the system browser. Easy to
-   reverse (`layered` prop on `Settings.svelte`).
-3. **A keyboard shortcut for Settings** (`,`, as on a Mac). Not added: the session's single-letter keys are
-   for play, and a shortcut to a layer that stops the keys is a shortcut people would hit by accident.
-4. **The phone's swipe-down to close.** Not added; Back and Close both work, and a vertical swipe on the
-   sheet is a scroll.
+1. **`/report` is a layer.** Yes — done the same day; see *The report as a layer*.
+2. **Links from a layer to a place open a new tab.** Stands: *"new links always open new page."*
+3. **Drawer width and wash.** Left as built (36rem, 40%); the owner will judge them live.
+
+## Still open
+
+- **A keyboard shortcut for Settings** (`,`, as on a Mac). Not added: the session's single-letter keys are
+  for play, and a shortcut to a layer that stops the keys is a shortcut people would hit by accident.
+- **The phone's swipe-down to close.** Not added; Back and Close both work, and a vertical swipe on the
+  sheet is a scroll.
+- **Focus after a stacked layer closes.** Report opened from inside Settings and closed returns to
+  Settings, whose own Close button takes focus; the gear is focused only when the last layer closes. Fine
+  today; a deeper stack would want a stack of openers.

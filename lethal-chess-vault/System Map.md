@@ -61,6 +61,8 @@ src/
                               [mode=session]/ is the playing screen (explore | practice | open, matcher in src/params/)
     play/                     Play vs computer
     settings/                 A layer: Settings.svelte is the content, +page.svelte the page a cold link lands on
+    report/                   A layer too: Report.svelte (form, draft in sessionStorage, the answer kept local),
+                              +page.svelte for a cold arrival or a submit without JavaScript, +page.server.ts the action
     privacy/, credits/, admin/ (owner only)
     auth/google/…, api/progress, api/attempts, api/cards, api/account/{export,delete}
 pipeline/

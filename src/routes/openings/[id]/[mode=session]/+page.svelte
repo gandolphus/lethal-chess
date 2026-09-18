@@ -188,10 +188,16 @@
 	// A session starts for the mode in the URL, and again whenever the URL's mode changes. The dashboard's
 	// map sends a line along as ?line=<key>&ply=<n>: Explore picks it up and stops at ply n, which is the
 	// line's end if it was found and its entrance if it was only entered.
+	//
+	// The effect depends on these two values and not on `page.url`: SvelteKit hands out a new URL object
+	// on every step through history, including a shallow one — closing the settings layer — and a new
+	// object with the same query must not start a new session over the one being played.
+	const lineKey = $derived(page.url.searchParams.get('line'));
+	const linePly = $derived(Number(page.url.searchParams.get('ply')));
 	$effect(() => {
 		const next = mode;
-		const key = page.url.searchParams.get('line');
-		const ply = Number(page.url.searchParams.get('ply'));
+		const key = lineKey;
+		const ply = linePly;
 		untrack(() => void begin(next, key, Number.isFinite(ply) && ply > 0 ? ply : undefined));
 	});
 

@@ -1,8 +1,8 @@
 ---
-tags: [tech]
+updated: 2026-09-15
+tags: []
 aliases: [chess.js]
 ---
-
 # chess.js
 
 `chess.js@1.4.0`. All rules logic. Wrapped by `src/lib/chess/game.svelte.ts`.

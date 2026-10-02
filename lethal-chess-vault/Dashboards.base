@@ -1,0 +1,26 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - '!file.inFolder("Templates")'
+views:
+  - type: table
+    name: Decisions
+    filters:
+      and:
+        - 'file.inFolder("Decisions")'
+    order: [file.name, status, tags]
+  - type: table
+    name: Features by status
+    filters:
+      and:
+        - 'file.inFolder("Features")'
+    groupBy:
+      property: status
+      direction: ASC
+    order: [file.name, status, updated, tags]
+  - type: table
+    name: Research
+    filters:
+      and:
+        - 'file.inFolder("Research")'
+    order: [file.name, status, tags]

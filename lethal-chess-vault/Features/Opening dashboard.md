@@ -1,8 +1,9 @@
 ---
-tags: [feature, design, flow, built-partly]
+status: active
+updated: 2026-09-16
+tags: [design, flow, built-partly]
 aliases: [Opening dashboard, Dashboard, Human moves, Approaches]
 ---
-
 # Opening dashboard
 
 **Status: designed 2026-09-16 (Fable 5.1); the shell is built.** `/openings/[id]` is the dashboard; the

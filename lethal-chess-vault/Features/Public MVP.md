@@ -1,11 +1,12 @@
 ---
-tags: [feature, planned, launch]
+status: active
+updated: 2026-09-15
+tags: [launch]
 aliases: [Public MVP, Launch]
 ---
-
 # Public MVP — lethalchess.com
 
-**Status: decided, in progress (2026-09-15).** Architecture and rationale: [[Decision Log]]
+**Status: decided, in progress (2026-09-15).** Architecture and rationale: [[Index]]
 2026-09-15 "Public MVP on lethalchess.com".
 
 > "An MVP where a novice can start practicing pretty well, with a database and Google auth so data is

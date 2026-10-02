@@ -1,11 +1,14 @@
 ---
-tags: [moc, home]
-aliases: [Home, lethal-chess]
+tags: []
+data-folders: [Design]
 ---
-
 # Home · lethal-chess
 
-Entry note for the planning / brainstorm / decision / memory vault. Lives at `lethal-chess-vault/` inside the project repo (Catppuccin Mocha theme).
+## Start here
+- [[Now]] — what is in progress, what is next, open questions. Read this first.
+- [[System Map]] — architecture as built.
+- [[Index]] — generated list of every note with its status.
+- [[Data sources]] — what data exists for classification, all verified.
 
 ## Vision
 
@@ -20,72 +23,20 @@ interesting signal is *how humans actually fail*, not what the engine prefers �
 long-term differentiator, and its scoring pipeline still exists in `../chess-lethality-analyzer`.
 But it is parked. First build the thing that is useful to one person every day.
 
-## Current state
+## Data folders
 
-MVP is playable: [[Play vs Computer]] — board, legal moves, engine opponent. That is the
-substrate the drilling layer sits on, not the product.
+`Design/` hold project data, not planning notes; they are exempt from the note rules below.
 
-## Maps of content
+## How this vault works
+| Folder | Holds | Written how |
+|---|---|---|
+| `Features/` | one note per feature: spec + as built | rewritten in place, bump `updated` |
+| `Decisions/` | one note per decision, `YYYY-MM-DD title` | immutable; a reversal is a new note that supersedes |
+| `Research/` | audits, plans, investigations, brainstorms, dated | `status:` says whether it is still live |
+| `Daily Logs/` | what was done, broke, was learned, one note per day | append-only |
+| `Concepts/`, `Tech/` | evergreen explanations | rewritten in place |
 
-- [[System Map]] — architecture, directory layout, data model (source of truth for *what exists and why*).
-- [[Decision Log]] — dated, rationale-bearing record of every locked decision.
-- [[Stack (MOC)]] — the technologies in use.
-- [[Data sources]] — what data exists for classification, all verified.
-
-## Features
-
-**Direction (2026-09-15): precision first. A serious tool, not a hacky one.** Objective engine truth
-only; rating-based strategy is at the bottom of the backlog.
-
-- [[Public MVP]] — **in progress, top priority**. Novice-friendly Learn → Practice → Progress on
-  lethalchess.com; Google sign-in; Cloudflare Workers + D1; no browser engine.
-- [[Coached Free Play]] — **built**. After a Learn line ends, keep playing: verdicts on every move,
-  natural computer replies, planted mistakes to punish.
-- [[Exploration Mode]] — **built, replaces Learn**. Given opening moves, then secret lines: entered → discovered, dubious lines apart, try again / play on.
-- [[Opening dashboard]] — **designed, shell built**. `/openings/[id]` is where you choose how to approach an
-  opening (Explore · Practice · The Open) and see where you stand: the map, found, readiness.
-- [[The Open]] — **designed, not built**. Five rated rounds against scouted opponents; readiness rating per
-  opening. Subsumes the "human moves" ask; the opponent's design is in [[Opening dashboard]].
-- [[Your games]] — **agreed direction, not built**. Read the learner's real games (chess.com needs only a
-  username), show their real repertoire and where they leave book, then drill it.
-- [[Monetization]] — **open**. Free scan, paid loop; coaches as the sharpest wedge.
-- [[Off-book Practice]] — **designed, first after launch**. Drill punishing the unusual moves opponents
-  actually play, not only the book. The blind spot most drilling tools share.
-- [[Play vs Computer]] — **done (MVP), audited + fixed**. Board + Stockfish opponent. Local builds only.
-- [[Opening Drills]] — **designed, first priority**. English (White), Sicilian and Caro-Kann (Black);
-  catalog-named tracks, eval-graded moves, sharpest lines first.
-- [[Progress Tracking]] — **designed**. Append-only attempt log in SQLite; proficiency per track,
-  family, repertoire.
-- [[Visual Design]] — **ported + overhauled**. 8 theme families (dark / light) and 8 piece sets selectable in settings, eval bar,
-  redesigned picker and drill page.
-- [[Opening Classification]] — **designed, catalog imported, second priority**. Objective cost,
-  precision burden, weaknesses; drill the punishment.
-- [[Installable app]] — **built**. Home-screen install (manifest, icons, service worker) that never
-  serves a stale page.
-- [[Settings as a layer]] — **built**. Settings and the bug report open over whatever you were doing and
-  close back to it, session and all; the gear sits alone on the right of the bar. Defines *places* and
-  *layers*; a half-typed report is never lost.
-
-## Research
-
-- [[Learning science for opening training]] — evidence digest, critique and 15 ranked proposals (2026-09-16).
-
-## Audits
-
-- [[2026-09-15 — Fable code audit]] — 7 findings, all fixed and verified.
-- [[2026-09-15 — Fable design review]] — strength/weakness definitions, pipeline, drill model.
-- [[2026-09-15 — Fable correctness audit 2]] — 9 findings; the drill dead-end bug and four more fixed.
-- [[2026-09-15 — Fable soundness audit]] — 9 findings (cycles, sync queue, sign-out, scheduler…); all fixed.
-
-## Daily logs
-
-- [[2026-09-15]] — kickoff, stack chosen, MVP playable, audits, catalog imported.
-
-## Backlog
-
-- Foundation: audit refactors, SQLite persistence, theme tokens (after [[Visual Design]] review).
-- Eval-db cache + tree builder for the three repertoires.
-- *Bottom of the list, "maybe":* rating-band stats, practical edge, "beat players at your level".
-- [[Engine licensing]] — Stockfish is GPL-3.0. Decide before anything commercial.
-- Piece rendering: Unicode glyphs are a placeholder, want SVG.
-- Board keyboard/screen-reader support.
+- A **decision** is a choice between alternatives that constrains future work. Everything else is a **log** entry.
+- Status lives in the `status:` property only. Tags are topics only. The folder is the type.
+- Links must resolve inside this vault. To-dos go in [[Now]].
+- End of session: append to today's log, overwrite [[Now]], run `vault-check`.

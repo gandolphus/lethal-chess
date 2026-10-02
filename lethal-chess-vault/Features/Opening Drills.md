@@ -1,8 +1,9 @@
 ---
-tags: [feature, planned]
+status: planned
+updated: 2026-09-15
+tags: []
 aliases: [Opening Drills, The Drill Loop, Repertoire Drills]
 ---
-
 # Opening Drills
 
 **Status: designed (precision-first revision), foundation not built.** The core of the first rollout.
@@ -11,7 +12,7 @@ aliases: [Opening Drills, The Drill Loop, Repertoire Drills]
 > first and foremost." — and for the English: "all aspects, but most importantly the aggressive ones,
 > and the ones which require the most precision from the opponent."
 
-Decisions: [[Decision Log]] 2026-09-15. Tracking: [[Progress Tracking]]. Sister feature sharing the
+Decisions: [[Index]] 2026-09-15. Tracking: [[Progress Tracking]]. Sister feature sharing the
 same data: [[Opening Classification]]. Look and feel: [[Visual Design]].
 
 ## Repertoires
@@ -58,7 +59,7 @@ Precision-first — objective engine truth, no rating assumptions.
   mid-track start with the opening name hidden.
 - **Apply rung:** after the track's last position, optionally play it out against the engine.
 
-## Code prerequisites ([[2026-09-15 — Fable code audit]])
+## Code prerequisites ([[2026-09-15 Fable code audit|2026-09-15 — Fable code audit]])
 
 - `Game.load(fen)`; `move()` returns the move instead of a boolean; non-mutating legality check.
 - Board takes generic `marks` + `arrows` instead of bespoke `lastMove`/`checkSquare` props.

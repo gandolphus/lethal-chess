@@ -1,8 +1,8 @@
 ---
-tags: [concept, history]
+updated: 2026-09-15
+tags: [history]
 aliases: [Lineage]
 ---
-
 # Lineage — from lethality analyzer to drilling tool
 
 Why `lethal-chess` is not what `lethalchess.com` was going to be, and what was kept.
@@ -38,7 +38,7 @@ Exploits.
 
 ## What changed on 2026-09-15
 
-Scope narrowed to **the drilling tool alone** ([[Decision Log]]). In the old framing, that is the
+Scope narrowed to **the drilling tool alone** ([[Index]]). In the old framing, that is the
 Ladder — the third tier — built first and built alone, without the visualizer or the tier structure
 around it.
 

@@ -1,8 +1,8 @@
 ---
-tags: [tech]
+updated: 2026-09-15
+tags: []
 aliases: [pnpm]
 ---
-
 # pnpm
 
 pnpm 11.5.2 (from the NixOS system, not a project-local install).

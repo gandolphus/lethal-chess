@@ -1,15 +1,16 @@
 ---
-tags: [audit, correctness, explore, sync, fable]
+status: done
+date: 2026-09-16
+tags: [correctness, explore, sync, fable]
 aliases: [Correctness audit]
 ---
-
 # 2026-09-16 — Correctness audit
 
 Correctness half of the owner's "rigorous correctness and security audit"; security is a separate note.
 Audited `main` at b2da9a4 (the Prism merge) against what the vault says the app does: [[System Map]],
-[[Decision Log]], [[Exploration Mode]], [[The Open]], [[Progress Tracking]]. Follows
-[[2026-09-16 — Exploration audit]] (all seven fixes re-checked, still hold) and
-[[2026-09-15 — Fable soundness audit]]. `pnpm test` 444 green + 16 expected failures, `pnpm check` 0 errors.
+[[Index]], [[Exploration Mode]], [[The Open]], [[Progress Tracking]]. Follows
+[[2026-09-16 Exploration audit|2026-09-16 — Exploration audit]] (all seven fixes re-checked, still hold) and
+[[2026-09-15 Fable soundness audit|2026-09-15 — Fable soundness audit]]. `pnpm test` 444 green + 16 expected failures, `pnpm check` 0 errors.
 
 **Fixed the same night, at the owner's word: 1–10, 12 and 13.** Their tests are plain `it` now and guard
 the fixes. Two `it.fails` remain, both deliberate: #11, which is a fact about the shipped catalogue rather
@@ -321,4 +322,4 @@ is added to `#shown`. No spoiler results, since nothing book-side is shown; the 
 than the stages earn — which closes 12) → 3 and 4 (the outbox; fix 4 first or 3 turns it into a loop) →
 8 (one guard) → 5 → 9 → 10 → 6 → 7 → 11 (a decision, not a fix) → 14 (rewrite the note). Update
 [[Exploration Mode]] "The map" for what the tooltip and the dialog may say, and log the outbox rule in
-[[Decision Log]].
+[[Index]].

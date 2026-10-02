@@ -1,8 +1,9 @@
 ---
-tags: [feature, done]
+status: done
+updated: 2026-09-15
+tags: []
 aliases: [Play vs Computer, MVP]
 ---
-
 # Play vs Computer
 
 **Status: done (MVP), 2026-09-15.** The substrate for [[Opening Drills]], not the product.
@@ -33,7 +34,7 @@ Not assumed — checked on 2026-09-15:
 
 ## Audit fixes (2026-09-15, Fable 5.1 code audit)
 
-An adversarial audit found real bugs; fixed and re-verified the same day. See [[Decision Log]].
+An adversarial audit found real bugs; fixed and re-verified the same day. See [[Index]].
 
 - **Stale engine move applied to a new game** (high). Starting a new game while the engine was
   thinking let the old search's `bestmove` land on the fresh board — legally, e.g. `Nf3` from the

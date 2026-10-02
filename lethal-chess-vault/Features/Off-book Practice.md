@@ -1,8 +1,9 @@
 ---
-tags: [feature, planned, differentiator]
+status: planned
+updated: 2026-09-15
+tags: [differentiator]
 aliases: [Off-book Practice, Unusual Moves, Deviations]
 ---
-
 # Off-book Practice
 
 **Status: designed, first feature after [[Public MVP]] goes online.** Raised by the user 2026-09-15.

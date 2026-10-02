@@ -1,12 +1,11 @@
 ---
-tags: [moc, system-map]
-aliases: [Architecture, System Map]
+updated: 2026-09-18
+tags: []
 ---
-
 # System Map · lethal-chess
 
-Source of truth for **what exists and why**. See [[Decision Log]] for rationale and [[Home]] for vision.
-Rewritten 2026-09-15 after [[2026-09-15 — Fable soundness audit]] found the old map still described the
+Source of truth for **what exists and why**. See [[Index]] for rationale and [[Home]] for vision.
+Rewritten 2026-09-15 after [[2026-09-15 Fable soundness audit|2026-09-15 — Fable soundness audit]] found the old map still described the
 pre-drill MVP.
 
 ## Stack

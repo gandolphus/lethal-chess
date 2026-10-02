@@ -1,15 +1,16 @@
 ---
-tags: [feature, design, flow, built, navigation, accessibility]
+status: done
+updated: 2026-09-18
+tags: [design, flow, navigation, accessibility]
 aliases: [Settings as a layer, Layers, Settings layer, Utility routes, Places and layers]
 ---
-
 # Settings as a layer
 
 **Status: designed and built 2026-09-18 (Fable 5.1); Report joined the same day.** Settings no longer
 replaces the screen you were on. It opens *over* it — a drawer down the right on a desktop, the whole screen
 on a phone — and when it closes the drill, the round, the game is exactly where you left it. The gear that
 opens it sits alone at the right of the site bar. The bug report is the second layer: it is about the page
-beneath it, and sending it closes back to that page. See [[Decision Log]] (2026-09-18), [[Visual Design]]
+beneath it, and sending it closes back to that page. See [[Index]] (2026-09-18), [[Visual Design]]
 for what Settings contains, [[Exploration Mode]] and [[The Open]] for the sessions it now keeps,
 [[SvelteKit]] for the routing it rides.
 
@@ -123,7 +124,7 @@ After: **`brand → [Openings, Today, Play] ······ ⚙ → account`.**
 
 - **Places are words** (above 560px) in a group on the left; **the layer is a glyph** on the right, at
   every width, with its word kept in a visually-hidden span (`clip-path`, not `display: none`, the same
-  rule the phone glyphs follow — [[Decision Log]] 2026-09-17) and a `title` for the tooltip. Position
+  rule the phone glyphs follow — [[Index]] 2026-09-17) and a `title` for the tooltip. Position
   says "different kind"; the glyph says "a control, not a destination".
 - The gear carries `aria-haspopup="dialog"` and `aria-expanded` while its layer is open; on its own page
   it carries `aria-current="page"` like any destination. Lit the same way in both states.

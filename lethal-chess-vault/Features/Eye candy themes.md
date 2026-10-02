@@ -1,8 +1,9 @@
 ---
-tags: [feature, built, design, theme]
+status: done
+updated: 2026-09-16
+tags: [design, theme]
 aliases: [Eye candy, Trippy themes, Living themes, Prism, Scene, Nebula, Iris]
 ---
-
 # Eye candy themes
 
 **Status: built 2026-09-16 (Fable 5.1), on a branch, awaiting the owner's eyes.** The theme family is
@@ -20,7 +21,7 @@ of the token contract, a **scene**, that any theme can declare. Screenshots and 
 
 "Trippy" is a **family** like the other eight, not an intensity dial on every theme. A dial makes every
 theme slightly worse at being itself, multiplies what has to be tested by sixteen, and "soothing hyperspace"
-is a *look*, not an amount. See [[Decision Log]] 2026-09-16.
+is a *look*, not an amount. See [[Index]] 2026-09-16.
 
 But the owner's last sentence is the real instruction, and it is answered separately: what makes Prism
 possible is not a special case for one theme but three things the contract now knows how to do. Today only

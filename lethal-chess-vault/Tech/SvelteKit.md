@@ -1,11 +1,11 @@
 ---
-tags: [tech]
+updated: 2026-09-15
+tags: []
 aliases: [SvelteKit, Svelte]
 ---
-
 # SvelteKit
 
-SvelteKit 2.70 / Svelte 5.57 / Vite 8. Chosen over React — rationale in [[Decision Log]] 2026-09-15.
+SvelteKit 2.70 / Svelte 5.57 / Vite 8. Chosen over React — rationale in [[Index]] 2026-09-15.
 
 ## Gotchas found on setup
 

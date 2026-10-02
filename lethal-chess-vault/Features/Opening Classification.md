@@ -1,8 +1,9 @@
 ---
-tags: [feature, planned, data]
+status: planned
+updated: 2026-09-15
+tags: [data]
 aliases: [Opening Classification, Opening Weaknesses]
 ---
-
 # Opening Classification
 
 **Status: designed, catalog imported, classification not built.** Goal 1 from 2026-09-15.
@@ -10,7 +11,7 @@ aliases: [Opening Classification, Opening Weaknesses]
 > "Have all popular (and not so popular) openings classified according to relative strength. The
 > King's Gambit (for White) should have a list of weaknesses — and I want to drill those."
 
-Design source: [[2026-09-15 — Fable design review]]. Data: [[Data sources]].
+Design source: [[2026-09-15 Fable design review|2026-09-15 — Fable design review]]. Data: [[Data sources]].
 
 ## Done
 
@@ -21,7 +22,7 @@ Design source: [[2026-09-15 — Fable design review]]. Data: [[Data sources]].
 
 ## Design — first rollout is objective only
 
-Per [[Decision Log]] 2026-09-15 ("precision first"), everything rating-based is deferred.
+Per [[Index]] 2026-09-15 ("precision first"), everything rating-based is deferred.
 
 **Strength (first rollout):**
 

@@ -1,8 +1,9 @@
 ---
-tags: [feature, built]
+status: done
+updated: 2026-09-15
+tags: []
 aliases: [Coached Free Play, Keep playing, Free play]
 ---
-
 # Coached Free Play
 
 **Status: built (logic tested, wired into the drill page), 2026-09-15.** Awaiting hands-on testing.
@@ -12,7 +13,7 @@ aliases: [Coached Free Play, Keep playing, Free play]
 > the best moves, but still good moves. Sometimes sprinkle in mistakes by the computer and see whether
 > the user catches it. If not, inform them they missed an opportunity and tell them to try again."
 
-Runs on the in-browser engine — the reason for [[Decision Log]] "Open source under AGPL-3.0".
+Runs on the in-browser engine — the reason for [[Index]] "Open source under AGPL-3.0".
 Related: [[Opening Drills]] (where it starts), [[Off-book Practice]] (the same instinct inside the book).
 
 ## How it works — `src/lib/coach/`

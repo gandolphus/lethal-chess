@@ -1,12 +1,12 @@
 ---
-tags: [tech]
+updated: 2026-09-15
+tags: []
 aliases: [Stockfish]
 ---
-
 # Stockfish
 
 `stockfish@18.0.8` npm. The opponent in [[Play vs Computer]]. Wrapped by
-`src/lib/chess/engine.ts`, which is framework-agnostic on purpose ([[Decision Log]] 2026-09-15).
+`src/lib/chess/engine.ts`, which is framework-agnostic on purpose ([[Index]] 2026-09-15).
 
 ## Which build
 

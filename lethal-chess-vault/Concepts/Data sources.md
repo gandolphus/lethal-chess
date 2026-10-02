@@ -1,8 +1,8 @@
 ---
-tags: [concept, data, verified]
+updated: 2026-09-15
+tags: [data, verified]
 aliases: [Data sources]
 ---
-
 # Data sources
 
 What exists for classifying openings and finding their weaknesses. **Everything here was checked on
@@ -29,7 +29,7 @@ What exists for classifying openings and finding their weaknesses. **Everything 
 
 ## Lichess eval database — `database.lichess.org/lichess_db_eval.jsonl.zst`
 
-**The primary data source for the first rollout** (precision-first, [[Decision Log]]).
+**The primary data source for the first rollout** (precision-first, [[Index]]).
 
 - 22.1 GB compressed, ~410M positions, **CC0**, updated 2026-09-10.
 - One JSON object per line: `fen` (already an EPD — no move counters), `evals[]` each with
@@ -91,4 +91,4 @@ source JSON — **0 missing, 0 mismatches**; 4 µs per lookup. Full-scale estima
 
 Classification is an **offline build step**: catalog (names) + dump (human results) + native
 Stockfish / cloud eval (objective eval) → a static artifact the app loads. Design pending
-[[Decision Log]].
+[[Index]].

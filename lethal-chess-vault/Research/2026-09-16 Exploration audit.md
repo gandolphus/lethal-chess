@@ -1,14 +1,15 @@
 ---
-tags: [audit, explore]
+status: done
+date: 2026-09-16
+tags: [explore]
 aliases: [Exploration audit]
 ---
-
 # 2026-09-16 — Exploration audit
 
 Read-only audit of [[Exploration Mode]] on `main` (23fd386): `src/lib/explore/{book,session.svelte}.ts`,
 `src/routes/openings/[id]/+page.svelte`, `buildLines` in `pipeline/repertoire/build.ts`, and the
 discovery path through [[Progress Tracking]] (local store, outbox, D1, export/delete). Follows
-[[2026-09-15 — Fable soundness audit]] (all nine fixes re-checked, still hold). `pnpm test` (all files)
+[[2026-09-15 Fable soundness audit|2026-09-15 — Fable soundness audit]] (all nine fixes re-checked, still hold). `pnpm test` (all files)
 and `pnpm check` (0 errors) pass.
 
 Evidence: a Monte Carlo harness driving the real `ExploreSession` over **all 28 shipped bundles**
@@ -271,7 +272,7 @@ positions in #5) before ranking; fall back to the unfiltered list.
 1 (abandon the old session) → 2 (one-line predicate) → 3 (`takeBack` in `decide` → `tryAgain`) → 4
 (position-keyed `book`) → 7 (filter hints by loss) → 5 (fill the 103 missing book evals, add the
 assertion) → 6 (defensive fallbacks, also in `FreePlay`). Update [[Exploration Mode]] "Behaviour" for
-the transposition rule and #8's numbers, and log the decisions in [[Decision Log]].
+the transposition rule and #8's numbers, and log the decisions in [[Index]].
 
 ## Resolution (2026-09-16)
 

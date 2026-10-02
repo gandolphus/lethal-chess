@@ -1,13 +1,14 @@
 ---
-tags: [audit, code, fable, security]
+status: done
+date: 2026-09-15
+tags: [code, fable, security]
 aliases: [Fable soundness audit]
 ---
-
 # 2026-09-15 — Fable 5.1 soundness audit
 
 Read-only audit of `main` (f7e9969) for real bugs and unsafe operations across auth, the progress
 APIs, sync, the drill and [[Coached Free Play]], the engine wrapper and the repertoire pipeline.
-Follows [[2026-09-15 — Fable code audit]] and [[2026-09-15 — Fable correctness audit 2]]; their fixes
+Follows [[2026-09-15 Fable code audit|2026-09-15 — Fable code audit]] and [[2026-09-15 Fable correctness audit 2|2026-09-15 — Fable correctness audit 2]]; their fixes
 were re-checked and still hold (see § Verified fine). `pnpm test` (221) and `pnpm check` pass.
 
 Evidence: every finding was traced through the code and, where marked, reproduced with scratch
@@ -239,7 +240,7 @@ non-canonical, non-local host in the hook.
 
 ## Resolution (2026-09-15)
 
-All nine fixed the same day; see [[Decision Log]] "Soundness audit fixed". Tests were added for each:
+All nine fixed the same day; see [[Index]] "Soundness audit fixed". Tests were added for each:
 - **Cycles:** `breakCycles` plus the shipped-bundle checks in `bundles.test.ts`. The rebuilt King's
   Indian and French bundles are acyclic.
 - **Walk guard, future review, clamp:** `drill.test.ts` "safety".
@@ -252,6 +253,6 @@ All nine fixed the same day; see [[Decision Log]] "Soundness audit fixed". Tests
 ## Suggested order
 
 1 (builder + client guard) → 3 (clamp in `review`) → 2 and 4 together (outbox policy + sign-out
-guard) → 5 → 7 → 6, 8, 9. Log the decisions in [[Decision Log]] and update [[Opening Drills]],
+guard) → 5 → 7 → 6, 8, 9. Log the decisions in [[Index]] and update [[Opening Drills]],
 [[Coached Free Play]] and [[Progress Tracking]]; the [[System Map]] still describes the pre-drill MVP
 and should be brought up to date with the server layer, sync and pipeline.

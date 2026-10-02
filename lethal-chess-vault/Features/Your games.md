@@ -1,8 +1,9 @@
 ---
-tags: [feature, idea, monetization]
+status: idea
+updated: 2026-09-16
+tags: [monetization]
 aliases: [Your games, Game import, Deviation finder]
 ---
-
 # Your games
 
 **Status: agreed direction 2026-09-16, not built.** The owner's idea: read the learner's real games and

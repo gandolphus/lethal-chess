@@ -1,8 +1,9 @@
 ---
+status: idea
+updated: 2026-09-16
 tags: [business, monetization]
 aliases: [Monetization, Pricing]
 ---
-
 # Monetization
 
 **Status: discussion 2026-09-16, nothing decided.** See [[Your games]] for the feature this is built on.

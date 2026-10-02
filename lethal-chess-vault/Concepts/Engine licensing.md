@@ -1,8 +1,8 @@
 ---
-tags: [concept, risk, open-question]
+updated: 2026-09-15
+tags: [risk, open-question]
 aliases: [Engine licensing, GPL]
 ---
-
 # Engine licensing
 
 **Open question. Flagged 2026-09-15, deliberately not resolved.**
@@ -33,4 +33,4 @@ and a domain already registered.
 
 Anything commercial. Anything with a signup. Not before then.
 
-Related: [[Decision Log]] · [[Stockfish]]
+Related: [[Index]] · [[Stockfish]]

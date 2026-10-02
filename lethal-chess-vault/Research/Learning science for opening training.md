@@ -1,8 +1,9 @@
 ---
-tags: [research, learning, product]
+status: active
+date: 2026-09-16
+tags: [learning, product]
 aliases: [Learning science, Opening pedagogy research]
 ---
-
 # Learning science for opening training
 
 Research note, 2026-09-16. Question from the owner: *how do we make learning opening theory a lot more
@@ -10,7 +11,7 @@ engaging and effective?* Grounded in the learning-science literature, in what co
 where they fail, and in what this app can already compute. Feeds [[Exploration Mode]],
 [[Progress Tracking]], [[Opening Drills]], [[Off-book Practice]] and [[Coached Free Play]]. Data
 constraints are in [[Data sources]]; the "precision first, no LLM-originated chess content" rules are in
-[[Decision Log]] (2026-09-15).
+[[Index]] (2026-09-15).
 
 ---
 

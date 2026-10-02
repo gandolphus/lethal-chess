@@ -1,12 +1,13 @@
 ---
-tags: [feature, built, launch, pwa]
+status: done
+updated: 2026-09-16
+tags: [launch, pwa]
 aliases: [Installable app, PWA, Home screen]
 ---
-
 # Installable app
 
 **Status: built (2026-09-16).** lethalchess.com installs to a phone's home screen and opens without
-browser chrome. Part of the [[Public MVP]]; rationale in [[Decision Log]] 2026-09-16 "Installable, never stale".
+browser chrome. Part of the [[Public MVP]]; rationale in [[Index]] 2026-09-16 "Installable, never stale".
 
 ## What ships
 

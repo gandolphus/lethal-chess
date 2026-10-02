@@ -1,8 +1,9 @@
 ---
-tags: [feature, planned, design]
+status: planned
+updated: 2026-09-17
+tags: [design]
 aliases: [Visual Design, Themes, Aesthetics]
 ---
-
 # Visual Design
 
 > **A theme may carry a scene (2026-09-16).** The contract gained motion and depth as an opt-in: a family
@@ -111,7 +112,7 @@ aliases: [Visual Design, Themes, Aesthetics]
 
 - A **token system** every theme implements; components consume only tokens.
 - Board stays DOM + SVG; effects may use a WebGL overlay canvas later, as a framework-agnostic module
-  ([[Decision Log]] 2026-09-15 on graphics).
+  ([[Index]] 2026-09-15 on graphics).
 
 ## Round 1 (2026-09-15)
 
@@ -235,7 +236,7 @@ Three traps, each found by measuring rather than reading — the `align-items: s
 desktop two-column layout (a start-aligned grid item takes its content height and overflows its row), grid
 rather than a column flex (a stretched flex item's cross size is not definite, so the board's `100%`
 resolved against min-content and came out 97px), and a per-screen `--chrome`: 23rem in a session, 24rem on
-Today, 22rem on Play. Zero page overflow on all six board screens at 844, 740 and 667. See [[Decision Log]].
+Today, 22rem on Play. Zero page overflow on all six board screens at 844, 740 and 667. See [[Index]].
 
 **The site bar is one row on a phone** (82px → 52px): a glyph per destination, the word kept in a span
 hidden with `clip-path` so each link still has an accessible name. **The openings list was zooming the

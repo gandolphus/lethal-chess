@@ -1,12 +1,13 @@
 ---
-tags: [audit, code, fable]
+status: done
+date: 2026-09-15
+tags: [code, fable]
 aliases: [Fable code audit]
 ---
-
 # 2026-09-15 — Fable 5.1 code audit
 
 Correctness audit of the [[Play vs Computer]] MVP. All findings fixed the same day and verified
-against the real engine — see [[Play vs Computer]] § Audit fixes and [[Decision Log]].
+against the real engine — see [[Play vs Computer]] § Audit fixes and [[Index]].
 
 | # | Sev | Finding | Status |
 |---|---|---|---|

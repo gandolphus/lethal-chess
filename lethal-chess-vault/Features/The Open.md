@@ -1,8 +1,9 @@
 ---
-tags: [feature, idea, design, gameplay, built]
+status: idea
+updated: 2026-09-16
+tags: [design, gameplay]
 aliases: [Boss fight, The gauntlet, Rated rounds, Opening rating]
 ---
-
 # The Open
 
 **Status: the atom is built (2026-09-16) — one round against a human-shaped opponent, at
@@ -17,7 +18,7 @@ use the opening in situations which don't feel like playing against an engine. Y
 will show up. But the goal is to play *precisely* against whatever move shows up. Maybe it will be a line,
 but maybe it will be something completely stupid, or *maybe* it will be a move which is not too shabby but
 against a grand master it would be devastating." So the mode is the opponent and a standard, and nothing
-else — see the [[Decision Log]], 2026-09-16.
+else — see the [[Index]], 2026-09-16.
 
 **The round.** Eight learner moves from the opening's defining position, which is played for both sides at
 the start. The round ends on the learner's eighth move (or earlier if the game does), not when the book runs
@@ -81,7 +82,7 @@ Screenshots: `Design/Round 4/shots/open-*.png`.
 > something more thematic. And we need some killer feature in this mode which really dots the i's…
 > winning these fights should increase your rating of the opening in our app."
 
-This is the answer to [[Human moves]] — the owner's earlier ask to drill against "a range of moves which
+This is the answer to Human moves — the owner's earlier ask to drill against "a range of moves which
 you can encounter when facing off against *human* players". A ladder of opponents **is** a distribution of
 opponent strength, and giving each opponent a repertoire turns the distribution into content.
 
@@ -109,7 +110,7 @@ intact**, which is also what a real player is trying to do.
 **Wrong, or at least dangerous: the strength meter as a health bar.** Evaluation is a *state*, not
 accumulated damage. Lose 0.4 and win 0.4 back and you did not heal — your opponent blundered. Use
 **cumulative win chance given away** instead: that genuinely accumulates, never un-spends itself, and the
-app already computes it for every move ([[Judge]]'s win-chance model). See **Composure**, below.
+app already computes it for every move (Judge's win-chance model). See **Composure**, below.
 
 **The load-bearing thing the pitch is missing.** Slay the Spire's engine is not "enemies get harder". It is
 *the deck you build across the run* — the choices between fights that make fight four different from fight

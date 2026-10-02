@@ -1,13 +1,14 @@
 ---
-tags: [audit, design, fable]
+status: done
+date: 2026-09-15
+tags: [design, fable]
 aliases: [Fable design review]
 ---
-
 # 2026-09-15 — Fable 5.1 design review
 
 Adversarial review of the plans against the user's goals for the day. Commissioned read-only;
 report preserved here close to verbatim. Our verification of its key claims is at the bottom.
-Outcomes: [[Opening Classification]], [[Opening Drills]], [[Decision Log]].
+Outcomes: [[Opening Classification]], [[Opening Drills]], [[Index]].
 
 **The goals it reviewed against:** (1) classify all openings by relative strength, with weaknesses
 per opening (e.g. the King's Gambit for White), and drill those weaknesses; (2) drill the English

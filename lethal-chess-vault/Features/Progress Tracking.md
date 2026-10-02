@@ -1,8 +1,9 @@
 ---
-tags: [feature, planned]
+status: planned
+updated: 2026-09-15
+tags: []
 aliases: [Progress Tracking, Proficiency]
 ---
-
 # Progress Tracking
 
 **Status: designed, not built.** First-class requirement, not a by-product of drilling.
@@ -10,7 +11,7 @@ aliases: [Progress Tracking, Proficiency]
 > "We do need reliable tracking and progress measuring for the various openings. You should easily be
 > able to see how proficient you are using the various openings."
 
-Feeds from [[Opening Drills]]. Storage decision in [[Decision Log]] 2026-09-15 (SQLite on disk).
+Feeds from [[Opening Drills]]. Storage decision in [[Index]] 2026-09-15 (SQLite on disk).
 
 ## Principle: log facts, derive everything
 

@@ -1,8 +1,9 @@
 ---
-tags: [research, data, licensing]
+status: active
+date: 2026-09-16
+tags: [data, licensing]
 aliases: [Popularity data, Explanation data]
 ---
-
 # Popularity and explanation data
 
 Research note, **2026-09-16**. Two gaps in [[Data sources]]: (A) how often humans play each move, so that
@@ -195,4 +196,4 @@ source:
 `/home/ohzo/.claude/jobs/eb2370b5/tmp/research/` — `count.py`, `result.json`, `puzzles.py`,
 `wikibooks_pages.json` (all 3,038 titles). No large files kept; the dump sample was streamed, not stored.
 
-Related: [[Data sources]] · [[Exploration Mode]] · [[Engine licensing]] · [[Decision Log]]
+Related: [[Data sources]] · [[Exploration Mode]] · [[Engine licensing]] · [[Index]]

@@ -1,14 +1,15 @@
 ---
-tags: [audit, security, fable]
+status: done
+date: 2026-09-16
+tags: [security, fable]
 aliases: [Security audit]
 ---
-
 # 2026-09-16 — Security audit
 
 Read-only security audit of `main` (f7a919d): [[Public MVP]] as deployed on lethalchess.com — Google
 sign-in, sessions, the progress API, the admin page, input handling, headers and CSP, the service
 worker of the [[Installable app]], client-side HTML sinks, and what stays in the browser. Correctness
-is a separate audit. Follows [[2026-09-15 — Fable soundness audit]], whose security-relevant fixes
+is a separate audit. Follows [[2026-09-15 Fable soundness audit|2026-09-15 — Fable soundness audit]], whose security-relevant fixes
 (body cap, sign-out keeps the outbox, `workers_dev` off) were re-checked and hold.
 
 Evidence: every file under `src/lib/server`, `src/routes/auth`, `src/routes/api`, `src/routes/admin`,
@@ -109,8 +110,8 @@ the signing-in user (`createSession` deletes only that user's), so the table doe
 **low · CONFIRMED** · `src/routes/+layout.svelte:34-54,57-65`, `src/routes/auth/google/callback/+server.ts:44-48`,
 `src/lib/drill/synced-store.ts:77-79`
 
-Sign-out removes `lethal:user:<id>:*` from localStorage (keeping the outbox on purpose — [[Decision
-Log]] 2026-09-15). Two paths skip that code:
+Sign-out removes `lethal:user:<id>:*` from localStorage (keeping the outbox on purpose — Decision
+Log 2026-09-15). Two paths skip that code:
 - **Sign in as another Google account without signing out.** `/auth/google` is reachable while
   signed in; the callback replaces the session and the layout effect simply switches the store to the
   new `user.id`. The old account's `lethal:user:<old>:*` keys stay, readable by the new person from

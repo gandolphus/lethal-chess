@@ -1,13 +1,14 @@
 ---
-tags: [audit, code, fable]
+status: done
+date: 2026-09-15
+tags: [code, fable]
 aliases: [Fable correctness audit 2]
 ---
-
 # 2026-09-15 — Fable 5.1 correctness audit #2
 
 Read-only audit of the pipeline, repertoire builder, drill core, and refactors written after
-[[2026-09-15 — Fable code audit]]. Evidence-based: scratch scripts simulated 20,000 drill walks per
-bundle and cross-checked 135,725 cache records against the raw eval db. Fixes: [[Decision Log]]
+[[2026-09-15 Fable code audit|2026-09-15 — Fable code audit]]. Evidence-based: scratch scripts simulated 20,000 drill walks per
+bundle and cross-checked 135,725 cache records against the raw eval db. Fixes: [[Index]]
 "Audit #2 fixes".
 
 | # | Sev | Finding | Status |

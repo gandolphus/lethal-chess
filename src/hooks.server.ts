@@ -1,4 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
+import { version } from '$app/environment';
 import { deleteSessionCookie, SESSION_COOKIE, setSessionCookie, validateSessionToken } from '$lib/server/session';
 
 /** The canonical host; `www.` is attached to the Worker only so it can redirect here. */
@@ -22,9 +23,12 @@ export const SECURITY_HEADERS: Record<string, string> = {
 export const ANALYTICS_BEACON =
 	`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "a5b618f62bf44df98c7ef4cc4b71ff0c"}'></script>`;
 
+/** SvelteKit's default version is the build's timestamp; the badge shows it so a phone can tell which build it has. */
+const BUILT = new Date(Number(version)).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', dateStyle: 'short', timeStyle: 'short' });
+
 /** Shown on every page of the staging deploy, so it is never mistaken for the real site. */
 const STAGING_BADGE =
-	`<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;padding:1px 8px;border-radius:0 0 6px 6px;background:#f38ba8;color:#11111b;font:700 11px/1.4 system-ui,sans-serif;letter-spacing:.08em;pointer-events:none">STAGING</div>`;
+	`<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;padding:1px 8px;border-radius:0 0 6px 6px;background:#f38ba8;color:#11111b;font:700 11px/1.4 system-ui,sans-serif;letter-spacing:.08em;pointer-events:none">STAGING · ${BUILT}</div>`;
 
 const isLocal =(hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
 

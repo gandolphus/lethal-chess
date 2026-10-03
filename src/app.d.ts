@@ -28,6 +28,8 @@ declare global {
 				 * in tests, where there is nothing to protect.
 				 */
 				API_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> };
+				/** "1" on the staging deploy only (wrangler.jsonc `env.staging.vars`). */
+				STAGING?: string;
 				/** Secrets: `wrangler secret put`, locally .dev.vars. Absent until configured. */
 				GOOGLE_CLIENT_ID?: string;
 				GOOGLE_CLIENT_SECRET?: string;

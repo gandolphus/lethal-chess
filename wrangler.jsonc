@@ -43,5 +43,29 @@
 		"logs": {
 			"invocation_logs": false
 		}
+	},
+	// Staging: `pnpm cf:deploy:staging` → worker `lethal-chess-staging` on staging.lethalchess.com,
+	// behind Cloudflare Access. Its own EU D1, so test data and migrations never touch production.
+	// Bindings, routes and vars are not inherited by an environment, so each is restated here.
+	"env": {
+		"staging": {
+			"vars": { "STAGING": "1" },
+			"ratelimits": [
+				{
+					"name": "API_LIMIT",
+					"namespace_id": "1002",
+					"simple": { "limit": 60, "period": 60 }
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "lethal-chess-staging",
+					"database_id": "6a727777-3a06-4d1b-9191-cb85680bd57c",
+					"migrations_dir": "migrations"
+				}
+			],
+			"routes": [{ "pattern": "staging.lethalchess.com", "custom_domain": true }]
+		}
 	}
 }

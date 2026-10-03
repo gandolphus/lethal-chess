@@ -18,7 +18,8 @@
 		"db:migrate:local": "wrangler d1 migrations apply lethal-chess --local",
 		"db:migrate:remote": "wrangler d1 migrations apply lethal-chess --remote",
 		"cf:preview": "pnpm build && wrangler dev",
-		"cf:deploy": "pnpm build && wrangler d1 migrations apply lethal-chess --remote && wrangler deploy"
+		"cf:deploy": "pnpm build && wrangler d1 migrations apply lethal-chess --remote && wrangler deploy",
+		"cf:deploy:staging": "pnpm build && wrangler d1 migrations apply lethal-chess-staging --remote --env staging && wrangler deploy --env staging"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-cloudflare": "7.2.9",

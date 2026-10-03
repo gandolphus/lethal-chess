@@ -19,6 +19,7 @@ pre-drill MVP.
 | Chess engine | [[Stockfish]] 18 lite, single-threaded WASM | Web Worker, UCI, serial command lock; loaded only when needed |
 | Scheduling | ts-fsrs (MIT) | Practice cards |
 | Hosting | Cloudflare Worker (`adapter-cloudflare`) | `lethalchess.com` + `www`; workers.dev and preview URLs off |
+| Staging | Worker `lethal-chess-staging` (`wrangler.jsonc` `env.staging`) | `staging.lethalchess.com`, own EU D1 `lethal-chess-staging`, `STAGING` var → badge + `noindex`; `pnpm cf:deploy:staging`. See [[2026-10-03 Staging is a second Worker with its own database]] |
 | Database | Cloudflare D1, EU jurisdiction | Migrations in `migrations/` |
 | Auth | Google OAuth, vendored (fetch + Web Crypto) | State + PKCE; DB sessions with hashed tokens |
 | Styling | Plain scoped CSS, design tokens | 9 theme families × dark/light (18 palettes), 8 piece sets; a family may declare a *scene* — backdrop, hue veil, piece sway — as additive tokens ([[Visual Design]], [[Eye candy themes]]) |

@@ -22,6 +22,10 @@ export const SECURITY_HEADERS: Record<string, string> = {
 export const ANALYTICS_BEACON =
 	`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "a5b618f62bf44df98c7ef4cc4b71ff0c"}'></script>`;
 
+/** Shown on every page of the staging deploy, so it is never mistaken for the real site. */
+const STAGING_BADGE =
+	`<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;padding:1px 8px;border-radius:0 0 6px 6px;background:#f38ba8;color:#11111b;font:700 11px/1.4 system-ui,sans-serif;letter-spacing:.08em;pointer-events:none">STAGING</div>`;
+
 const isLocal =(hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -53,9 +57,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Cloudflare Web Analytics: cookieless visit counts, production only, so local testing never counts.
+	const staging = Boolean(event.platform?.env.STAGING);
 	const response = await resolve(event, {
-		transformPageChunk: ({ html }) => (url.hostname === CANONICAL_HOST ? html.replace('</head>', `${ANALYTICS_BEACON}</head>`) : html)
+		transformPageChunk: ({ html }) => {
+			if (url.hostname === CANONICAL_HOST) return html.replace('</head>', `${ANALYTICS_BEACON}</head>`);
+			if (staging) return html.replace('</body>', `${STAGING_BADGE}</body>`);
+			return html;
+		}
 	});
+	// Staging sits behind Cloudflare Access already; this keeps it out of search results regardless.
+	if (staging) response.headers.set('x-robots-tag', 'noindex, nofollow');
 
 	// Every page carries the signed-in user through the root layout, so a response rendered
 	// for a session must never land in a shared cache.

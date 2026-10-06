@@ -28,7 +28,7 @@ const BUILT = new Date(Number(version)).toLocaleString('sv-SE', { timeZone: 'Eur
 
 /** Shown on every page of the staging deploy, so it is never mistaken for the real site. */
 const STAGING_BADGE =
-	`<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;padding:1px 8px;border-radius:0 0 6px 6px;background:#f38ba8;color:#11111b;font:700 11px/1.4 system-ui,sans-serif;letter-spacing:.08em;pointer-events:none">STAGING · ${BUILT}</div>`;
+	`<div style="position:fixed;bottom:calc(4px + env(safe-area-inset-bottom));left:4px;z-index:2147483647;padding:1px 6px;border-radius:5px;opacity:.85;background:#f38ba8;color:#11111b;font:700 9px/1.4 system-ui,sans-serif;letter-spacing:.08em;pointer-events:none">STAGING · ${BUILT}</div>`;
 
 const isLocal =(hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
 

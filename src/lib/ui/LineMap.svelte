@@ -155,6 +155,26 @@
 	 * roughly a thumb's width on screen whatever the zoom. It stays inside the gutter, which is the band
 	 * labels' own space and holds no part of any tree, so nothing it covers was pickable anyway.
 	 */
+	/**
+	 * Ink is drawn in chart units, so the fitted phone map (≈ 0.27) drew its lines at a quarter of a
+	 * pixel and its trail as dust. `ink` thickens strokes, dots and dashes as the scale shrinks, so they
+	 * hold a readable on-screen weight; capped, so a chart pinched right out to `min` does not fill its
+	 * own gaps with ink. A finger also needs a heavier line than a mouse pointer does.
+	 */
+	const ink = $derived(Math.min(4, Math.max(1, 1 / scale)) * (touch ? 1.3 : 1));
+	const inkVars = $derived(
+		[
+			`--ink-fog: ${1.1 * ink}`,
+			`--ink-line: ${2 * ink}`,
+			`--ink-dim: ${1.4 * ink}`,
+			`--ink-glow: ${6 * ink}`,
+			`--ink-node: ${1 * ink}`,
+			`--ink-ember-node: ${1.6 * ink}`,
+			`--dash-fog: ${1.5 * ink} ${3.5 * ink}`,
+			`--dash-dim: ${3 * ink} ${4 * ink}`
+		].join('; ')
+	);
+
 	const headHit = $derived(Math.max(32, Math.min(120, 44 / Math.max(scale, 0.05))));
 	const headWidth = $derived(Math.max(120, chart.gutter - 12));
 	/**
@@ -162,7 +182,12 @@
 	 * again an easy tap. An open band's header has to stay inside the gutter, because its first move sits
 	 * at the gutter's edge and a target over it would fold the band instead of picking the line.
 	 */
-	const hitWidth = (folded: boolean) => (folded ? chart.width - 8 : headWidth);
+	const hitWidth = (folded: boolean) => (folded || chart.strip ? chart.width - 8 : headWidth);
+	/**
+	 * On its own title row a band's name is sized for the screen, not the chart: about 11px whatever the
+	 * fit, capped by the row it has to fit in, and never smaller than the desktop's chart size.
+	 */
+	const titleSize = $derived(chart.strip ? Math.max(12.5, Math.min(chart.strip * 0.62, 11 / scale)) : 12.5);
 
 	/** The chart point currently under a position in the scroller's client box. */
 	function chartPointAt(px: number, py: number) {
@@ -541,6 +566,7 @@
 			width={chart.width * scale}
 			height={chart.height * scale}
 			viewBox="0 0 {chart.width} {chart.height}"
+			style={inkVars}
 			role="img"
 			aria-label="{title}: each variation's lines as a tree, lit where discovered"
 			onpointermove={track}
@@ -565,6 +591,21 @@
 							toggleBand(b.name);
 						}}
 					>
+						{#if chart.strip}
+							<!-- Its own row above the tree: the whole row is the toggle, and nothing in it is a move. -->
+							{@const k = titleSize / 12.5}
+							<rect class="band-hit" x="4" y={b.y - 2} width={hitWidth(true)} height={chart.strip} rx="6" />
+							<path class="chev" style="stroke-width: {1.6 * k}" d={b.collapsed ? 'M0 -4 L5 1 L0 6' : 'M-4 -1 L1 5 L6 -1'} transform="translate({14 * k} {b.y + chart.strip * 0.42}) scale({k})" />
+							<text class="band-name strip" x={26 * k} y={b.y + chart.strip * 0.42 + titleSize * 0.36} style="font-size: {titleSize}px">
+								{b.label}<tspan class="band-count" dx={titleSize * 0.6} style="font-size: {titleSize * 0.82}px">{b.count}</tspan>
+							</text>
+							{#if b.collapsed && b.total}
+								{@const spineW = 90 * k}
+								{@const spineX = chart.width - 12 - spineW}
+								<rect class="spine-track" x={spineX} y={b.y + chart.strip * 0.42 - 2.5 * k} width={spineW} height={5 * k} rx={2.5 * k} />
+								<rect class="spine-fill" x={spineX} y={b.y + chart.strip * 0.42 - 2.5 * k} width={Math.max(b.found ? 3 * k : 0, (b.found / b.total) * spineW)} height={5 * k} rx={2.5 * k} />
+							{/if}
+						{:else}
 						<rect
 							class="band-hit"
 							x="4"
@@ -590,9 +631,17 @@
 							<rect class="spine-track" x={spineX} y={b.y + 5} width={spineW} height="5" rx="2.5" />
 							<rect class="spine-fill" x={spineX} y={b.y + 5} width={Math.max(b.found ? 3 : 0, (b.found / b.total) * spineW)} height="5" rx="2.5" />
 						{/if}
+						{/if}
 					</g>
 				</g>
 			{/each}
+
+			<!-- A soft halo under the played lines: what you have found should read first, at any zoom. -->
+			<g class="glows">
+				{#each chart.edges as edge}
+					{#if edge.state === 'lit' || edge.state === 'ember'}<path class="glow {edge.state}" d={edge.d} />{/if}
+				{/each}
+			</g>
 
 			{#each chart.edges as edge}
 				<path class="edge {edge.state}" d={edge.d} />
@@ -602,7 +651,7 @@
 			{/each}
 
 			<!-- One bead per move, so a line's length can be counted rather than guessed at. -->
-			<g class="beads" style="--bead: {zoom === 'detail' ? 4 : 2.4}px">
+			<g class="beads" style="--bead: {(zoom === 'detail' ? 4 : 2.4) * ink}px">
 				{#each ['fog', 'ember-dim', 'ember', 'lit'] as state (state)}
 					{@const d = beads(state)}
 					{#if d}<path class="bead {state}" {d} />{/if}
@@ -610,7 +659,7 @@
 			</g>
 
 			{#if hover}
-				<circle class="bead-hover" cx={hover.move.x} cy={hover.move.y} r={zoom === 'detail' ? 5 : 3.5} />
+				<circle class="bead-hover" cx={hover.move.x} cy={hover.move.y} r={(zoom === 'detail' ? 5 : 3.5) * ink} />
 			{/if}
 
 			{#each chart.nodes as node}
@@ -634,10 +683,10 @@
 						}}
 					>
 						<circle class="hit" cx={node.x} cy={node.y} r={touch ? 15 : 9} />
-						<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
+						<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r * ink} />
 					</g>
 				{:else}
-					<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r} />
+					<circle class="node {node.kind}" cx={node.x} cy={node.y} r={node.r * ink} />
 				{/if}
 				{#if node.label}
 					<text class="end-name" x={node.x + 8} y={node.y + 4}>{node.label}</text>
@@ -645,8 +694,8 @@
 			{/each}
 
 			{#if chart.here}
-				<circle class="node here" cx={chart.here.x} cy={chart.here.y} r="4" />
-				<circle class="here-ring" cx={chart.here.x} cy={chart.here.y} r="6" />
+				<circle class="node here" cx={chart.here.x} cy={chart.here.y} r={4 * ink} />
+				<circle class="here-ring" cx={chart.here.x} cy={chart.here.y} r={6 * ink} />
 			{/if}
 		</svg>
 	</div>
@@ -678,7 +727,9 @@
 		position: relative;
 		--lit: var(--ok);
 		--ember: var(--accent);
-		--fog: color-mix(in srgb, var(--text-3) 60%, transparent);
+		/* Undiscovered trail: the theme's secondary text, which every theme already makes readable on its
+		   surface, leaning toward its accent so the trail sits in the theme's own hue instead of a grey. */
+		--fog: color-mix(in oklab, var(--text-2) 72%, var(--accent));
 		display: flex;
 		flex-direction: column;
 		height: 100%;
@@ -913,7 +964,7 @@
 	.bead-hover {
 		fill: none;
 		stroke: var(--text);
-		stroke-width: 1.4;
+		stroke-width: var(--ink-dim, 1.4);
 		pointer-events: none;
 	}
 
@@ -957,6 +1008,19 @@
 
 	.band-line {
 		stroke: var(--border);
+		stroke-width: var(--ink-node, 1);
+	}
+
+	/* Over the tree's first row, a title keeps a rim of the panel's colour so a line under it never cuts it. */
+	.band-name.strip {
+		paint-order: stroke;
+		stroke: var(--surface-1);
+		stroke-width: 0.25em;
+		stroke-linejoin: round;
+	}
+
+	.band-name.strip .band-count {
+		fill: var(--text-2);
 	}
 
 	.band-name {
@@ -985,26 +1049,44 @@
 
 	.edge.fog {
 		stroke: var(--fog);
-		stroke-width: 1;
-		stroke-dasharray: 1.5 3.5;
+		stroke-width: var(--ink-fog, 1);
+		stroke-dasharray: var(--dash-fog, 1.5 3.5);
 	}
 
 	/* Solid to the entrance: the moves actually played on this line. */
 	.edge.ember {
 		stroke: var(--ember);
-		stroke-width: 2;
+		stroke-width: var(--ink-line, 2);
 	}
 
 	.edge.ember-dim {
 		stroke: var(--ember);
-		stroke-width: 1.4;
-		stroke-dasharray: 3 4;
+		stroke-width: var(--ink-dim, 1.4);
+		stroke-dasharray: var(--dash-dim, 3 4);
 		opacity: 0.55;
 	}
 
 	.edge.lit {
 		stroke: var(--lit);
-		stroke-width: 2;
+		stroke-width: var(--ink-line, 2);
+	}
+
+	.glow {
+		fill: none;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: var(--ink-glow, 6);
+		opacity: 0.16;
+		pointer-events: none;
+	}
+
+	.glow.lit {
+		stroke: var(--lit);
+	}
+
+	.glow.ember {
+		stroke: var(--ember);
+		opacity: 0.1;
 	}
 
 	/* A found line's end is a button: the dot is the mark, the invisible disc around it is the target. */
@@ -1020,7 +1102,7 @@
 	.pick:focus-visible .node,
 	.pick.asked .node {
 		stroke: var(--text);
-		stroke-width: 2;
+		stroke-width: var(--ink-line, 2);
 	}
 
 	.pick:focus-visible {
@@ -1030,7 +1112,7 @@
 	.node {
 		fill: var(--surface-1);
 		stroke: var(--fog);
-		stroke-width: 1;
+		stroke-width: var(--ink-node, 1);
 	}
 
 	.node.lit {
@@ -1040,7 +1122,7 @@
 
 	.node.ember {
 		stroke: var(--ember);
-		stroke-width: 1.6;
+		stroke-width: var(--ink-ember-node, 1.6);
 	}
 
 	.node.here {
@@ -1099,7 +1181,7 @@
 	.here-ring {
 		fill: none;
 		stroke: var(--ember);
-		stroke-width: 1;
+		stroke-width: var(--ink-node, 1);
 		opacity: 0.6;
 		transform-box: fill-box;
 		transform-origin: center;

@@ -240,6 +240,13 @@ export type Layout = {
 	height: number;
 	/** Where the first move's column starts. Left of it is the band labels' own space, and nothing else. */
 	gutter: number;
+	/**
+	 * Height of the title row above each band's tree, or 0 when the title sits in the gutter instead.
+	 * A phone's map is drawn at about a third of its size, where a title squeezed into the gutter is
+	 * unreadable; given a row of its own, the title can be drawn at a size a phone can read and still
+	 * sit directly over the tree it names.
+	 */
+	strip: number;
 	bands: LayoutBand[];
 	edges: LayoutEdge[];
 	moves: LayoutMove[];
@@ -252,6 +259,8 @@ const ROW: Record<Zoom, number> = { detail: 20, overview: 7 };
 const TOUCH_ROW: Record<Zoom, number> = { detail: 32, overview: 12 };
 const HEAD: Record<Zoom, number> = { detail: 34, overview: 14 };
 const GAP: Record<Zoom, number> = { detail: 20, overview: 10 };
+// Title row above each band's tree on a touch screen (see `Layout.strip`).
+const STRIP = 58;
 // Just enough air above the first band; there is no longer a ruler up there to clear.
 const TOP = 12;
 
@@ -272,21 +281,24 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 	const drawn = bands.filter((b) => !isFolded(b.name));
 	const maxPly = Math.max(opening + 1, ...drawn.flatMap((b) => b.lines.map((l) => l.moves.length)));
 	const row = options.touch ? TOUCH_ROW[zoom] : ROW[zoom];
-	const gutter = detail ? 180 : Math.min(150, Math.round(options.width * 0.36));
+	const strip = options.touch && detail ? STRIP : 0;
+	// With its title on a row of its own, a band's gutter only has to clear the root's own bead: the
+	// narrower chart is what lets a phone's fitted map be drawn larger.
+	const gutter = strip ? 24 : detail ? 180 : Math.min(150, Math.round(options.width * 0.36));
 	const nameSpace = detail ? 230 : 8;
 	const plyW = detail ? 46 : Math.max(6, (options.width - gutter - nameSpace - 16) / (maxPly - opening));
 	const x = (ply: number) => gutter + (ply - opening) * plyW;
 	const width = Math.max(options.width, x(maxPly) + nameSpace);
 
-	const out: Layout = { width, height: 0, gutter, bands: [], edges: [], moves: [], nodes: [], here: null };
+	const out: Layout = { width, height: 0, gutter, strip, bands: [], edges: [], moves: [], nodes: [], here: null };
 	let y = TOP;
 
 	for (const band of bands) {
 		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
 		const folded = isFolded(band.name);
 		const root = trie(band.lines, opening);
-		const leaves = place(root, row, y);
-		const height = folded ? HEAD[zoom] : Math.max(leaves * row, HEAD[zoom]);
+		const leaves = place(root, row, y + strip);
+		const height = folded ? Math.max(HEAD[zoom], strip) : Math.max(leaves * row + strip, HEAD[zoom]);
 		out.bands.push({
 			name: band.name,
 			label: band.kind === 'variation' ? shortVariation(band.name) : band.name,

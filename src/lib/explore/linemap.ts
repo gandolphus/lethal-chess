@@ -102,8 +102,13 @@ export function trie(lines: IndexedLine[], root: number): TrieNode {
 	return top;
 }
 
-/** Tidy placement: leaves stacked `row` apart from `top`, each parent centred on its first and last child. Returns the leaf count. */
-export function place(node: TrieNode, row: number, top: number): number {
+/**
+ * Tidy placement: leaves stacked `row` apart from `top`, each parent centred on its first and last child,
+ * or level with its first child when `align` is 'top'. Top-aligned, a band's trunk runs along its first
+ * row, right under its title, and every branch drops away below it, so no part of a tree sits nearer the
+ * next band's title than its own. Returns the leaf count.
+ */
+export function place(node: TrieNode, row: number, top: number, align: 'centre' | 'top' = 'centre'): number {
 	let leaves = 0;
 	const visit = (n: TrieNode) => {
 		if (!n.children.length) {
@@ -112,7 +117,7 @@ export function place(node: TrieNode, row: number, top: number): number {
 			return;
 		}
 		n.children.forEach(visit);
-		n.y = (n.children[0].y + n.children[n.children.length - 1].y) / 2;
+		n.y = align === 'top' ? n.children[0].y : (n.children[0].y + n.children[n.children.length - 1].y) / 2;
 	};
 	visit(node);
 	return leaves;
@@ -297,7 +302,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
 		const folded = isFolded(band.name);
 		const root = trie(band.lines, opening);
-		const leaves = place(root, row, y + strip);
+		const leaves = place(root, row, y + strip, strip ? 'top' : 'centre');
 		const height = folded ? Math.max(HEAD[zoom], strip) : Math.max(leaves * row + strip, HEAD[zoom]);
 		out.bands.push({
 			name: band.name,
@@ -315,7 +320,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 		// Folded: the header is the whole band. Nothing below it is drawn, so nothing below it can be
 		// hovered, picked or counted against the element budget.
 		if (folded) {
-			y += height + GAP[zoom];
+			y += height + GAP[zoom] + strip * 0.25;
 			continue;
 		}
 
@@ -411,7 +416,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 			if (at) out.here = { x: x(at.ply), y: at.y };
 		}
 
-		y += height + GAP[zoom];
+		y += height + GAP[zoom] + strip * 0.25;
 	}
 
 	out.height = y + 8;

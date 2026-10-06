@@ -62,6 +62,16 @@ describe('trie and place', () => {
 		expect(root.y).toBe(117.5);
 		expect(castled.children[0].ends).toEqual([rio]);
 	});
+
+	it('top-aligned, every parent sits level with its first child, so the trunk runs along the first row', () => {
+		const root = trie([rio, classical, cozio], OPENING.length);
+		place(root, 10, 100, 'top');
+		const berlin = root.children[0];
+		const castled = berlin.children[0];
+		expect(castled.children.map((c) => c.y)).toEqual([105, 115]);
+		expect([castled.y, berlin.y, root.y]).toEqual([105, 105, 105]);
+		expect(root.children[1].y).toBe(125);
+	});
 });
 
 describe('edgeState', () => {

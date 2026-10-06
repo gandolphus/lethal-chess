@@ -1,6 +1,6 @@
 ---
 status: done
-updated: 2026-09-16
+updated: 2026-10-06
 tags: [flow]
 aliases: [Exploration Mode, Line Discovery, Explore]
 ---
@@ -176,6 +176,8 @@ bottom sheet in Overview on phones. Built only while open; rebuilt wholesale on 
 - Monochrome themes (Graphite, Vellum) use `--signal` for "in progress", since their `--ok` and `--accent`
   are both white.
 
+
+**On a phone (2026-10-06):** ink is scaled against the zoom (lines, dashes, beads and nodes keep an on-screen weight), found lines carry a soft halo, the undiscovered trail takes its colour from the theme, and each band has a title row above its tree with the title at about 11px on screen. See [[2026-10-06 On a phone the map's ink and titles are sized for the screen]].
 Screenshots: `Design/Round 3/shots/impl-map-*.png`.
 
 ## Persistence

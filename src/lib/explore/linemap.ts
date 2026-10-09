@@ -302,7 +302,7 @@ export function layout(lines: IndexedLine[], stages: Map<string, LineStage>, opt
 		const bandHere = here !== null && band.lines.some((l) => isHere(l, here));
 		const folded = isFolded(band.name);
 		const root = trie(band.lines, opening);
-		const leaves = place(root, row, y + strip, strip ? 'top' : 'centre');
+		const leaves = place(root, row, y + strip, 'top');
 		const height = folded ? Math.max(HEAD[zoom], strip) : Math.max(leaves * row + strip, HEAD[zoom]);
 		out.bands.push({
 			name: band.name,
